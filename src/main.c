@@ -84,7 +84,6 @@
 #define BOOKMARK_FILE ".bookmarks.xspf"
 
 #define SERVER_PORT 443
-//#define SERVER_NAME "narbo.de"
 #define SERVER_NAME "api.soundcloud.com"
 
 #define TIME_BUFFER_SIZE 64
@@ -241,6 +240,13 @@ static bool cmd_write_playlist(char *file) {
 	return true;
 }
 
+/** \brief Exit SCTC
+ *
+ *  Writes the list of bookmarks to file and shuts down SCTC.
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \return does not return
+ */
 static bool cmd_exit(char *unused) {
 	xspf_write(BOOKMARK_FILE, playlists[LIST_BOOKMARKS]);
 
@@ -266,6 +272,11 @@ static bool cmd_bookmark(char *unused) {
 	return true;
 }
 
+/** \brief Display 'Help' Dialog
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \return true
+ */
 static bool cmd_help(char *unused) {
 	// TODO
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
@@ -279,6 +290,11 @@ static bool cmd_help(char *unused) {
 	return true;
 }
 
+/** \brief Set repeat to 'none'
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \return true
+ */
 static bool cmd_repeat_none(char *unused) {
 	repeat = rep_none;
 	tui_submit_update_tab_bar(playlists, 0, repeat);
@@ -286,6 +302,11 @@ static bool cmd_repeat_none(char *unused) {
 	return true;
 }
 
+/** \brief Set repeat to 'one' (repeat single track)
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \return true
+ */
 static bool cmd_repeat_one(char *unused) {
 	repeat = rep_one;
 	tui_submit_update_tab_bar(playlists, 0, repeat);
@@ -293,6 +314,11 @@ static bool cmd_repeat_one(char *unused) {
 	return true;
 }
 
+/** \brief Set repeat to 'all' (repeat whole track_list)
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \return true
+ */
 static bool cmd_repeat_all(char *unused) {
 	repeat = rep_all;
 	tui_submit_update_tab_bar(playlists, 0, repeat);
@@ -300,7 +326,8 @@ static bool cmd_repeat_all(char *unused) {
 	return true;
 }
 
-/** **Command** Issue a redraw of the whole screen
+/** \brief Issue a redraw of the whole screen
+ *
  *  \return true
  */
 static bool cmd_redraw(char *unused) {
