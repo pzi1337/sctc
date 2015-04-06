@@ -24,9 +24,27 @@
 
 	#include "track.h"
 
+	/** \brief Check weather a track is cached or not
+	 *
+	 *  \param track  The track to search for
+	 *  \return true if track is cached, otherwise false
+	 */
 	bool cache_track_exists(struct track *track);
 
+	/** \brief Load a track from the cache into buffer
+	 *
+	 *  \param track   The track to load
+	 *  \param buffer  The buffer receiving the data
+	 *  \return The number of bytes written to buffer (0 if track is not within the cache)
+	 */
 	size_t cache_track_get(struct track *track, void *buffer);
 
+	/** \brief Save data for a specific track to cache
+	 *
+	 *  \param track   The track to save data for
+	 *  \param buffer  The data to save
+	 *  \param size    The number of Bytes to save
+	 *  \return true if saving to cache was successfull, otherwise false 
+	 */
 	bool cache_track_save(struct track *track, void *buffer, size_t size);
 #endif
