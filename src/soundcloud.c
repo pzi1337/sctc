@@ -141,7 +141,8 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 		return cache_tracks;
 	}
 
-	struct track_list *result = track_list_merge(list, cache_tracks);
+	struct track_list *lists[] = {list, cache_tracks, NULL};
+	struct track_list *result = track_list_merge(lists);
 
 	track_list_destroy(list, false);
 	track_list_destroy(cache_tracks, false);

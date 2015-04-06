@@ -44,30 +44,13 @@ bool track_list_add(struct track_list *list, struct track *track) {
 	return true;
 }
 
-struct track_list* track_list_merge(struct track_list *list1, struct track_list *list2) {
-	struct track_list *list = lmalloc(sizeof(struct track_list));
-	if(!list) return NULL;
-
-	list->count = list1->count + list2->count;
-	list->entries = lcalloc(list->count, sizeof(struct track));
-	if(!list->entries) {
-		free(list);
-		return NULL;
-	}
-
-	memcpy(&list->entries[0], list1->entries, list1->count * sizeof(struct track));
-	memcpy(&list->entries[list1->count], list2->entries, list2->count * sizeof(struct track));
-
-	return list;
-}
-
 static int entry_compare(const void *v1, const void *v2) {
 	struct track *e1 = (struct track*)v1;
 	struct track *e2 = (struct track*)v2;
 	return difftime(mktime(&e2->created_at), mktime(&e1->created_at));
 }
 
-struct track_list* track_list_merge_array(struct track_list **lists) {
+struct track_list* track_list_merge(struct track_list **lists) {
 	struct track_list *list = lcalloc(1, sizeof(struct track_list));
 	if(!list) return NULL;
 

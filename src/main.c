@@ -366,7 +366,7 @@ static struct track_list* get_list() {
 	}
 
 	BENCH_START(MP)
-	struct track_list* list = track_list_merge_array(lists);
+	struct track_list* list = track_list_merge(lists);
 	track_list_sort(list);
 	BENCH_STOP(MP, "Merging playlists")
 
