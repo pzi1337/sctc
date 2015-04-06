@@ -19,10 +19,14 @@
 #ifndef _CACHE_H
 	#define _CACHE_H
 	//\cond
-	#include <stdbool.h>
+	#include <stddef.h>                     // for size_t
 	//\endcond
 
 	#include "track.h"
 
 	bool cache_track_exists(struct track *track);
+
+	size_t cache_track_get(struct track *track, void *buffer);
+
+	bool cache_track_save(struct track *track, void *buffer, size_t size);
 #endif

@@ -41,10 +41,9 @@
 	 *  initializations.
 	 *
 	 *  \param track       the track to play
-	 *  \param url_suffix  a suffix appended to the stream URL prior to sending the request (TODO: remove...)
 	 *  \return            true in case of success, false otherwise
 	 */
-	bool sound_play(struct track *track, char *url_suffix);
+	bool sound_play(struct track *track);
 
 	int sound_get_current_pos();
 

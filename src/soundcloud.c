@@ -36,7 +36,8 @@
 #include "url.h"
 #include "json.h"
 
-#define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&client_id=848ee866ea93c21373f6a8b61772b412"
+#define CLIENTID_GET "client_id=848ee866ea93c21373f6a8b61772b412"
+#define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
 #define CACHE_LIST_FOLDER "./cache/lists/"
 #define CACHE_LIST_EXT ".xspf"
@@ -150,4 +151,24 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 	xspf_write(cache_file, result);
 
 	return result;
+}
+
+struct http_response* soundcloud_connect_track(struct track *track) {
+	char request[strlen(track->stream_url) + 1 + strlen(CLIENTID_GET) + 1];
+	sprintf(request, "%s?"CLIENTID_GET, track->stream_url);
+
+	struct url *u = url_parse_string(request);
+	if(!u) {
+		_log("invalid request '%s'", request);
+		return NULL;
+	}
+
+	url_connect(u);
+	if(!u->nwc) {
+		return NULL;
+	}
+
+	struct http_response *resp = http_request_get_only_header(u->nwc, u->request, u->host, MAX_REDIRECT_STEPS);
+
+	return resp;
 }

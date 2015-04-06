@@ -67,8 +67,6 @@
 #include "url.h"                        // for url, url_connect, etc
 #include "xspf.h"                       // for xspf_write, xspf_read
 
-#define STREAM_URL_SUFFIX "?client_id=848ee866ea93c21373f6a8b61772b412"
-
 #define USE_UNICODE
 
 #define BENCH_START(ID) \
@@ -129,7 +127,7 @@ void tui_update_time(int time) {
 
 		list->entries[playing].flags |= FLAG_PLAYING;
 
-		sound_play(&list->entries[playing], STREAM_URL_SUFFIX);
+		sound_play(&list->entries[playing]);
 */
 		_log("playback done =)");
 	}
@@ -845,7 +843,7 @@ int main(int argc, char **argv) {
 
 				tui_submit_set_list_action(list);
 
-				sound_play(&list->entries[list->selected], STREAM_URL_SUFFIX);
+				sound_play(&list->entries[list->selected]);
 				break;
 			}
 

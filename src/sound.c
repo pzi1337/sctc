@@ -17,27 +17,28 @@
 */
 
 //\cond
+#include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
 #include <errno.h>                      // for errno
+#include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
 #include <pthread.h>                    // for pthread_create, etc
 #include <semaphore.h>                  // for sem_post, sem_wait, etc
-#include <stddef.h>                     // for size_t
-#include <stdio.h>                      // for NULL, fclose, fopen, etc
+#include <stddef.h>                     // for NULL, size_t
+#include <stdio.h>                      // for fclose, fopen, FILE, fileno, etc
 #include <stdlib.h>                     // for free
-#include <string.h>                     // for strerror, strlen
+#include <string.h>                     // for strerror
 #include <sys/stat.h>                   // for stat, fstat, off_t
 //\endcond
 
-#include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
-#include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
-
 #include "sound.h"
+
+#include "cache.h"
 #include "helper.h"                     // for lmalloc
 #include "http.h"                       // for http_response, etc
 #include "log.h"                        // for _log
 #include "network/network.h"            // for network_conn
+#include "soundcloud.h"                 // for soundcloud_connect_track
 #include "track.h"                      // for track, FLAG_CACHED
 #include "tui.h"
-#include "url.h"                        // for url, url_connect, etc
 
 #define BUFFER_SIZE 256 * 1024 * 1024
 
@@ -56,7 +57,6 @@ static mpg123_handle *mh = NULL;
 
 static volatile int           buffer_pos  = 0;
 static volatile char         *buffer      = NULL;
-static volatile char         *request     = NULL;
 static volatile struct track *track       = NULL;
 static volatile int           current_pos = 0;
 static volatile bool          stopped     = false;
@@ -73,41 +73,17 @@ void* _thread_io_function(void *unused) {
 			continue;
 		}
 
-		char cache_file[256]; // TODO
-		sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
-		FILE *fh = fopen(cache_file, "r");
-		if(fh) {
-			_log("using file '%s'", cache_file);
-
-			struct stat cache_stat;
-			fstat(fileno(fh), &cache_stat);
-
-			fread((void *) buffer, 1, cache_stat.st_size, fh);
-			fclose(fh);
-
-			buffer_pos = cache_stat.st_size;
-
-			_log("whole file read!");
-
+		if((buffer_pos = cache_track_get((struct track*) track, (void*) buffer))) {
 			sem_post(&sem_data_available);
 			sem_post(&sem_play);
 		} else {
-			struct url *u = url_parse_string((char*) request);
-			if(!u) {
-				_log("invalid request '%s'", request);
-				continue;
-			}
-
-			url_connect(u);
-			struct network_conn *nwc = u->nwc;
-			if(!nwc) {
+			struct http_response* resp = soundcloud_connect_track((struct track*) track);
+			if(!resp) {
 				tui_submit_status_line_print(cline_warning, F_BOLD"Error:"F_RESET" connection failed");
 				break;
 			}
-			struct http_response *resp = http_request_get_only_header(nwc, u->request, u->host, MAX_REDIRECT_STEPS);
-			nwc = resp->nwc;
 
-			if(nwc) {
+			if(resp->nwc) {
 				_log("request sent: status %i, %i + %i Bytes in response", resp->http_status, resp->header_length, resp->content_length);
 
 				sem_post(&sem_play);
@@ -118,8 +94,8 @@ void* _thread_io_function(void *unused) {
 					remaining_buffer = resp->content_length;
 				}
 
-				while( remaining_buffer && !terminate && !stopped && request ) {
-					int ret = nwc->recv(nwc, (char*) buffer + buffer_pos, remaining_buffer);
+				while( remaining_buffer && !terminate && !stopped && track ) {
+					int ret = resp->nwc->recv(resp->nwc, (char*) buffer + buffer_pos, remaining_buffer);
 					if(ret > 0) {
 						sem_post(&sem_data_available);
 						__sync_fetch_and_sub(&remaining_buffer, ret);
@@ -128,15 +104,12 @@ void* _thread_io_function(void *unused) {
 				}
 
 				_log("streaming done, %d Bytes streamed", buffer_pos);
-				nwc->disconnect(nwc);
+				resp->nwc->disconnect(resp->nwc);
 
 				if(resp->content_length == buffer_pos) {
-					_log("saving buffer to file '%s'", cache_file);
-					FILE *fh = fopen(cache_file, "w");
-					fwrite((void *) buffer, 1, buffer_pos, fh);
-					fclose(fh);
-
-					track->flags |= FLAG_CACHED;
+					if(cache_track_save((struct track*) track, (void*) buffer, resp->content_length)) {
+						track->flags |= FLAG_CACHED;
+					}
 				} else {
 					_log("server announced %i Bytes, only got %i Bytes", resp->content_length, buffer_pos);
 					_log("NOT saving buffer to file");
@@ -189,7 +162,7 @@ void* _thread_play_function(void *unused) {
 		int last_reported_pos = -1;
 
 		long decoded_frames = 0;
-		while(!terminate && !stopped && request) {
+		while(!terminate && !stopped && track) {
 			int current_buffer_pos = buffer_pos;
 			if(last_buffer_pos != current_buffer_pos) {
 				mpg123_feed(mh, (const unsigned char*)buffer + last_buffer_pos, current_buffer_pos - last_buffer_pos);
@@ -348,7 +321,6 @@ bool sound_stop() {
 	sem_wait(&sem_stopped);
 	sem_wait(&sem_stopped);
 
-	request = NULL;
 	track   = NULL;
 	stopped = false;
 
@@ -372,10 +344,7 @@ int sound_get_current_pos() {
 	return current_pos;
 }
 
-bool sound_play(struct track *_track, char *url_suffix) {
-	request = lmalloc(strlen(_track->stream_url) + strlen(url_suffix) + 1);
-	sprintf((char*) request, "%s%s", _track->stream_url, url_suffix);
-
+bool sound_play(struct track *_track) {
 	track       = _track;
 	current_pos = 0;
 	buffer_pos  = 0;

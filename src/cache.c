@@ -16,22 +16,61 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#include <string.h>
-#include <stdio.h>
+//\cond
+#include <stdio.h>                      // for fclose, fileno, fopen, etc
+#include <string.h>                     // for strlen
+#include <sys/stat.h>                   // for stat, fstat
+//\endcond
 
-#include "track.h"
 #include "cache.h"
+
+#include "log.h"                        // for _log
+#include "track.h"                      // for track
 
 #define CACHE_STREAM_FOLDER "./cache/streams/"
 #define CACHE_STREAM_EXT ".mp3"
 
 bool cache_track_exists(struct track *track) {
+        char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
+        sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+        FILE *fh = fopen(cache_file, "r");
+
+        if(fh) {
+                fclose(fh);
+                return true;
+        }
+	return false;
+}
+
+size_t cache_track_get(struct track *track, void *buffer) {
 	char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
 	sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
 	FILE *fh = fopen(cache_file, "r");
 
 	if(fh) {
+		_log("using file '%s'", cache_file);
+
+		struct stat cache_stat;
+		fstat(fileno(fh), &cache_stat);
+
+		fread(buffer, 1, cache_stat.st_size, fh);
 		fclose(fh);
+
+		return cache_stat.st_size;
+	}
+
+	return 0;
+}
+
+bool cache_track_save(struct track *track, void *buffer, size_t size) {
+	char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
+	sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	FILE *fh = fopen(cache_file, "w");
+
+	if(fh) {
+		fwrite((void *) buffer, 1, size, fh);
+		fclose(fh);
+
 		return true;
 	}
 

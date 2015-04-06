@@ -21,7 +21,9 @@
 
 	#include "network/tls.h"
 	#include "track.h"
+	#include "http.h"
 
 	struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user);
+	struct http_response* soundcloud_connect_track(struct track *track);
 
 #endif /* _SOUNDCLOUD_H */
