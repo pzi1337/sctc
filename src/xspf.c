@@ -54,24 +54,24 @@ static void write_xspf_track(xmlTextWriterPtr writer, struct track *track) {
 	/* use meta-tags to save 'bpm' (beats per minute) and date of creation */
 	
 	xmlTextWriterStartElement(writer, BAD_CAST "meta");
-	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://scc.narbo.de/bpm");
+	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://sctc.narbo.de/bpm");
 	xmlTextWriterWriteFormatString(writer, "%u", track->bpm);
 	xmlTextWriterEndElement(writer); // end bpm
 
 	xmlTextWriterStartElement(writer, BAD_CAST "meta");
-	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://scc.narbo.de/user_id");
+	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://sctc.narbo.de/user_id");
 	xmlTextWriterWriteFormatString(writer, "%u", track->user_id);
 	xmlTextWriterEndElement(writer); // end user_id
 
 	xmlTextWriterStartElement(writer, BAD_CAST "meta");
-	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://scc.narbo.de/track_id");
+	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://sctc.narbo.de/track_id");
 	xmlTextWriterWriteFormatString(writer, "%u", track->track_id);
 	xmlTextWriterEndElement(writer); // end track_id
 
 	char time_buffer[256];
 	strftime(time_buffer, sizeof(time_buffer), "%Y/%m/%d %H:%M:%S %z", &track->created_at);
 	xmlTextWriterStartElement(writer, BAD_CAST "meta");
-	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://scc.narbo.de/created_at");
+	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://sctc.narbo.de/created_at");
 	xmlTextWriterWriteFormatString(writer, "%s", time_buffer);
 	xmlTextWriterEndElement(writer); // end creation time
 
@@ -119,16 +119,16 @@ static struct track* xspf_read_track(xmlNode *node) {
 
 		if(sub->children && xmlStrEqual(BAD_CAST "meta", sub->name)) {
 			xmlChar *relProp = xmlGetProp(sub, BAD_CAST "rel");
-			if(sub->children && xmlStrEqual(BAD_CAST "http://scc.narbo.de/bpm", relProp))
+			if(sub->children && xmlStrEqual(BAD_CAST "http://sctc.narbo.de/bpm", relProp))
 				track->bpm = atoi((char*) sub->children->content);
 
-			if(sub->children && xmlStrEqual(BAD_CAST "http://scc.narbo.de/track_id", relProp))
+			if(sub->children && xmlStrEqual(BAD_CAST "http://sctc.narbo.de/track_id", relProp))
 				track->track_id = atoi((char*) sub->children->content);
 
-			if(sub->children && xmlStrEqual(BAD_CAST "http://scc.narbo.de/user_id", relProp))
+			if(sub->children && xmlStrEqual(BAD_CAST "http://sctc.narbo.de/user_id", relProp))
 				track->user_id = atoi((char*) sub->children->content);
 
-			if(sub->children && xmlStrEqual(BAD_CAST "http://scc.narbo.de/created_at", relProp)) {
+			if(sub->children && xmlStrEqual(BAD_CAST "http://sctc.narbo.de/created_at", relProp)) {
 				strptime((const char *) sub->children->content, "%Y/%m/%d %H:%M:%S %z", &track->created_at);
 			}
 			xmlFree(relProp);

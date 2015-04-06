@@ -18,4 +18,4 @@ all: soundcloud.o cache.o sound.o main.o helper.o log.o config.o http.o m3u.o xs
 	gcc $+ $(LDFLAGS) -o ../bin/sctc
 
 clean:
-	@rm -rf *.o
+	@rm -rf *.o network/*.o

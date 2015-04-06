@@ -66,7 +66,7 @@ static bool terminate = false;
 static bool whole_redraw_required = false;
 
 /* the current 'state' */
-static struct track_list  *list = NULL;  //< no default tracklist, is required to be set on starting scc
+static struct track_list  *list = NULL;  //< no default tracklist, is required to be set on starting SCTC
 
 static struct title_line {
 	char *text; //< the text currently shown in the title line

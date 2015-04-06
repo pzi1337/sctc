@@ -315,7 +315,7 @@ static struct command commands[] = {
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
 	{"help",        "Show help",             cmd_help},
 	{"write",       "Write current playlist to file (either .xspf (recommend) or .m3u)",  cmd_write_playlist},
-	{"exit",        "Terminate scc",         cmd_exit},
+	{"exit",        "Terminate SCTC",        cmd_exit},
 	{NULL,          NULL, NULL}
 };
 
@@ -625,7 +625,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 }
 
 int main(int argc, char **argv) {
-	log_init("sc.log");
+	log_init("sctc.log");
 
 	for(size_t i = 1; i < argc; i++) {
 		_log("param: %s", argv[i]);
