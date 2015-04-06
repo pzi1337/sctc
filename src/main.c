@@ -98,6 +98,10 @@ static int playing = -1; ///< the currently playing entry
 static enum repeat repeat = rep_none;
 struct track_list *playlists[4] = { NULL };
 
+#define LIST_STREAM     0
+#define LIST_BOOKMARKS  1
+#define LIST_USER1      2
+
 /** \brief Update the current playback time.
  *
  *  If time equals -1, then the next track is selected (if any) and playback initiated. (\todo not yet working!)
@@ -109,10 +113,7 @@ void tui_update_time(int time) {
 	if(-1 != time) {
 		list->entries[playing].current_position = time;
 		tui_submit_int_action(set_sbar_time, time);
-
-		struct tui_action *action = tui_action_init(set_list);
-		action->list = list;
-		tui_submit_action(action);
+		tui_submit_set_list_action(list);
 	} else {
 /*
 		list->entries[playing].current_position = 0;
@@ -221,9 +222,7 @@ static bool cmd_open_user(char *user) {
 
 	list->position = 0;
 
-	struct tui_action *action = tui_action_init(set_list);
-	action->list = list;
-	tui_submit_action(action);
+	tui_submit_set_list_action(list);
 
 	return true;
 }
@@ -242,15 +241,28 @@ static bool cmd_write_playlist(char *file) {
 	return true;
 }
 
-/** \todo Implement */
 static bool cmd_exit(char *unused) {
-	_log("TODO");
+	xspf_write(BOOKMARK_FILE, playlists[LIST_BOOKMARKS]);
+
+	track_list_destroy(playlists[LIST_STREAM], true);
+	track_list_destroy(playlists[LIST_BOOKMARKS], true); // TODO: double free!
+	free(playlists[LIST_USER1]); // TODO
+	sound_finalize();
+	tls_finalize();
+	config_finalize();
+
+	tui_finalize();
+
+	log_close();
+	exit(EXIT_SUCCESS);
+
 	return true;
 }
 
-/** \todo Implement */
 static bool cmd_bookmark(char *unused) {
-	_log("TODO");
+	track_list_add(playlists[LIST_BOOKMARKS], &list->entries[list->selected]);
+	tui_submit_status_line_print(cline_default, "Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[list->selected].name);
+
 	return true;
 }
 
@@ -618,34 +630,24 @@ int main(int argc, char **argv) {
 	tui_submit_status_line_print(cline_default, "");
 	tui_submit_title_line_print("");
 
-	struct track_list *list_bookmarks = xspf_read(BOOKMARK_FILE);
-	list_bookmarks->name = "Bookmarks";
-	struct track_list *list_user1 = lcalloc(1, sizeof(struct track_list));
-	list_user1->name = "User List 1";
+	playlists[LIST_BOOKMARKS] = xspf_read(BOOKMARK_FILE);
+	playlists[LIST_BOOKMARKS]->name = "Bookmarks";
 
-	playlists[1] = list_bookmarks;
-	playlists[2] = list_user1;
+	playlists[LIST_USER1] = lcalloc(1, sizeof(struct track_list));
+	playlists[LIST_USER1]->name = "User List 1";
 
 	list = get_list();
 	list->name = "Stream";
 
 	// send new list to tui-thread
-	struct tui_action *action = tui_action_init(set_list);
-	action->list = list;
+	tui_submit_set_list_action(list);
 
-	tui_submit_action(action);
-	//
-
-	playlists[0] = list;
+	playlists[LIST_STREAM] = list;
 
 	tui_submit_update_tab_bar(playlists, 0, repeat);
 	tui_submit_status_line_print(cline_default, "Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", list->count, config_get_subscribe_count());
 
-	{
-		struct tui_action *action = tui_action_init(set_list);
-		action->list = list;
-		tui_submit_action(action);
-	}
+	tui_submit_set_list_action(list);
 
 	int c;
 
@@ -653,36 +655,20 @@ int main(int argc, char **argv) {
 	while( (c = getch()) ) {
 		switch(c) {
 			case 'q':
-				xspf_write(BOOKMARK_FILE, list_bookmarks);
-
-				track_list_destroy(playlists[0], true);
-				track_list_destroy(playlists[1], true); // TODO: double free!
-				free(list_user1); // TODO
-				sound_finalize();
-				tls_finalize();
-				config_finalize();
-
-				tui_finalize();
-
-				log_close();
-				exit(EXIT_SUCCESS);
+				cmd_exit(NULL);
 				break;
 
-			case '0': // show logs
-				// TODO
+			case '0': /** \todo show logs */
 				break;
 
 			case '1':
 			case '2':
 			case '3': {
 				if(playlists[c - '1']->count) {
-					struct tui_action *action = tui_action_init(set_list);
 					list = playlists[c - '1'];
 					list->position = 0;
-					action->list = list;
 
-					tui_submit_action(action);
-
+					tui_submit_set_list_action(list);
 					tui_submit_status_line_print(cline_default, "Info: Switching to "F_BOLD"%s"F_RESET, playlists[c - '1']->name);
 					tui_submit_update_tab_bar(playlists, c - '1', repeat);
 				} else {
@@ -696,13 +682,6 @@ int main(int argc, char **argv) {
 				handle_search(searchbuf, 127);
 				_log("have search: %s", searchbuf);
 
-				// TODO
-/*
-				color_set(cline_default, NULL);
-				echo();
-				mvgetnstr(LINES - 1, 1, searchbuf, 127);
-				noecho();
-*/
 				// fall through
 
 			case 'n':
@@ -728,8 +707,7 @@ int main(int argc, char **argv) {
 				break;
 
 			case 'b':
-				track_list_add(list_bookmarks, &list->entries[list->selected]);
-				tui_submit_status_line_print(cline_default, "Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[list->selected].name);
+				cmd_bookmark(NULL);
 				break;
 
 			case ':': {
@@ -741,10 +719,7 @@ int main(int argc, char **argv) {
 					if(-1 != jump_target) {
 						list->selected = jump_target;
 
-						struct tui_action *action = tui_action_init(set_list);
-						action->list = list;
-						tui_submit_action(action);
-
+						tui_submit_set_list_action(list);
 						tui_submit_status_line_print(cline_default, "");
 					}
 				} else {
@@ -755,22 +730,10 @@ int main(int argc, char **argv) {
 
 			case 'r': {
 				switch(repeat) {
-					case rep_none:
-						repeat = rep_one;
-						tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'repeat one'");
-						break;
-
-					case rep_one:
-						repeat = rep_all;
-						tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'repeat all'");
-						break;
-
-					case rep_all:
-						repeat = rep_none;
-						tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'repeat none'");
-						break;
+					case rep_none: cmd_repeat_one (NULL); break;
+					case rep_one:  cmd_repeat_all (NULL); break;
+					case rep_all:  cmd_repeat_none(NULL); break;
 				}
-				tui_submit_update_tab_bar(playlists, 0, repeat);
 				break;
 			}
 
@@ -793,9 +756,7 @@ int main(int argc, char **argv) {
 					list->entries[playing].flags = (list->entries[playing].flags & ~FLAG_PLAYING) | FLAG_PAUSED;
 					list->entries[playing].current_position = sound_get_current_pos();
 
-					struct tui_action *action = tui_action_init(set_list);
-					action->list = list;
-					tui_submit_action(action);
+					tui_submit_set_list_action(list);
 
 					playing = -1;
 				}
@@ -808,9 +769,7 @@ int main(int argc, char **argv) {
 					list->entries[playing].flags &= ~FLAG_PLAYING;
 					list->entries[playing].current_position = 0;
 
-					struct tui_action *action = tui_action_init(set_list);
-					action->list = list;
-					tui_submit_action(action);
+					tui_submit_set_list_action(list);
 
 					playing = -1;
 				}
@@ -846,11 +805,7 @@ int main(int argc, char **argv) {
 						list->entries[playing].flags |= FLAG_PAUSED;
 					}
 
-					struct tui_action *action = tui_action_init(set_list);
-					action->list = list;
-					tui_submit_action(action);
-
-					playing = -1;
+					tui_submit_set_list_action(list);
 				}
 
 				char time_buffer[TIME_BUFFER_SIZE];
@@ -861,9 +816,7 @@ int main(int argc, char **argv) {
 				playing = list->selected;
 				list->entries[list->selected].flags = (list->entries[list->selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
-				struct tui_action *action = tui_action_init(set_list);
-				action->list = list;
-				tui_submit_action(action);
+				tui_submit_set_list_action(list);
 
 				sound_play(&list->entries[list->selected], STREAM_URL_SUFFIX);
 				break;

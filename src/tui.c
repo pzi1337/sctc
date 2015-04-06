@@ -732,6 +732,12 @@ void tui_submit_int_action(enum tui_action_kind kind, int intval) {
 	tui_submit_action(action);
 }
 
+void tui_submit_set_list_action(struct track_list *list) {
+	struct tui_action *action = tui_action_init(set_list);
+	action->list = list;
+	tui_submit_action(action);
+}
+
 void tui_submit_action(struct tui_action *_action) {
 	sem_wait(&sem_wait_action);
 	action = _action;

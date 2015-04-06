@@ -117,6 +117,7 @@
 
 	void tui_submit_action(struct tui_action *_action);
 	void tui_submit_int_action(enum tui_action_kind kind, int intval);
+	void tui_submit_set_list_action(struct track_list *list);
 
 	void tui_submit_input_action(char *input);
 	void tui_submit_update_tab_bar(struct track_list **playlists, size_t selected, enum repeat repeat);
