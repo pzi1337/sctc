@@ -345,35 +345,6 @@ static int command_dispatcher(char *command) {
 	return -1;
 }
 
-int entry_compare(const void *v1, const void *v2) {
-	struct track *e1 = (struct track*)v1;
-	struct track *e2 = (struct track*)v2;
-	return difftime(mktime(&e2->created_at), mktime(&e1->created_at));
-}
-
-static struct track_list* merge_lists(struct track_list **lists) {
-	struct track_list *list = lcalloc(1, sizeof(struct track_list));
-	if(!list) return NULL;
-
-	list->count = 0;
-
-	for(int i = 0; lists[i]; i++) {
-		list->count += lists[i]->count;
-	}
-
-	list->entries = lmalloc(list->count * sizeof(struct track));
-
-	int pos = 0;
-	for(int i = 0; lists[i]; i++) {
-		memcpy(&(list->entries[pos]), lists[i]->entries, lists[i]->count * sizeof(struct track));
-		pos += lists[i]->count;
-	}
-
-	qsort(list->entries, list->count, sizeof(struct track), entry_compare);
-
-	return list;
-}
-
 /** \todo remove this early-day-hack */
 static struct track_list* get_list() {
 	struct network_conn *nwc = NULL;
@@ -395,7 +366,8 @@ static struct track_list* get_list() {
 	}
 
 	BENCH_START(MP)
-	struct track_list* list = merge_lists(lists);
+	struct track_list* list = track_list_merge_array(lists);
+	track_list_sort(list);
 	BENCH_STOP(MP, "Merging playlists")
 
 	for(int i = 0; i < config_get_subscribe_count(); i++) {

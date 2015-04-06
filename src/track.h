@@ -94,7 +94,18 @@
 	 */
 	struct track_list* track_list_merge(struct track_list *list1, struct track_list *list2);
 
+	/** \brief Merge an array of track_lists
+	 *
+	 *  The resulting list is not sorted, entries from all lists are simply concatinated.
+	 *  Both input lists are not modified, call track_list_destroy() if they are no longer needed.
+	 *  The struct tracks within the list are duplicated, the struct tracks' members are not - set free_trackdata to false!
+	 *
+	 *  \param lists  A NULL-terminated array containing the track_lists to be merged into one
+	 *  \return a new list containing all tracks all lists
+	 */
+	struct track_list* track_list_merge_array(struct track_list **lists);
 
+	void track_list_sort(struct track_list *list);
 	bool track_list_append(struct track_list *target, struct track_list *source);
 
 	/**
