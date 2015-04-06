@@ -80,6 +80,11 @@
 	// TODO: put to location it belongs to (where?)
 	enum repeat {rep_none, rep_one, rep_all};
 
+	/** \brief Add a single track to an existing track_list
+	 *
+	 *  \param list   The list receiving the new track
+	 *  \param track  The track, which will be added to list
+	 */
 	bool track_list_add(struct track_list *list, struct track *track);
 
 	/** \brief Merge an array of track_lists
@@ -93,11 +98,22 @@
 	 */
 	struct track_list* track_list_merge(struct track_list **lists);
 
+	/** \brief Sort a track_list by creation time
+	 *
+	 *  \param list  The list to be sorted
+	 */
 	void track_list_sort(struct track_list *list);
+
+	/** \brief Append a list to another list
+	 *
+	 *  \todo remove in favour of track_list_merge()
+	 */
 	bool track_list_append(struct track_list *target, struct track_list *source);
 
-	/**
+	/** \brief Check if list contains a track, identified by its permalink
 	 *
+	 *  \param list       The list to search in
+	 *  \param permalink  The permalink to use for searching
 	 */
 	bool track_list_contains(struct track_list *list, char *permalink);
 
