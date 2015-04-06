@@ -90,7 +90,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 				return NULL;
 			}
 
-			struct json_array *array = NULL; //json_get_array(, "collection", NULL);
+			struct json_array *array = json_get_array(node, "collection", NULL);
 			if(array) {
 				next_part->entries = lcalloc(array->len + 1, sizeof(struct track));
 				next_part->count   = array->len;
