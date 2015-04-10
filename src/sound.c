@@ -59,12 +59,62 @@ static volatile int           buffer_pos  = 0;
 static volatile char         *buffer      = NULL;
 static volatile struct track *track       = NULL;
 static volatile int           current_pos = 0;
+
+/** The amount of data for the whole track.
+    As soon as we reach this position during playback the end of track has been reached */
+static volatile size_t        track_size  = 0;
 static volatile bool          stopped     = false;
 static volatile bool          terminate   = false;
 
 static void (*time_callback)(int);
 
-void* _thread_io_function(void *unused) {
+static char* ao_strerror(int err) {
+	switch(err) {
+		case AO_ENODRIVER:   return "no driver with given id exists";
+		case AO_ENOTLIVE:    return "not live";
+		case AO_EBADOPTION:  return "bad option";
+		case AO_EOPENDEVICE: return "failed to open device";
+		case AO_EFAIL:       return "error unknown";
+		default:             return "<unknown ao error>";
+	}
+}
+
+/** \brief Reinitialize libmpg123
+ *
+ *  \param mh  The old handle to close (may be NULL)
+ *  \return    A pointer to the new handle (or NULL in case of failure)
+ */
+static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
+	if(mh) {
+		mpg123_close(mh);
+		mpg123_delete(mh);
+	}
+
+	mpg123_handle *new_mh = mpg123_new(NULL, NULL);
+	if(!new_mh) {
+		_log("mpg123_new failed");
+		return NULL;
+	}
+
+	if(MPG123_OK != mpg123_open_feed(new_mh)) {
+		_log("mpg123_open_feed: %s", mpg123_strerror(new_mh));
+		return NULL;
+	}
+
+	if(MPG123_OK != mpg123_param(new_mh, MPG123_FLAGS, MPG123_QUIET, 0.0)) {
+		_log("mpg123_param: %s", mpg123_strerror(new_mh));
+		return NULL;
+	}
+
+	return new_mh;
+}
+
+/** \brief main function for IO thread.
+ *
+ *  \param unused  Unused parameter (never read), required due to pthread interface
+ *  \return NULL   Unused return value, required due to pthread interface
+ */
+static void* _thread_io_function(void *unused) {
 	do {
 		sem_wait(&sem_io); // wait until IO is required (downloading a new track)
 		if(terminate) return NULL;
@@ -73,7 +123,10 @@ void* _thread_io_function(void *unused) {
 			continue;
 		}
 
-		if((buffer_pos = cache_track_get((struct track*) track, (void*) buffer))) {
+		if( ( buffer_pos = cache_track_get((struct track*) track, (void*) buffer) ) ) {
+			_log("using file from cache for '%s' by '%s'", track->name, track->username);
+			track_size = buffer_pos;
+
 			sem_post(&sem_data_available);
 			sem_post(&sem_play);
 		} else {
@@ -85,6 +138,8 @@ void* _thread_io_function(void *unused) {
 
 			if(resp->nwc) {
 				_log("request sent: status %i, %i + %i Bytes in response", resp->http_status, resp->header_length, resp->content_length);
+
+				track_size = resp->content_length;
 
 				sem_post(&sem_play);
 
@@ -126,10 +181,20 @@ void* _thread_io_function(void *unused) {
 	return NULL;
 }
 
-void* _thread_play_function(void *unused) {
+/** \brief main function for playback thread.
+*
+*  \param unused  Unused parameter (never read), required due to pthread interface
+*  \return NULL   Unused return value, required due to pthread interface
+*/
+static void* _thread_play_function(void *unused) {
 	ao_device *dev = NULL;
+
+	/** \todo 'quiet' is not quiet at all... */
 	ao_option *ao_opt = NULL;
 	ao_append_option(&ao_opt, "quiet", NULL);
+	ao_append_global_option("quiet", "true");
+
+	double time_per_frame = 0;
 
 	do {
 		_log("waiting for playback");
@@ -154,15 +219,15 @@ void* _thread_play_function(void *unused) {
 		unsigned char *audio = NULL;
 		size_t done;
 
-		double time_per_frame = 0;
-
 		int last_buffer_pos = 0;
 		bool started = false;
 
 		int last_reported_pos = -1;
 
+		bool playback_done = false;
+
 		long decoded_frames = 0;
-		while(!terminate && !stopped && track) {
+		while(!terminate && !stopped && !playback_done && track) {
 			int current_buffer_pos = buffer_pos;
 			if(last_buffer_pos != current_buffer_pos) {
 				mpg123_feed(mh, (const unsigned char*)buffer + last_buffer_pos, current_buffer_pos - last_buffer_pos);
@@ -187,6 +252,9 @@ void* _thread_play_function(void *unused) {
 						ao_close(dev);
 					}
 					dev = ao_open_live(ao_default_driver_id(), &format, ao_opt);
+					if(!dev) {
+						_log("ao_open_live: %s", ao_strerror(errno));
+					}
 					break;
 
 				case MPG123_OK:
@@ -208,10 +276,15 @@ void* _thread_play_function(void *unused) {
 					break;
 
 				case MPG123_NEED_MORE:
-					if(started) {
-						_log("your network is too slow: buffer empty!");
+					if(last_buffer_pos >= track_size) {
+						playback_done = true;
+					} else {
+						if(started) {
+							_log("your network is too slow: buffer empty!");
+						}
+						sem_wait(&sem_data_available); // wait for data
 					}
-					sem_wait(&sem_data_available); // wait for data
+
 					break;
 
 				default:
@@ -221,6 +294,8 @@ void* _thread_play_function(void *unused) {
 
 		if(stopped) {
 			sem_post(&sem_stopped);
+		} else if(playback_done) {
+			time_callback(-1);
 		}
 	} while(!terminate);
 	ao_free_options(ao_opt);
@@ -238,14 +313,7 @@ bool sound_init(void (*_time_callback)(int)) {
 		ao_initialize();
 
 		mpg123_init();
-		mh = mpg123_new(NULL, NULL);
-		mpg123_open_feed(mh);
-
-		long mpg123_verbose = -1;
-		mpg123_getparam(mh, MPG123_VERBOSE, &mpg123_verbose, NULL);
-		_log("libmpg123 verbosity: %i", mpg123_verbose);
-
-		mpg123_param(mh, MPG123_ADD_FLAGS, MPG123_QUIET, 0.0);
+		mh = mpg123_reinit(NULL);
 
 		if(!sem_init(&sem_io, 0, 0)) {
 			if(sem_init(&sem_play, 0, 0)) {
@@ -280,7 +348,6 @@ bool sound_init(void (*_time_callback)(int)) {
 }
 
 bool sound_finalize() {
-	// TODO
 	terminate = true;
 
 	_log("waiting for threads to terminate...");
@@ -328,12 +395,8 @@ bool sound_stop() {
 	SEM_SET_TO_ZERO(sem_play)
 	SEM_SET_TO_ZERO(sem_data_available)
 
-	/* reinitialize the mh to drop 'old' data */
-	mpg123_close(mh);
-	mpg123_delete(mh);
-
-	mh = mpg123_new(NULL, NULL);
-	mpg123_open_feed(mh);
+	/* reinitialize the mh to drop any 'old' data */
+	mh = mpg123_reinit(mh);
 
 	_log("stopping done");
 
@@ -348,30 +411,10 @@ bool sound_play(struct track *_track) {
 	track       = _track;
 	current_pos = 0;
 	buffer_pos  = 0;
+	track_size  = 0;
 
 	sem_post(&sem_io);
-/*
-	struct timespec prebuffer_start;
-	clock_gettime(CLOCK_MONOTONIC, &prebuffer_start);
 
-	printf("pre-buffering..."); fflush(stdout);
-	size_t remaining_buffer = buffer_size;
-	int ret;
-	while( remaining_buffer ) {
-		ret = nwc2->recv(nwc2, buffer + (buffer_size - remaining_buffer), remaining_buffer);
-		if(ret > 0) {
-			remaining_buffer -= ret;
-		}
-	}
-	struct timespec prebuffer_end;
-	clock_gettime(CLOCK_MONOTONIC, &prebuffer_end);
-
-	long prebuffer_ms = (prebuffer_end.tv_sec - prebuffer_start.tv_sec) * 1000 + (prebuffer_end.tv_nsec - prebuffer_start.tv_nsec) / (1000 * 1000);
-
-	printf("done, %d Bytes in prebuffer, %ums, %fkB/s\n", buffer_size, prebuffer_ms, ((float)buffer_size / prebuffer_ms));
-
-	mpg123_feed(mh, (const unsigned char*) buffer, buffer_size);
-*/
 	return true;
 }
 
