@@ -20,6 +20,7 @@
 #include <stdio.h>                      // for fclose, fileno, fopen, etc
 #include <string.h>                     // for strlen
 #include <sys/stat.h>                   // for stat, fstat
+#include <errno.h>
 //\endcond
 
 #include "cache.h"
@@ -31,20 +32,24 @@
 #define CACHE_STREAM_EXT ".mp3"
 
 bool cache_track_exists(struct track *track) {
-        char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
-        sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
-        FILE *fh = fopen(cache_file, "r");
+	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char cache_file[buffer_size];
+	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
 
-        if(fh) {
-                fclose(fh);
-                return true;
-        }
+	FILE *fh = fopen(cache_file, "r");
+
+	if(fh) {
+		fclose(fh);
+		return true;
+	}
 	return false;
 }
 
 size_t cache_track_get(struct track *track, void *buffer) {
-	char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
-	sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char cache_file[buffer_size];
+	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+
 	FILE *fh = fopen(cache_file, "r");
 
 	if(fh) {
@@ -53,18 +58,23 @@ size_t cache_track_get(struct track *track, void *buffer) {
 		struct stat cache_stat;
 		fstat(fileno(fh), &cache_stat);
 
-		fread(buffer, 1, cache_stat.st_size, fh);
-		fclose(fh);
+		size_t bytes_read = fread(buffer, 1, cache_stat.st_size, fh);
+		if(bytes_read != cache_stat.st_size) {
+			_log("expected %iBytes, but got %iBytes, reason: %s", cache_stat.st_size, bytes_read, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
+		}
 
-		return cache_stat.st_size;
+		fclose(fh);
+		return bytes_read;
 	}
 
 	return 0;
 }
 
 bool cache_track_save(struct track *track, void *buffer, size_t size) {
-	char cache_file[strlen(CACHE_STREAM_FOLDER) + 1 + strlen(CACHE_STREAM_EXT)];
-	sprintf(cache_file, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char cache_file[buffer_size];
+	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+
 	FILE *fh = fopen(cache_file, "w");
 
 	if(fh) {
