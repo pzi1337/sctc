@@ -1,7 +1,7 @@
 .PHONY: all clean
 
-CCOPT=-O0 -g
-LDOPT=
+CCOPT=-O0 -g -fstack-protector-strong --param=ssp-buffer-size=4
+LDOPT=-pie -z relro -z now
 
 CC=gcc
 CFLAGS=`pkg-config --cflags ao yajl ncursesw libconfuse libxml-2.0 libmpg123` -std=gnu11 -Wall -pedantic -fPIC $(CCOPT)
