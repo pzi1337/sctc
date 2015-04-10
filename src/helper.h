@@ -112,8 +112,24 @@
 	 */
 	void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size_t size);
 
-
+	/** \brief Logging wrapper for strdup().
+	 *
+	 *  Behaves like strdup(), but writes a message to the logfile in case of an error.
+	 *  lstrdup() does **not terminate** the execution.
+	 *
+	 *  Always use this macro instead of directly calling _lstrdup().
+	 */
 	#define lstrdup(S) _lstrdup(__FILE__, __LINE__, __func__, S)
 
+	/** The internal implementation for lstrdup.
+	 *
+	 *  **Warning**: This function is not intended to be called directly by the user.
+	 *  Use lstrdup() instead, as this macro inserts the correct position of the call to _lstrdup().
+	 *
+	 *  \param srcfile  The file executing the call to _lstrdup(); filled by macro lstrdup), do not use "by hand"
+	 *  \param srcline  The line in the file executing the call to _lstrdup(); filled by macro lstrdup(), do not use "by hand"
+	 *  \param srcfunc  The function calling _lstrdup(); filled by macro lstrdup(), do not use "by hand"
+	 *  \param s        The string to be duplicated
+	 */
 	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s);
 #endif /* _HELPER_H */
