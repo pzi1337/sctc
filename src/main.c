@@ -25,7 +25,7 @@
  *  \section intro_sec Introduction
  *
  *  This documentation documents the internals of SCTC.\n
- *  As STSC is not a library this documentation is not usefull if you do not want to 
+ *  As STSC is not a library this documentation is not usefull if you do not want to
  *  modify / extend / bugfix SCTC.
  *
  *  \warning SCTC is, at this point, in a very early stage.
@@ -103,7 +103,7 @@ struct track_list *playlists[4] = { NULL };
  *
  *  If time equals -1, then the next track is selected (if any) and playback initiated. (\todo not yet working!)
  *
- *  \param time  The time in seconds to print to the screen 
+ *  \param time  The time in seconds to print to the screen
  */
 void tui_update_time(int time) {
 
@@ -112,24 +112,43 @@ void tui_update_time(int time) {
 		tui_submit_int_action(set_sbar_time, time);
 		tui_submit_set_list_action(list);
 	} else {
-/*
 		list->entries[playing].current_position = 0;
-		list->entries[list->selected].flags = (list->entries[list->selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
+		_log("playback done, going to next track in playlist");
+
+		size_t next_playing = playing + 1;
 		switch(repeat) {
-			case rep_none: return;
-			case rep_one:  break;
-			case rep_all:
-				playing++;
-				if(playing >= list->count) return;
+			case rep_none:
+				if(next_playing >= list->count) {
+					playing = -1;
+					return;
+				}
 				break;
+
+			case rep_one:
+				next_playing = playing;
+				break;
+
+			case rep_all: {
+				if(next_playing >= list->count) {
+					next_playing = 0;
+				}
+				break;
+			}
 		}
 
-		list->entries[playing].flags |= FLAG_PLAYING;
+		list->entries[next_playing].flags = (list->entries[next_playing].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
-		sound_play(&list->entries[playing]);
-*/
-		_log("playback done =)");
+		playing = next_playing;
+
+		char time_buffer[TIME_BUFFER_SIZE];
+		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[playing].duration);
+
+		tui_submit_title_line_print("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer);
+
+		tui_submit_set_list_action(list);
+
+		sound_play(&list->entries[next_playing]);
 	}
 }
 
@@ -336,7 +355,7 @@ static bool cmd_redraw(char *unused) {
 
 /** \brief Array of all commands supported by SCTC.
  *
- *  Includes a description, which is, for instance, shown in the commandwindow, and the function to call in 
+ *  Includes a description, which is, for instance, shown in the commandwindow, and the function to call in
  *  order to execute the command.
  *
  *  \todo Step by step, 'everything' should be moved here.\n

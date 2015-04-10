@@ -52,7 +52,7 @@ static void write_xspf_track(xmlTextWriterPtr writer, struct track *track) {
 	xmlTextWriterWriteFormatElement(writer, BAD_CAST "duration",   "%i", track->duration);
 
 	/* use meta-tags to save 'bpm' (beats per minute) and date of creation */
-	
+
 	xmlTextWriterStartElement(writer, BAD_CAST "meta");
 	xmlTextWriterWriteAttribute(writer, BAD_CAST "rel", BAD_CAST "http://sctc.narbo.de/bpm");
 	xmlTextWriterWriteFormatString(writer, "%u", track->bpm);
@@ -175,5 +175,4 @@ struct track_list* xspf_read(char *file) {
 
 	return list;
 }
-
 

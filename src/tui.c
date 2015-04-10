@@ -482,7 +482,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 */
 	char time_buffer[TIME_BUFFER_SIZE];
 	int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, entry->duration);
-	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_time_selected, "%0*c%s", 9 - time_len, ' ', time_buffer);
+	tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_time_selected, "%0*c%s", 9 - time_len, ' ', time_buffer);
 }
 
 static void tui_track_list_print(struct track_list *list, int list_pos) {
