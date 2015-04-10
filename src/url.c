@@ -36,7 +36,10 @@ struct url* url_parse_string(char *str) {
 
 	char *hit = strchr(str, ':');
 	if(!hit) {
-		printf("URL seems invalid, cannot find ':'\n");
+		_log("URL seems invalid, cannot find ':'");
+		free(u);
+
+		return NULL;
 	}
 	*hit = '\0';
 

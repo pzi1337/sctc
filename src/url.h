@@ -19,6 +19,8 @@
 #ifndef _URL_H
 	#define _URL_H
 
+	#include <stdbool.h>
+
 	struct url {
 		char *scheme; /// the scheme, currently 'only' "http" and "https"
 		char *user;   /// the user
