@@ -27,6 +27,13 @@
 	#include <stddef.h>                     // for size_t
 	//\endcond
 
+	/** \brief printf style function with automated allocation of buffer.
+	 *
+	 *  \param fmt  The formatstring, as known from `printf`, see `man 3 printf`
+	 *  \return     Pointer to allocated memory (needs to be `free`'d) or `NULL` if malloc failed
+	 */
+	char* smprintf(char *fmt, ...);
+
 	/** \brief Write a formated version of time_secs to buffer.
 	 *
 	 *  If time_secs is above one hour the format "%d:%02d:%02d" is used, otherwise "%02d:%02d" is used.\n

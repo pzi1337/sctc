@@ -23,10 +23,26 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 //\endcond
 
 #include "helper.h"
 #include "log.h"
+
+char* smprintf(char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	int required_size = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+
+	va_list aq;
+	va_start(aq, fmt);
+	char *buffer = lcalloc(sizeof(char), required_size + 1);
+	vsnprintf(buffer, required_size + 1, fmt, aq);
+	va_end(aq);
+
+	return buffer;
+}
 
 int snprint_ftime(char *buffer, size_t buffer_size, int time_secs) {
 	int secs  = time_secs % 60;
