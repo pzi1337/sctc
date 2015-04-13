@@ -64,7 +64,7 @@
 	enum tui_action_kind {
 		none,                ///< dummy value, to be removed
 		redraw,              ///< redraw the whole screen
-		set_list,            ///< set the supplied list as currently visible one
+		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
 		set_tbar_text,       ///< update the text
 		set_playlists,       ///< set the list of playlists
@@ -82,25 +82,9 @@
 	struct tui_action {
 		enum tui_action_kind kind;
 		union {
-			struct track_list  *list;
-			struct track_list **lists;
 			int intval;
-
 			char *input;
-
-			struct color_text {
-				enum color color;
-				char *text;
-			} ct;
-
-			struct title_text {
-				char *title;
-				char *text;
-			} tt;
-
 			struct command *sl_commands;
-
-			enum repeat repeat;
 		};
 	};
 
@@ -117,12 +101,9 @@
 
 	void tui_submit_action(struct tui_action *_action);
 	void tui_submit_int_action(enum tui_action_kind kind, int intval);
-	void tui_submit_set_list_action(struct track_list *list);
 
 	void tui_submit_input_action(char *input);
-	void tui_submit_update_tab_bar(struct track_list **playlists, size_t selected, enum repeat repeat);
-	void tui_submit_status_line_print(enum color c, char *fmt, ...);
-	void tui_submit_title_line_print(char *fmt, ...);
+	void tui_submit_status_line_print(enum color c, char *text);
 
 	bool tui_init();
 	void tui_finalize();

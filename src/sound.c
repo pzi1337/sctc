@@ -132,7 +132,7 @@ static void* _thread_io_function(void *unused) {
 		} else {
 			struct http_response* resp = soundcloud_connect_track((struct track*) track);
 			if(!resp) {
-				tui_submit_status_line_print(cline_warning, F_BOLD"Error:"F_RESET" connection failed");
+				tui_submit_status_line_print(cline_warning, strdup(F_BOLD"Error:"F_RESET" connection failed"));
 				break;
 			}
 
