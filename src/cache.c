@@ -82,6 +82,19 @@ bool cache_track_save(struct track *track, void *buffer, size_t size) {
 		fclose(fh);
 
 		return true;
+	} else {
+		if(ENOENT == errno) {
+			// create the cache folder if it does not exist
+			// and retry saving the track to cache
+			if(!mkdir(CACHE_STREAM_FOLDER, 0770)) {
+				_log("created "CACHE_STREAM_FOLDER", now saving track to cache");
+				return cache_track_save(track, buffer, size);
+			} else {
+				_log("failed to create "CACHE_STREAM_FOLDER": %s", strerror(errno));
+			}
+		} else {
+			_log("failed to open file '%s': %s", cache_file, strerror(errno));
+		}
 	}
 
 	return false;
