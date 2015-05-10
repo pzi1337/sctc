@@ -55,9 +55,7 @@
 #include "cache.h"                      // for cache_track_exists
 #include "config.h"                     // for config_get_subscribe_count, etc
 #include "helper.h"                     // for lcalloc, lmalloc, etc
-#include "http.h"                       // for http_response, etc
 #include "log.h"                        // for _log, log_close, log_init
-#include "m3u.h"                        // for m3u_write
 #include "network/network.h"            // for network_conn
 #include "network/tls.h"                // for tls_connect, tls_finalize, etc
 #include "state.h"
@@ -104,8 +102,11 @@ void tui_update_time(int time) {
 
 	if(-1 != time) {
 		list->entries[playing].current_position = time;
-		tui_submit_int_action(set_sbar_time, time);
-		tui_submit_action(tui_action_init(update_list));
+
+		state_set_current_time(time);
+		tui_submit_action(set_sbar_time);
+
+		tui_submit_action(update_list);
 	} else {
 		list->entries[playing].current_position = 0;
 		list->entries[playing].flags &= ~(FLAG_PAUSED | FLAG_PLAYING);
@@ -137,9 +138,9 @@ void tui_update_time(int time) {
 		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[playing].duration);
 
 		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-		tui_submit_action(tui_action_init(set_title_text));
+		tui_submit_action(set_title_text);
 
-		tui_submit_action(tui_action_init(update_list));
+		tui_submit_action(update_list);
 		sound_play(&list->entries[playing]);
 	}
 }
@@ -233,22 +234,16 @@ static bool cmd_open_user(char *user) {
 
 	list->position = 0;
 
-	tui_submit_action(tui_action_init(update_list));
+	tui_submit_action(update_list);
 */
 	return true;
 }
 
 static bool cmd_write_playlist(char *file) {
-	char *ext = file + strlen(file)  - 4; /** \todo this fails if strlen(file) < 4 */
 	struct track_list *list = state_get_list(state_get_current_list());
 
-	if(!strcmp(ext, ".m3u")) {
-		tui_submit_status_line_print(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: M3U)\n", file));
-		m3u_write(file, list);
-	} else {
-		tui_submit_status_line_print(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: XSPF)\n", file));
-		xspf_write(file, list);
-	}
+	tui_submit_status_line_print(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: XSPF)\n", file));
+	xspf_write(file, list);
 
 	return true;
 }
@@ -269,8 +264,8 @@ static bool cmd_exit(char *unused) {
 	sound_finalize();
 	tls_finalize();
 	config_finalize();
-
 	tui_finalize();
+	state_finalize();
 
 	log_close();
 	exit(EXIT_SUCCESS);
@@ -297,7 +292,7 @@ static bool cmd_help(char *unused) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
 	state_set_tb(strdup("Help / About"), strdup(help_msg));
-	tui_submit_action(tui_action_init(show_textbox));
+	tui_submit_action(show_textbox);
 
 	handle_textbox();
 	return true;
@@ -310,7 +305,7 @@ static bool cmd_help(char *unused) {
  */
 static bool cmd_repeat_none(char *unused) {
 	state_set_repeat(rep_none);
-	tui_submit_action(tui_action_init(set_repeat));
+	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'none'"));
 	return true;
 }
@@ -322,7 +317,7 @@ static bool cmd_repeat_none(char *unused) {
  */
 static bool cmd_repeat_one(char *unused) {
 	state_set_repeat(rep_one);
-	tui_submit_action(tui_action_init(set_repeat));
+	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'one'"));
 	return true;
 }
@@ -334,7 +329,7 @@ static bool cmd_repeat_one(char *unused) {
  */
 static bool cmd_repeat_all(char *unused) {
 	state_set_repeat(rep_all);
-	tui_submit_action(tui_action_init(set_repeat));
+	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'all'"));
 	return true;
 }
@@ -344,7 +339,7 @@ static bool cmd_repeat_all(char *unused) {
  *  \return true
  */
 static bool cmd_redraw(char *unused) {
-	tui_submit_action(tui_action_init(redraw));
+	tui_submit_action(redraw);
 	return true;
 }
 /** @}*/
@@ -366,7 +361,7 @@ static struct command commands[] = {
 	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
 	{"help",        "Show help",             cmd_help},
-	{"write",       "Write current playlist to file (either .xspf (recommend) or .m3u)",  cmd_write_playlist},
+	{"write",       "Write current playlist to file (.xspf)",  cmd_write_playlist},
 	{"exit",        "Terminate SCTC",        cmd_exit},
 	{NULL,          NULL, NULL}
 };
@@ -429,20 +424,6 @@ static struct track_list* get_list() {
 	}
 	free(lists);
 
-	// TODO: speed
-	BENCH_START(SB)
-	for(size_t i = 0; i < list->count; i++) {
-		if(track_list_contains(state_get_list(LIST_BOOKMARKS), list->entries[i].permalink_url)) {
-			_log("'%s' is bookmarked!", list->entries[i].name);
-			list->entries[i].flags |= FLAG_BOOKMARKED;
-		}
-
-		if(cache_track_exists(&list->entries[i])) {
-			list->entries[i].flags |= FLAG_CACHED;
-		}
-	}
-	BENCH_STOP(SB, "Searching for bookmarks")
-
 	return list;
 }
 
@@ -452,7 +433,7 @@ static void handle_textbox() {
 		switch(c) {
 			case 'd':
 			case 'q':
-				tui_submit_int_action(back_exit, 0);
+				tui_submit_action(back_exit);
 				return;
 				break;
 
@@ -461,10 +442,10 @@ static void handle_textbox() {
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:    tui_submit_int_action(updown, -1);            break;
-			case KEY_DOWN:  tui_submit_int_action(updown, 1);             break;
-			case KEY_PPAGE: tui_submit_int_action(updown, - (LINES - 2)); break;
-			case KEY_NPAGE: tui_submit_int_action(updown, LINES - 2);     break;
+			case KEY_UP:    state_set_tb_pos(state_get_tb_pos() - 1); break;
+			case KEY_DOWN:  state_set_tb_pos(state_get_tb_pos() + 1); break;
+			case KEY_PPAGE: state_set_tb_pos(state_get_tb_pos() - (LINES - 2)); break;
+			case KEY_NPAGE: state_set_tb_pos(state_get_tb_pos() +  LINES - 2); break;
 		}
 	}
 }
@@ -487,12 +468,10 @@ static void submit_updated_suggestion_list(char *filter) {
 			matching_pos++;
 		}
 	}
-
-	struct tui_action *action = tui_action_init(set_suggestion_list);
-	action->sl_commands = matching;
-
 	_log("submit: set_suggestion_list, %i elements", matching_pos);
-	tui_submit_action(action);
+
+	state_set_commands(matching);
+	tui_submit_action(set_suggestion_list);
 }
 
 static bool handle_command(char *buffer, size_t buffer_size) {
@@ -508,15 +487,10 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 	/* the currently selected entry, -1 if "nothing" is selected */
 	size_t sl_selected = 0;
 
-	struct tui_action *action = tui_action_init(input_modify_text);
-	action->input = buffer;
-	tui_submit_action(action);
+	tui_submit_action(input_modify_text);
 
-	action = tui_action_init(set_suggestion_list);
-	action->sl_commands = commands;
-	tui_submit_action(action);
-
-	tui_submit_int_action(updown_absolute, -1);
+	state_set_commands(commands);
+	tui_submit_action(set_suggestion_list);
 
 	while( (c = getch()) ) {
 		switch(c) {
@@ -529,8 +503,8 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 					snprintf(buffer, buffer_size, "%s", commands[sl_selected - 1].name);
 				}
 
-				// disable the suggestion lsit
-				tui_submit_action(tui_action_init(back_exit));
+				// disable the suggestion list
+				tui_submit_action(back_exit);
 
 				_log("sl_selected = %i -> buffer = %s", sl_selected - 1, buffer);
 				return true;
@@ -539,7 +513,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 			case KEY_UP: {
 				if(sl_selected > 0) {
 					sl_selected--;
-					tui_submit_int_action(updown_absolute, sl_selected - 1);
+					//tui_submit_int_action(updown_absolute, sl_selected - 1);
 				}
 				break;
 			}
@@ -547,7 +521,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 			case KEY_DOWN: {
 				if(sl_selected < command_count) {
 					sl_selected++;
-					tui_submit_int_action(updown_absolute, sl_selected - 1);
+					//tui_submit_int_action(updown_absolute, sl_selected - 1);
 				}
 				break;
 			}
@@ -562,7 +536,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 				for(int i = suggest_pos; commands[i].name; i++) {
 					if(!strncmp(commands[i].name, buffer, strlen(buffer))) {
 						sprintf(buffer, "%s", commands[i].name);
-						tui_submit_input_action(buffer);
+						tui_submit_action(input_modify_text);
 						suggest_pos = i + 1;
 						break;
 					}
@@ -576,7 +550,8 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 				if(pos) {
 					pos--;
 					buffer[pos] = '\0';
-					tui_submit_input_action(buffer);
+
+					tui_submit_action(input_modify_text);
 
 					submit_updated_suggestion_list(buffer);
 				} else {
@@ -589,8 +564,8 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 			default: {
 				buffer[pos] = c;
 				buffer[pos + 1] = '\0';
-				tui_submit_input_action(buffer);
 
+				tui_submit_action(input_modify_text);
 				submit_updated_suggestion_list(buffer);
 
 				pos++;
@@ -609,7 +584,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	size_t pos = 0;
 	int c;
 
-	tui_submit_input_action(buffer);
+	tui_submit_action(input_modify_text);
 
 	while( (c = getch()) ) {
 		switch(c) {
@@ -623,7 +598,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 			case KEY_BACKSPACE: {
 				if(pos) {
 					buffer[pos] = '\0';
-					tui_submit_input_action(buffer);
+					tui_submit_action(input_modify_text);
 					pos--;
 				} else {
 					return false;
@@ -635,7 +610,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 			default: {
 				buffer[pos] = c;
 				buffer[pos + 1] = '\0';
-				tui_submit_input_action(buffer);
+				tui_submit_action(input_modify_text);
 				pos++;
 
 				if(pos == buffer_size) {
@@ -662,6 +637,7 @@ int main(int argc, char **argv) {
 
 	setlocale(LC_CTYPE, "C-UTF-8");
 
+	state_init();
 	config_init();
 	tls_init();
 	tui_init();
@@ -669,11 +645,9 @@ int main(int argc, char **argv) {
 
 	tui_submit_status_line_print(cline_default, strdup(""));
 	state_set_title(strdup(""));
-	tui_submit_action(tui_action_init(set_title_text));
+	tui_submit_action(set_title_text);
 
 	struct track_list **lists = lcalloc(4, sizeof(struct track_list*));
-	state_set_lists(lists);
-
 	lists[LIST_BOOKMARKS] = xspf_read(BOOKMARK_FILE);
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
 
@@ -683,17 +657,36 @@ int main(int argc, char **argv) {
 	lists[LIST_STREAM] = get_list();
 	lists[LIST_STREAM]->name = "Stream";
 
+	state_set_lists(lists);
+
+	// TODO: speed
+	BENCH_START(SB)
+	for(size_t i = 0; i < lists[LIST_STREAM]->count; i++) {
+		if(track_list_contains(lists[LIST_BOOKMARKS], lists[LIST_STREAM]->entries[i].permalink_url)) {
+			_log("'%s' is bookmarked!", lists[LIST_STREAM]->entries[i].name);
+			lists[LIST_STREAM]->entries[i].flags |= FLAG_BOOKMARKED;
+		}
+
+		if(cache_track_exists(&lists[LIST_STREAM]->entries[i])) {
+			lists[LIST_STREAM]->entries[i].flags |= FLAG_CACHED;
+		}
+	}
+	BENCH_STOP(SB, "Searching for bookmarks")
+
+
+	state_set_lists(lists);
+
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
 
-	tui_submit_action(tui_action_init(set_playlists));
+	tui_submit_action(set_playlists);
 	tui_submit_status_line_print(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
-	tui_submit_action(tui_action_init(update_list));
+	tui_submit_action(update_list);
 
 	int c;
-
-	char searchbuf[128] = {0};
 	while( (c = getch()) ) {
+		struct track_list *list = state_get_list(state_get_current_list());
+
 		switch(c) {
 			case 'q':
 				cmd_exit(NULL);
@@ -707,12 +700,12 @@ int main(int argc, char **argv) {
 			case '3': {
 				struct track_list *list = state_get_list(c - '1');
 				if(list->count) {
-
 					list->position = 0;
-
-					tui_submit_action(tui_action_init(update_list));
 					tui_submit_status_line_print(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
-					tui_submit_action(tui_action_init(set_playlists));
+
+					state_set_current_list(c - '1');
+					tui_submit_action(update_list);
+					tui_submit_action(set_playlists);
 				} else {
 					tui_submit_status_line_print(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
 				}
@@ -721,8 +714,8 @@ int main(int argc, char **argv) {
 
 			case '/':
 				tui_submit_status_line_print(cline_cmd_char, strdup(F_BOLD"/"F_RESET));
-				handle_search(searchbuf, 127);
-				_log("have search: %s", searchbuf);
+				handle_search(state_get_input(), 127);
+				_log("have search: %s", state_get_input());
 
 				// fall through
 
@@ -730,8 +723,9 @@ int main(int argc, char **argv) {
 				struct track_list *list = state_get_list(state_get_current_list());
 				if(list->selected >= list->count) list->selected = 0;
 				for(int i = list->selected + 1; i < list->count; i++) {
-					if(strcasestr(list->entries[i].name, searchbuf)) {
-						tui_submit_int_action(updown_absolute, i);
+					if(strcasestr(list->entries[i].name, state_get_input())) {
+						list->selected = i;
+						tui_submit_action(updown);
 						break;
 					}
 				}
@@ -743,8 +737,9 @@ int main(int argc, char **argv) {
 				struct track_list *list = state_get_list(state_get_current_list());
 				if(list->selected >= list->count) list->selected = 0;
 				for(int i = list->selected - 1; i >= 0; i--) {
-					if(strcasestr(list->entries[i].name, searchbuf)) {
-						tui_submit_int_action(updown_absolute, i);
+					if(strcasestr(list->entries[i].name, state_get_input())) {
+						list->selected = i;
+						tui_submit_action(updown);
 						break;
 					}
 				}
@@ -752,21 +747,20 @@ int main(int argc, char **argv) {
 				break;
 			}
 
-			case 'b':
-				cmd_bookmark(NULL);
-				break;
+			case 'b': cmd_bookmark(NULL); break;
 
 			case ':': {
 				struct track_list *list = state_get_list(state_get_current_list());
 				tui_submit_status_line_print(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
-				char buffer[128] = {0};
+				char *buffer = state_get_input();
+
 				if(handle_command(buffer, 127)) {
 					int jump_target = command_dispatcher(buffer);
 					if(-1 != jump_target) {
 						list->selected = jump_target;
 
-						tui_submit_action(tui_action_init(update_list));
+						tui_submit_action(update_list);
 						tui_submit_status_line_print(cline_default, strdup(""));
 					}
 				} else {
@@ -789,20 +783,19 @@ int main(int argc, char **argv) {
 
 				char *title = smprintf("%s by %s", list->entries[list->selected].name, list->entries[list->selected].username);
 				state_set_tb(title, strdup(list->entries[list->selected].description));
-				tui_submit_action(tui_action_init(show_textbox));
+				tui_submit_action(show_textbox);
 
 				handle_textbox();
 				break;
 			}
 
 			case 'c': { // pause / continue
-				struct track_list *list = state_get_list(state_get_current_list());
 				if(-1 != playing) {
 					sound_stop();
 					list->entries[playing].flags = (list->entries[playing].flags & ~FLAG_PLAYING) | FLAG_PAUSED;
 					list->entries[playing].current_position = sound_get_current_pos();
 
-					tui_submit_action(tui_action_init(update_list));
+					tui_submit_action(update_list);
 
 					playing = -1;
 				}
@@ -810,13 +803,12 @@ int main(int argc, char **argv) {
 			}
 
 			case 's': { // stop (= reset current position to 0)
-				struct track_list *list = state_get_list(state_get_current_list());
 				if(-1 != playing) {
 					sound_stop();
 					list->entries[playing].flags &= ~FLAG_PLAYING;
 					list->entries[playing].current_position = 0;
 
-					tui_submit_action(tui_action_init(update_list));
+					tui_submit_action(update_list);
 
 					playing = -1;
 				}
@@ -824,25 +816,52 @@ int main(int argc, char **argv) {
 			}
 
 			case 'y': { /* copy url to selected entry */
-				struct track_list *list = state_get_list(state_get_current_list());
 				yank(list->entries[list->selected].permalink_url);
 				tui_submit_status_line_print(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[list->selected].permalink_url));
 				break;
 			}
 
 			/* jump to start/end of list */
-			case 'g': tui_submit_int_action(updown_absolute, 0);                                                   break;
-			case 'G': tui_submit_int_action(updown_absolute, state_get_list(state_get_current_list())->count - 1); break;
+			case 'g':
+				list->selected = 0;
+				tui_submit_action(updown);
+				break;
+
+			case 'G':
+				list->selected = list->count - 1;
+				tui_submit_action(updown);
+				break;
 
 			/* manual scrolling
 			 *  -> single line up
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:    tui_submit_int_action(updown, -1);            break;
-			case KEY_DOWN:  tui_submit_int_action(updown, 1);             break;
-			case KEY_PPAGE: tui_submit_int_action(updown, - (LINES - 2)); break;
-			case KEY_NPAGE: tui_submit_int_action(updown, LINES - 2);     break;
+			case KEY_UP:
+				if(list->selected > 0) {
+					list->selected -= 1;
+					tui_submit_action(updown);
+				}
+				break;
+
+			case KEY_DOWN:
+				list->selected += 1;
+				tui_submit_action(updown);
+				break;
+
+			case KEY_NPAGE:
+				list->selected += LINES - 2;
+				tui_submit_action(updown);
+				break;
+
+			case KEY_PPAGE:
+				if(list->selected < LINES - 2) {
+					list->selected = 0;
+				} else {
+					list->selected -= LINES - 2;
+				}
+				tui_submit_action(updown);
+				break;
 
 			case 0x0A: // LF (aka 'enter')
 			case KEY_ENTER: {
@@ -855,7 +874,7 @@ int main(int argc, char **argv) {
 						list->entries[playing].flags |= FLAG_PAUSED;
 					}
 
-					tui_submit_action(tui_action_init(update_list));
+					tui_submit_action(update_list);
 				}
 
 				char time_buffer[TIME_BUFFER_SIZE];
@@ -864,11 +883,11 @@ int main(int argc, char **argv) {
 				playing = list->selected;
 
 				state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-				tui_submit_action(tui_action_init(set_title_text));
+				tui_submit_action(set_title_text);
 
 				list->entries[list->selected].flags = (list->entries[list->selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
-				tui_submit_action(tui_action_init(update_list));
+				tui_submit_action(update_list);
 
 				sound_play(&list->entries[list->selected]);
 				break;

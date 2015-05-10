@@ -26,6 +26,7 @@
 #include <signal.h>
 #include <term.h>
 #include <errno.h>
+#include <wchar.h>
 //\endcond
 
 #include <ncurses.h>
@@ -48,18 +49,20 @@ static void tui_track_print_line(struct track* entry, bool selected, int line);
 
 static void tui_mvprint(int x, int y, char *fmt, ...);
 static void tui_track_list_print();
-static size_t tui_track_focus(struct track_list *list, size_t new_selected);
+static size_t tui_track_focus(size_t new_selected);
 static void tui_show_textbox_window(char *title, char *text);
-static void tui_textbox_window_action(struct tui_action *action);
-static void tui_suggestion_window_action(struct tui_action *action);
+static void tui_textbox_window_action(enum tui_action_kind action);
+static void tui_suggestion_window_action(enum tui_action_kind action);
 static void tui_update_suggestion_list();
-static bool tui_handle_generic_action(struct tui_action *action);
+static bool tui_handle_generic_action(enum tui_action_kind action);
 
 /* functions handling (re)drawing of (parts of) screen */
 static void tui_redraw();
 static void tui_draw_title_line();
 static void tui_draw_tab_bar();
 static void tui_draw_status_line();
+
+#define wcsps(S) mbstowcs(NULL, S, 0)
 
 static pthread_t thread_tui;
 static bool terminate = false;
@@ -76,7 +79,6 @@ static struct suggestion_window {
 	WINDOW *win;
 	int start_line;
 	size_t selected;
-	struct command *commands;
 } suggestion_window = { NULL };
 
 static void tui_sbar_time_draw(int time) {
@@ -92,7 +94,7 @@ static void tui_sbar_time_draw(int time) {
 static sem_t sem_have_action;
 static sem_t sem_wait_action;
 
-static struct tui_action *action;
+static enum tui_action_kind action;
 
 void* _thread_tui_function(void *unused) {
 	do {
@@ -107,40 +109,30 @@ void* _thread_tui_function(void *unused) {
 			_log("doing the redraw, sem_wait returned %i, LINES = %d", ret, LINES);
 
 			tui_redraw();
-		} else if(!action) { // FIXME
+		} else if(none == action) { // FIXME
 		} else if(!tui_handle_generic_action(action)) {
 			if(textbox_window.win) {
 				tui_textbox_window_action(action);
 			} else if(suggestion_window.win) {
 				tui_suggestion_window_action(action);
 			} else {
-				switch(action->kind) {
-					case update_list:
-						tui_track_list_print();
-						break;
-					case set_repeat:    tui_draw_tab_bar(); break;
-					case set_playlists: tui_draw_tab_bar(); break;
+				switch(action) {
+					case update_list:   tui_track_list_print(); break;
+					case set_repeat:    tui_draw_tab_bar();     break;
+					case set_playlists: tui_draw_tab_bar();     break;
 
 					case updown: { /* move focus relative to the currently selected entry */
+						// TODO
 						struct track_list *list = state_get_list(state_get_current_list());
-						if(action->intval < 0 &&
-							-action->intval > list->selected) {
-							tui_track_focus(list, 0);
-						} else {
-							tui_track_focus(list, list->selected + action->intval);
-						}
+						tui_track_focus(list->selected);
+						tui_track_list_print();
 						break;
 					}
-
-					case updown_absolute:
-						tui_track_focus(state_get_list(state_get_current_list()), action->intval);
-						break;
 
 					case set_suggestion_list:
 						suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
 						wrefresh(suggestion_window.win);
 
-						suggestion_window.commands   = action->sl_commands;
 						tui_update_suggestion_list();
 						break;
 
@@ -152,13 +144,13 @@ void* _thread_tui_function(void *unused) {
 						const int y = LINES - 1;
 
 						color_set(cline_default, NULL);
-						tui_mvprint(x, y, action->input);
+						tui_mvprint(x, y, state_get_input());
 
 						color_set(inp_cursor, NULL);
-						mvprintw(y, x + strlen(action->input), " ");
+						printw(" ");
 
 						color_set(cline_default, NULL);
-						mvprintw(y, x + strlen(action->input) + 1, "%0*c", COLS - (x + strlen(action->input) + 1), ' ');
+						mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
 
 						break;
 					}
@@ -169,12 +161,10 @@ void* _thread_tui_function(void *unused) {
 					}
 
 					default:
-						_log("currently not implemented action-kind %d", action->kind);
+						_log("currently not implemented action-kind %d", action);
 				}
 			}
-
-			free(action);
-			action = NULL;
+			action = none;
 		}
 		refresh();
 
@@ -188,6 +178,8 @@ void* _thread_tui_function(void *unused) {
 static void tui_redraw() {
 	tui_draw_title_line();  // redraw the title line
 	tui_draw_tab_bar();     // redraw the tab bar
+
+	tui_track_list_print();
 
 	tui_draw_status_line(); // redraw the status line
 }
@@ -208,13 +200,14 @@ static void tui_draw_status_line() {
 
 static void tui_update_suggestion_list() {
 	size_t line;
-	for(line = 0; line < 10 && suggestion_window.commands[line].name; line++) {
+	struct command* commands = state_get_commands();
+	for(line = 0; line < 10 && commands[line].name; line++) {
 		wcolor_set(suggestion_window.win, line == suggestion_window.selected ? cmdlist_selected : cmdlist_default, NULL);
 		mvwprintw (suggestion_window.win, line, 0, "%0*c", COLS, ' ');
-		mvwprintw (suggestion_window.win, line, 1, "%s", suggestion_window.commands[line].name);
+		mvwprintw (suggestion_window.win, line, 1, "%s", commands[line].name);
 
 		wcolor_set(suggestion_window.win, line == suggestion_window.selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
-		mvwprintw (suggestion_window.win, line, COLS / 2, suggestion_window.commands[line].desc);
+		mvwprintw (suggestion_window.win, line, COLS / 2, commands[line].desc);
 	}
 
 	wcolor_set(suggestion_window.win, cmdlist_default, NULL);
@@ -225,11 +218,11 @@ static void tui_update_suggestion_list() {
 	wrefresh(suggestion_window.win);
 }
 
-static bool tui_handle_generic_action(struct tui_action *action) {
+static bool tui_handle_generic_action(enum tui_action_kind action) {
 
-	switch(action->kind) {
+	switch(action) {
 		case set_sbar_time:
-			tui_sbar_time_draw(action->intval);
+			tui_sbar_time_draw(state_get_current_time());
 			return true;
 
 		default: /* only the most basic actions are handled here */
@@ -239,15 +232,9 @@ static bool tui_handle_generic_action(struct tui_action *action) {
 	return false;
 }
 
-struct tui_action* tui_action_init(enum tui_action_kind kind) {
-	struct tui_action *action = malloc(sizeof(struct tui_action));
+static size_t tui_track_focus(size_t new_selected) {
 
-	action->kind = kind;
-
-	return action;
-}
-
-static size_t tui_track_focus(struct track_list *list, size_t new_selected) {
+	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_list_pos = list->position;
 
 	if(new_selected >= list->count) {
@@ -355,11 +342,6 @@ static size_t tui_track_print_played(size_t remaining, bool selected, enum color
 
 		int printed = 0;
 		printw("%.*s%n", remaining, string, &printed);
-
-		size_t str_len = wcslen(string);
-		if(str_len != printed) {
-			_log("str_len = %i != %i = printed", str_len, printed);
-		}
 		remaining -= printed;
 
 		if(!remaining) {
@@ -405,7 +387,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	played_chars = tui_track_print_played(played_chars, selected, tline_date,    tline_date_played,    tline_date_selected,    " %s",    date_buffer);
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, " %s",    entry->name);
 	played_chars = tui_track_print_played(played_chars, selected, tline_user,    tline_user_played,    tline_user_selected,    " by %s", entry->username);
-	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c",   COLS - strlen(entry->name) - strlen(entry->username) - 4 - date_buffer_used - 8 - 11 - 12, ' ');
+	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c",   COLS - wcsps(entry->name) - wcsps(entry->username) - 4 - date_buffer_used - 8 - 11 - 12, ' ');
 
 	if(entry->current_position) {
 		char time_buffer[TIME_BUFFER_SIZE];
@@ -418,11 +400,11 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	#ifdef USE_UNICODE
 		// TODO
 	#else
-		char cached     = FLAG_CACHED     & entry->flags ? 'C' : ' ';
-		char new        = FLAG_NEW        & entry->flags ? '|' : ' ';
-		char bookmarked = FLAG_BOOKMARKED & entry->flags ? '*' : ' ';
+		char* cached     = FLAG_CACHED     & entry->flags ? "C"      : " ";
+		char* new        = FLAG_NEW        & entry->flags ? "\u27EA" : " ";
+		char* bookmarked = FLAG_BOOKMARKED & entry->flags ? "\u2661" : " ";
 
-		played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%c%c%c", cached, new, bookmarked);
+		played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%s%s%s", cached, new, bookmarked);
 	#endif
 /*
 	color_set(selected ? tline_default_selected : tline_default, NULL);
@@ -452,6 +434,11 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 
 static void tui_track_list_print() {
 	struct track_list *list = state_get_list(state_get_current_list());
+
+	// just abort if no list was set yet (px. during the initial update of the stream)
+	if(!list) {
+		return;
+	}
 
 	int y = 2;
 	for(int i = list->position; i < list->count && y < LINES - 2; i++) {
@@ -506,19 +493,15 @@ static void tui_mvprint(int x, int y, char *fmt, ...) {
 }
 
 // TODO !!!
-static int draw_text(WINDOW *win, char *text, const int max_width) {
-	text = lstrdup(text);
+static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
+	text = strdup(text);
 
-	for(size_t pos = 0; text[pos]; pos++) {
-		if(text[pos] == '\r') {
-			text[pos] = ' ';
-		}
-	}
+	strcrep(text, '\r', ' ');
 
-	int y = 2;
+	size_t y = 0;
 	char *tok = strtok(text, "\n");
 	while(tok) {
-		while(strlen(tok) > max_width) {
+		while(wcsps(tok) > max_width) {
 
 			// search for any space to avoid breaking within words
 			int line_len = max_width;
@@ -529,40 +512,46 @@ static int draw_text(WINDOW *win, char *text, const int max_width) {
 				}
 			}
 
-			mvwprintw(win, y, 2, "%.*s", line_len, tok);
+			if(win) {
+				mvwprintw(win, y, 2, "%.*s", line_len, tok);
+			}
 			y++;
 			tok += line_len;
 		}
 
-		mvwprintw(win, y, 2, "%s%0*c", tok, max_width - strlen(tok), ' ');
+		if(win) {
+			mvwprintw(win, y, 2, "%s%0*c", tok, max_width - wcsps(tok), ' ');
+		}
 		y++;
 		tok = strtok(NULL, "\n");
 	}
 
 	free(text);
-	return y - 2;
+	return y;
 }
 
 static void tui_show_textbox_window(char *title, char *text) {
-	const int height = LINES - 8;
 	const int width = COLS - 8;
+	const size_t pad_height = tui_draw_text(NULL, text, width - 4);
 
-	textbox_window.win = newwin(height, width, 4, 4);
-	textbox_window.pad = newpad(10 * height, width - 4); // TODO
+	textbox_window.win = newwin(LINES - 8, width, 4, 4);
 	box(textbox_window.win, 0, 0);
 
 	wattron(textbox_window.win, A_BOLD);
 	mvwprintw(textbox_window.win, 0, 2, " %s ", title);
 	wattroff(textbox_window.win, A_BOLD);
 
+
+	textbox_window.pad = newpad(pad_height, width - 4);
+
 	int start_line = 0;
-	draw_text(textbox_window.pad, text, width - 10);
+	tui_draw_text(textbox_window.pad, text, width - 10);
 	wrefresh(textbox_window.win);
-	prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + height - 1, width - 1);
+	prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
 }
 
-static void tui_suggestion_window_action(struct tui_action *action) {
-	switch(action->kind) {
+static void tui_suggestion_window_action(enum tui_action_kind action) {
+	switch(action) {
 		case back_exit:
 			delwin(suggestion_window.win);
 			suggestion_window.win = NULL;
@@ -572,7 +561,7 @@ static void tui_suggestion_window_action(struct tui_action *action) {
 			return;
 
 		case updown_absolute:
-			suggestion_window.selected = action->intval;
+			//suggestion_window.selected = action->intval; // TODO
 			tui_update_suggestion_list();
 
 			break;
@@ -582,22 +571,20 @@ static void tui_suggestion_window_action(struct tui_action *action) {
 			const int y = LINES - 1;
 
 			color_set(cline_default, NULL);
-			tui_mvprint(x, y, action->input);
+			tui_mvprint(x, y, state_get_input());
 
 			color_set(inp_cursor, NULL);
-			mvprintw(y, x + strlen(action->input), " ");
+			printw(" ");
 
 			color_set(cline_default, NULL);
-			mvprintw(y, x + strlen(action->input) + 1, "%0*c", COLS - (x + strlen(action->input) + 1), ' ');
-
+			mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
 			break;
 		}
 
 		case set_suggestion_list:
-			suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
+		//	suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
 			wrefresh(suggestion_window.win);
 
-			suggestion_window.commands   = action->sl_commands;
 			suggestion_window.selected   = 0;
 
 			tui_update_suggestion_list();
@@ -605,16 +592,16 @@ static void tui_suggestion_window_action(struct tui_action *action) {
 
 
 		default:
-			_log("currently not implemented action-kind %d", action->kind);
+			_log("currently not implemented action-kind %d", action);
 			break;
 	}
 }
 
-static void tui_textbox_window_action(struct tui_action *action) {
+static void tui_textbox_window_action(enum tui_action_kind action) {
 	const int height = LINES - 8;
 	const int width = COLS - 8;
 
-	switch(action->kind) {
+	switch(action) {
 		case back_exit:
 			delwin(textbox_window.pad);
 			delwin(textbox_window.win);
@@ -625,13 +612,13 @@ static void tui_textbox_window_action(struct tui_action *action) {
 			return;
 
 		case updown:
-			textbox_window.start_line += action->intval;
+			//textbox_window.start_line += action->intval;
 			if(textbox_window.start_line < 0) textbox_window.start_line = 0;
 			prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
 			break;
 
 		default:
-			_log("currently not implemented action-kind %d", action->kind);
+			_log("currently not implemented action-kind %d", action);
 			break;
 	}
 }
@@ -643,22 +630,10 @@ static void tui_textbox_window_action(struct tui_action *action) {
 */
 void tui_submit_status_line_print(enum color color, char *text) {
 	state_set_status(text, color);
-	tui_submit_action(tui_action_init(set_status_text));
+	tui_submit_action(set_status_text);
 }
 
-void tui_submit_input_action(char *input) {
-	struct tui_action *action = tui_action_init(input_modify_text);
-	action->input = input;
-	tui_submit_action(action);
-}
-
-void tui_submit_int_action(enum tui_action_kind kind, int intval) {
-	struct tui_action *action = tui_action_init(kind);
-	action->intval = intval;
-	tui_submit_action(action);
-}
-
-void tui_submit_action(struct tui_action *_action) {
+void tui_submit_action(enum tui_action_kind _action) {
 	sem_wait(&sem_wait_action);
 	action = _action;
 	sem_post(&sem_have_action);
@@ -760,7 +735,7 @@ bool tui_init() {
 void tui_finalize() {
 	_log("enter: tui_finalize");
 
-	action = NULL;
+	action = none;
 	terminate = true;
 	sem_post(&sem_have_action);
 

@@ -119,8 +119,9 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 					}
 
 					next_part->entries[i].flags |= FLAG_NEW;
+
+					_log("got new entry '%s' by '%s'", next_part->entries[i].name, next_part->entries[i].username);
 				}
-		
 			}
 
 			href = json_get_string(node, "next_href", NULL);

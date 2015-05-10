@@ -47,10 +47,18 @@
 	 */
 	int snprint_ftime(char *buffer, size_t buffer_size, int time_secs);
 
+	/** \brief replace a char with another char in a given string
+	 *
+	 *  \param str  The string to search in, points to a buffer that will be *modified*
+	 *  \param s    The char to `s`earch for
+	 *  \param r    The char to `r`eplace with
+	 */
+	void strcrep(char *str, char s, char r);
+
 	/** \brief Yank the provided text
 	 *
 	 *  \param text  The text to yank
-	 *  \return      true on success, false otherwise
+	 *  \return      `true` on success, `false` otherwise
 	 */
 	bool yank(char *text);
 

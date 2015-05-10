@@ -44,6 +44,15 @@ char* smprintf(char *fmt, ...) {
 	return buffer;
 }
 
+void strcrep(char *str, char s, char r) {
+	while(*str) {
+		if(*str == s) {
+			*str = r;
+		}
+		str++;
+	}
+}
+
 int snprint_ftime(char *buffer, size_t buffer_size, int time_secs) {
 	int secs  = time_secs % 60;
 	int mins  = time_secs / 60;

@@ -62,7 +62,7 @@
 	};
 
 	enum tui_action_kind {
-		none,                ///< dummy value, to be removed
+		none,                ///< "do nothing"
 		redraw,              ///< redraw the whole screen
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
@@ -79,30 +79,11 @@
 		back_exit            ///< destroy current 'window'
 	};
 
-	struct tui_action {
-		enum tui_action_kind kind;
-		union {
-			int intval;
-			char *input;
-			struct command *sl_commands;
-		};
-	};
-
-	struct command {
-		char  *name;
-		char  *desc;
-		bool (*func)(char*);
-	};
-
 	#define F_BOLD  "\1"
 	#define F_RESET "\2"
 
-	struct tui_action* tui_action_init(enum tui_action_kind kind);
+	void tui_submit_action(enum tui_action_kind kind);
 
-	void tui_submit_action(struct tui_action *_action);
-	void tui_submit_int_action(enum tui_action_kind kind, int intval);
-
-	void tui_submit_input_action(char *input);
 	void tui_submit_status_line_print(enum color c, char *text);
 
 	bool tui_init();

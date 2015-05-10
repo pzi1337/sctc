@@ -14,7 +14,7 @@ tests/%.o: tests/%.c
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-all: soundcloud.o cache.o state.o sound.o main.o helper.o log.o config.o http.o m3u.o xspf.o track.o tui.o url.o json.o network/tls.o network/plain.o
+all: soundcloud.o cache.o state.o sound.o main.o helper.o log.o config.o http.o xspf.o track.o tui.o url.o json.o network/tls.o network/plain.o
 	gcc $+ $(LDFLAGS) -o ../bin/sctc
 
 clean:
