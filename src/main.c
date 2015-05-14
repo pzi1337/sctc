@@ -433,6 +433,7 @@ static void handle_textbox() {
 		switch(c) {
 			case 'd':
 			case 'q':
+				state_set_tb_pos(0);
 				tui_submit_action(back_exit);
 				return;
 				break;
@@ -442,10 +443,31 @@ static void handle_textbox() {
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:    state_set_tb_pos(state_get_tb_pos() - 1); break;
-			case KEY_DOWN:  state_set_tb_pos(state_get_tb_pos() + 1); break;
-			case KEY_PPAGE: state_set_tb_pos(state_get_tb_pos() - (LINES - 2)); break;
-			case KEY_NPAGE: state_set_tb_pos(state_get_tb_pos() +  LINES - 2); break;
+			case KEY_UP:
+				if(state_get_tb_pos()) {
+					state_set_tb_pos(state_get_tb_pos() - 1);
+				}
+				tui_submit_action(updown);
+				break;
+
+			case KEY_DOWN:
+				state_set_tb_pos(state_get_tb_pos() + 1);
+				tui_submit_action(updown);
+				break;
+
+			case KEY_PPAGE:
+				if(state_get_tb_pos() >= LINES - 2) {
+					state_set_tb_pos(state_get_tb_pos() - (LINES - 2));
+				} else {
+					state_set_tb_pos(0);
+				}
+				tui_submit_action(updown);
+				break;
+
+			case KEY_NPAGE:
+				state_set_tb_pos(state_get_tb_pos() +  LINES - 2);
+				tui_submit_action(updown);
+				break;
 		}
 	}
 }
@@ -513,7 +535,6 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 			case KEY_UP: {
 				if(sl_selected > 0) {
 					sl_selected--;
-					//tui_submit_int_action(updown_absolute, sl_selected - 1);
 				}
 				break;
 			}
@@ -521,7 +542,6 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 			case KEY_DOWN: {
 				if(sl_selected < command_count) {
 					sl_selected++;
-					//tui_submit_int_action(updown_absolute, sl_selected - 1);
 				}
 				break;
 			}

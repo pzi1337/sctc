@@ -71,7 +71,6 @@
 		set_repeat,          ///< set repeat to the provided value
 		set_suggestion_list, ///< set the suggestion list
 		updown,              ///< move cursor up/down
-		updown_absolute,     ///< move cursor to an absolute value
 		show_textbox,        ///< show a textbox with provided content
 		input_modify_text,   ///< set the currently visible input
 		set_title_text,      ///< set the text in the titlebar

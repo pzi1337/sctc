@@ -541,8 +541,7 @@ static void tui_show_textbox_window(char *title, char *text) {
 	mvwprintw(textbox_window.win, 0, 2, " %s ", title);
 	wattroff(textbox_window.win, A_BOLD);
 
-
-	textbox_window.pad = newpad(pad_height, width - 4);
+	textbox_window.pad = newpad(pad_height + LINES, width - 4);
 
 	int start_line = 0;
 	tui_draw_text(textbox_window.pad, text, width - 10);
@@ -559,12 +558,6 @@ static void tui_suggestion_window_action(enum tui_action_kind action) {
 			touchwin(stdscr);
 			refresh();
 			return;
-
-		case updown_absolute:
-			//suggestion_window.selected = action->intval; // TODO
-			tui_update_suggestion_list();
-
-			break;
 
 		case input_modify_text: {
 			const int x = 1;
@@ -612,8 +605,7 @@ static void tui_textbox_window_action(enum tui_action_kind action) {
 			return;
 
 		case updown:
-			//textbox_window.start_line += action->intval;
-			if(textbox_window.start_line < 0) textbox_window.start_line = 0;
+			textbox_window.start_line = state_get_tb_pos();
 			prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
 			break;
 
