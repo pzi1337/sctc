@@ -33,11 +33,40 @@
 #include <libxml/encoding.h>
 #include <libxml/xmlwriter.h>
 
+#include <yajl/yajl_gen.h>
+
 #include "track.h"
 #include "log.h"
 #include "helper.h"
 
+#define YAJL_GEN_STRING(hand, str) yajl_gen_string(hand, (unsigned char*)str, strlen(str))
+
+#define YAJL_GEN_ENTRY(hand, title, content) { \
+	YAJL_GEN_STRING(hand, title); \
+	YAJL_GEN_STRING(hand, content); \
+}
+
+#define YAJL_GEN_ENTRY_INT(hand, title, value) { \
+	YAJL_GEN_STRING(hand, title); \
+	yajl_gen_integer(hand, value); \
+}
+
+#define YAJL_GEN_SCOPED_ENTRY(hand, title, content) { \
+	yajl_gen_map_open(hand); \
+	YAJL_GEN_ENTRY(hand, title, content) \
+	yajl_gen_map_close(hand); \
+}
+
+#define YAJL_GEN_SCOPED_ENTRY_INT(hand, title, content) { \
+	yajl_gen_map_open(hand); \
+	YAJL_GEN_ENTRY_INT(hand, title, content) \
+	yajl_gen_map_close(hand); \
+}
+
 #define MY_ENCODING "utf-8"
+
+static void jspf_filewriter(void *ctx, const char *str, size_t len);
+bool jspf_write(char *file, struct track_list *list);
 
 static void write_xspf_track(xmlTextWriterPtr writer, struct track *track) {
 	xmlTextWriterStartElement(writer, BAD_CAST "track");
@@ -101,6 +130,64 @@ bool xspf_write(char *file, struct track_list *list) {
 
 	xmlCleanupCharEncodingHandlers();
 	xmlCleanupParser();
+
+	return true;
+}
+
+static void jspf_filewriter(void *ctx, const char *str, size_t len) {
+	FILE *fh = (FILE*) ctx;
+	fwrite(str, sizeof(char), len, fh);
+}
+
+static void write_jspf_track(yajl_gen hand, struct track *track) {
+	yajl_gen_map_open(hand);
+
+	YAJL_GEN_ENTRY    (hand, "title",      track->name);
+	YAJL_GEN_ENTRY    (hand, "location",   track->stream_url);
+	YAJL_GEN_ENTRY    (hand, "creator",    track->username);
+	YAJL_GEN_ENTRY    (hand, "identifier", track->permalink_url);
+	YAJL_GEN_ENTRY    (hand, "annotation", track->description);
+	YAJL_GEN_ENTRY_INT(hand, "duration",   track->duration);
+
+	// use meta-tags to save 'bpm' (beats per minute) and date of creation
+	YAJL_GEN_STRING(hand, "meta");
+	yajl_gen_array_open(hand);
+
+	char time_buffer[256];
+	strftime(time_buffer, sizeof(time_buffer), "%Y/%m/%d %H:%M:%S %z", &track->created_at);
+
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/bpm",        track->bpm);
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/user_id",    track->user_id);
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/track_id",   track->track_id);
+	YAJL_GEN_SCOPED_ENTRY    (hand, "https://sctc.narbo.de/created_at", time_buffer);
+
+	yajl_gen_array_close(hand);
+
+	yajl_gen_map_close(hand);
+}
+
+bool jspf_write(char *file, struct track_list *list) {
+	FILE *fh = fopen(file, "w");
+
+	yajl_gen hand = yajl_gen_alloc(NULL);
+
+	yajl_gen_config(hand, yajl_gen_print_callback, jspf_filewriter, fh);
+
+	yajl_gen_map_open(hand);
+	YAJL_GEN_STRING(hand, "playlist");
+	yajl_gen_map_open(hand);
+	YAJL_GEN_STRING(hand, "track");
+
+	yajl_gen_array_open(hand);
+	for(int i = 0; i < list->count; i++) {
+		write_jspf_track(hand, &list->entries[i]);
+	}
+	yajl_gen_array_close(hand);
+
+	yajl_gen_map_close(hand);
+	yajl_gen_map_close(hand);
+
+	fclose(fh);
 
 	return true;
 }
