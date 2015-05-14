@@ -27,6 +27,8 @@
 #include <errno.h>
 //\endcond
 
+#include <yajl/yajl_tree.h>
+
 #include "log.h"
 #include "soundcloud.h"
 #include "network/network.h"
@@ -34,7 +36,7 @@
 #include "http.h"
 #include "helper.h"
 #include "url.h"
-#include "json.h"
+#include "yajl_helper.h"
 
 #define CLIENTID_GET "client_id=848ee866ea93c21373f6a8b61772b412"
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
@@ -83,33 +85,33 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 				break;
 			}
 
-			struct json_node *node = json_parse(resp->body);
+			yajl_val node = yajl_helper_parse(resp->body);
 
 			struct track_list *next_part = lcalloc(1, sizeof(struct track_list));
 			if(!next_part) {
 				return NULL;
 			}
 
-			struct json_array *array = json_get_array(node, "collection", NULL);
+			yajl_val array = yajl_helper_get_array(node, "collection", NULL);
 			if(array) {
-				next_part->entries = lcalloc(array->len + 1, sizeof(struct track));
-				next_part->count   = array->len;
-				for(int i = 0; i < array->len; i++) {
+				next_part->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
+				next_part->count   = array->u.array.len;
+				for(int i = 0; i < array->u.array.len; i++) {
 
-					next_part->entries[i].name          = json_get_string(array->nodes[i], "title",         NULL);
-					next_part->entries[i].stream_url    = json_get_string(array->nodes[i], "stream_url",    NULL);
-					next_part->entries[i].download_url  = json_get_string(array->nodes[i], "download_url",  NULL);
-					next_part->entries[i].permalink_url = json_get_string(array->nodes[i], "permalink_url", NULL);
-					next_part->entries[i].username      = json_get_string(array->nodes[i], "user", "username");
-					next_part->entries[i].description   = json_get_string(array->nodes[i], "description",   NULL);
+					next_part->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
+					next_part->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "stream_url",    NULL);
+					next_part->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);
+					next_part->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "permalink_url", NULL);
+					next_part->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "user", "username");
+					next_part->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "description",   NULL);
 
-					next_part->entries[i].user_id       = json_get_int   (array->nodes[i], "user", "id");
-					next_part->entries[i].track_id      = json_get_int   (array->nodes[i], "id", NULL);
+					next_part->entries[i].user_id       = yajl_helper_get_int   (array->u.array.values[i], "user", "id");
+					next_part->entries[i].track_id      = yajl_helper_get_int   (array->u.array.values[i], "id", NULL);
 
-					next_part->entries[i].duration      = json_get_int   (array->nodes[i], "duration", NULL) / 1000;
-					next_part->entries[i].bpm           = json_get_int   (array->nodes[i], "bpm", NULL);
+					next_part->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration", NULL) / 1000;
+					next_part->entries[i].bpm           = yajl_helper_get_int   (array->u.array.values[i], "bpm", NULL);
 
-					char *date_str = json_get_string(array->nodes[i], "created_at", NULL);
+					char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
 					if(date_str) {
 						char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &next_part->entries[i].created_at);
 						if(!ret || *ret) {
@@ -124,7 +126,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 				}
 			}
 
-			href = json_get_string(node, "next_href", NULL);
+			href = yajl_helper_get_string(node, "next_href", NULL);
 
 			http_response_destroy(resp);
 

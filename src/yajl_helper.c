@@ -25,19 +25,14 @@
 #include <yajl/yajl_tree.h>
 #include <string.h>
 
-#include "json.h"
-
+#include "yajl_helper.h"
 #include "helper.h"
 #include "log.h"
 
-struct json_node {
-	yajl_val val;
-};
-
-char* json_get_string(struct json_node *parent, char *path1, char *path2) {
+char* yajl_helper_get_string(yajl_val parent, char *path1, char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
-	yajl_val val = yajl_tree_get(parent->val, path, yajl_t_string);
+	yajl_val val = yajl_tree_get(parent, path, yajl_t_string);
 	if(val) {
 		char *str = YAJL_GET_STRING(val);
 		if(str) return lstrdup(str);
@@ -45,40 +40,21 @@ char* json_get_string(struct json_node *parent, char *path1, char *path2) {
 	return NULL; 
 }
 
-int json_get_int(struct json_node *parent, char *path1, char *path2) {
+int yajl_helper_get_int(yajl_val parent, char *path1, char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
-	yajl_val val = yajl_tree_get(parent->val, path, yajl_t_number);
-	if(val) return YAJL_GET_INTEGER(val);
-	return 0; 
+	yajl_val val = yajl_tree_get(parent, path, yajl_t_number);
+	return val ? YAJL_GET_INTEGER(val) : 0;
 }
 
-struct json_array* json_get_array(struct json_node *parent, char *path1, char *path2) {
+yajl_val yajl_helper_get_array(yajl_val parent, char *path1, char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
-	struct json_array *array = NULL;
-
-	yajl_val val = yajl_tree_get(parent->val, path, yajl_t_array);
-	if(YAJL_IS_ARRAY(val)) {
-		array = lcalloc(1, sizeof(struct json_array));
-		if(array) {
-			array->len   = val->u.array.len;
-
-			struct json_node *nodes = lcalloc(array->len + 1, sizeof(struct json_node));
-			array->nodes = lcalloc(array->len + 1, sizeof(struct json_node));
-
-			for(size_t i = 0; i < array->len; i++) {
-				array->nodes[i]      = &nodes[i];
-				array->nodes[i]->val = val->u.array.values[i];
-			}
-		}
-	}
-
-	return array;
+	yajl_val val = yajl_tree_get(parent, path, yajl_t_array);
+	return YAJL_IS_ARRAY(val) ? val : NULL;
 }
 
-struct json_node* json_parse(char *data) {
-
+yajl_val yajl_helper_parse(char *data) {
 	char errbuf[1024];
 	yajl_val val = yajl_tree_parse((const char *) data, errbuf, sizeof(errbuf));
 
@@ -86,13 +62,6 @@ struct json_node* json_parse(char *data) {
 		_log("%s", errbuf);
 		_log("length of affected string: %d", strlen(data));
 		_log("affected string: %s", data);
-		return NULL;
 	}
-
-	struct json_node *node = lmalloc(sizeof(struct json_node));
-	if(node) {
-		node->val = val;
-	}
-
-	return node;
+	return val;
 }

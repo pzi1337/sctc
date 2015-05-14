@@ -21,15 +21,8 @@
 
 	#include <stddef.h>                     // for size_t
 
-	struct json_node;
-
-	struct json_array {
-		size_t             len;
-		struct json_node **nodes;
-	};
-
-	struct json_node*  json_parse     (char *data);
-	char*              json_get_string(struct json_node *parent, char *path1, char *path2);
-	int                json_get_int   (struct json_node *parent, char *path1, char *path2);
-	struct json_array* json_get_array (struct json_node *parent, char *path1, char *path2);
+	yajl_val yajl_helper_parse(char *data);
+	char*    yajl_helper_get_string(yajl_val parent, char *path1, char *path2);
+	int      yajl_helper_get_int   (yajl_val parent, char *path1, char *path2);
+	yajl_val yajl_helper_get_array (yajl_val parent, char *path1, char *path2);
 #endif
