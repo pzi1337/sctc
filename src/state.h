@@ -32,23 +32,78 @@
 		bool (*func)(char*);
 	};
 
-	size_t              state_get_current_list();
-	struct track_list*  state_get_list(size_t id);
-	enum   repeat       state_get_repeat();
-	char*               state_get_title_text();
-	char*               state_get_status_text();
-	enum color          state_get_status_color();
-	char*               state_get_tb_text();
-	char*               state_get_tb_title();
-	char*               state_get_input();
-	struct command*     state_get_commands();
-	size_t              state_get_current_time();
-	size_t              state_get_tb_old_pos();
-	size_t              state_get_tb_pos();
+	/** \addtogroup state_get State: Getter
+	 *
+	 *  @{
+	 */
+	/** \brief Get the id of the currently displayed list
+	 *  \return id of the currently displayed list
+	 */
+	size_t             state_get_current_list();
 
-	void state_init();
-	void state_finalize();
+	/** \brief Get the track_list for a specific id
+	 *  \return The track_list for a specific id
+	 */
+	struct track_list* state_get_list(size_t id);
 
+	/** \brief Get the current `repeat` state
+	 *  \return The current `repeat` state
+	 */
+	enum   repeat      state_get_repeat();
+
+	/** \brief Get the current text in the title bar
+	 *  \return The current text in the title bar
+	 */
+	char*              state_get_title_text();
+
+	/** \brief Get the current text in the status bar
+	 *  \return The current text in the status bar
+	 */
+	char*              state_get_status_text();
+
+	/** \brief Get the current color of the text in the status bar
+	 *  \return the current color of the text in the status bar
+	 */
+	enum color         state_get_status_color();
+
+	/** \brief Get the text of the currently visible textbox
+	 *  \return the text of the currently visible textbox, `NULL` if no textbox is shown
+	 */
+	char*              state_get_tb_text();
+
+	/** \brief Get the title of the currently visible textbox
+	 *  \return the title of the currently visible textbox, `NULL` if no textbox is shown
+	 */
+	char*              state_get_tb_title();
+	char*              state_get_input();
+	struct command*    state_get_commands();
+	size_t             state_get_current_time();
+	size_t             state_get_tb_old_pos();
+	size_t             state_get_tb_pos();
+	/** @}*/
+
+	/** \brief Global initialization of the internal state of SCTC.
+	 *
+	 *  This function is required to be called prior to the first call  to
+	 *  any other state_* function.
+	 *
+	 *  \return   true in case of success, false otherwise
+	 */
+	bool state_init();
+
+	/** \brief Global finalization of the internal state of SCTC.
+	 *
+	 *  This function is required to be called prior to termination of SCTC.
+	 *  Do not use any state_* after calling this function.
+	 *
+	 *  \return   true in case of success, false otherwise
+	 */
+	bool state_finalize();
+
+	/** \addtogroup state_set State: Setter
+	 *
+	 *  @{
+	 */
 	void state_set_commands    (struct command *commands);
 	void state_set_current_list(size_t              list);
 	void state_set_lists       (struct track_list **lists);
@@ -58,4 +113,5 @@
 	void state_set_tb          (char *title, char *text);
 	void state_set_current_time(size_t time);
 	void state_set_tb_pos      (size_t pos);
+	/** @}*/
 #endif /* _STATE_H */
