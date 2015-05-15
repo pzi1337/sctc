@@ -865,12 +865,17 @@ int main(int argc, char **argv) {
 				break;
 
 			case KEY_DOWN:
-				list->selected += 1;
-				tui_submit_action(updown);
+				if(list->selected < list->count - 1) {
+					list->selected += 1;
+					tui_submit_action(updown);
+				}
 				break;
 
 			case KEY_NPAGE:
 				list->selected += LINES - 2;
+				if(list->selected >= list->count) {
+					list->selected = list->count - 1;
+				}
 				tui_submit_action(updown);
 				break;
 
