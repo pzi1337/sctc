@@ -18,7 +18,7 @@
 
 #ifndef _XSPF_H
 
-	bool xspf_write(char *file, struct track_list *list);
-	struct track_list* xspf_read(char *file);
+	bool jspf_write(char *file, struct track_list *list);
+	struct track_list* jspf_read(char *file);
 
 #endif /* _XSPF_H */

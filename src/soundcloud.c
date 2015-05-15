@@ -32,7 +32,7 @@
 #include "log.h"
 #include "soundcloud.h"
 #include "network/network.h"
-#include "xspf.h"
+#include "jspf.h"
 #include "http.h"
 #include "helper.h"
 #include "url.h"
@@ -42,12 +42,12 @@
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
 #define CACHE_LIST_FOLDER "./cache/lists/"
-#define CACHE_LIST_EXT ".xspf"
+#define CACHE_LIST_EXT ".jspf"
 
 struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) {
 	char cache_file[strlen(CACHE_LIST_FOLDER) + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
 	sprintf(cache_file, CACHE_LIST_FOLDER"%s"CACHE_LIST_EXT, user);
-	struct track_list* cache_tracks = xspf_read(cache_file);
+	struct track_list* cache_tracks = jspf_read(cache_file);
 
 	char created_at_from_string[256] = { 0 };
 	if(cache_tracks->count) {
@@ -151,7 +151,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 	track_list_destroy(list, false);
 	track_list_destroy(cache_tracks, false);
 
-	xspf_write(cache_file, result);
+	jspf_write(cache_file, result);
 
 	return result;
 }

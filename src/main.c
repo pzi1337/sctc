@@ -64,7 +64,7 @@
 #include "track.h"                      // for track_list, track, etc
 #include "tui.h"
 #include "url.h"                        // for url, url_connect, etc
-#include "xspf.h"                       // for xspf_write, xspf_read
+#include "jspf.h"                       // for jspf_write, jspf_read
 
 #define USE_UNICODE
 
@@ -78,7 +78,7 @@
 		_log("%s took %dms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
 	}
 
-#define BOOKMARK_FILE ".bookmarks.xspf"
+#define BOOKMARK_FILE ".bookmarks.jspf"
 
 #define SERVER_PORT 443
 #define SERVER_NAME "api.soundcloud.com"
@@ -243,7 +243,7 @@ static bool cmd_write_playlist(char *file) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	tui_submit_status_line_print(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: XSPF)\n", file));
-	xspf_write(file, list);
+	jspf_write(file, list);
 
 	return true;
 }
@@ -256,7 +256,7 @@ static bool cmd_write_playlist(char *file) {
  *  \return does not return
  */
 static bool cmd_exit(char *unused) {
-	xspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
+	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
 	track_list_destroy(state_get_list(LIST_STREAM), true);
 	track_list_destroy(state_get_list(LIST_BOOKMARKS), true); // TODO: double free!
@@ -361,7 +361,7 @@ static struct command commands[] = {
 	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
 	{"help",        "Show help",             cmd_help},
-	{"write",       "Write current playlist to file (.xspf)",  cmd_write_playlist},
+	{"write",       "Write current playlist to file (.jspf)",  cmd_write_playlist},
 	{"exit",        "Terminate SCTC",        cmd_exit},
 	{NULL,          NULL, NULL}
 };
@@ -668,7 +668,7 @@ int main(int argc, char **argv) {
 	tui_submit_action(set_title_text);
 
 	struct track_list **lists = lcalloc(4, sizeof(struct track_list*));
-	lists[LIST_BOOKMARKS] = xspf_read(BOOKMARK_FILE);
+	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
 
 	lists[LIST_USER1] = lcalloc(1, sizeof(struct track_list));
