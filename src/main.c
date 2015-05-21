@@ -434,6 +434,7 @@ static void handle_textbox() {
 			case 'd':
 			case 'q':
 				state_set_tb_pos(0);
+				state_set_tb(NULL, NULL);
 				tui_submit_action(back_exit);
 				return;
 				break;
