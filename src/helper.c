@@ -66,6 +66,19 @@ int snprint_ftime(char *buffer, size_t buffer_size, int time_secs) {
 	}
 }
 
+char* strstrp(char *str) {
+	char *new_start = str;
+	while(' ' == *new_start || '\t' == *new_start) {
+		new_start++;
+	}
+
+	for(char *ptr = new_start + strlen(new_start) - 1; ptr > new_start && (' ' == *ptr || '\t' == *ptr); ptr--) {
+		*ptr = '\0';
+	}
+
+	return new_start;
+}
+
 bool yank(char *text) {
 	int fd[2];
 	pipe(fd);

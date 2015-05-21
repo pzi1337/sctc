@@ -248,6 +248,18 @@ static bool cmd_write_playlist(char *file) {
 	return true;
 }
 
+static bool cmd_goto(char *hint) {
+	char *target = strstrp(hint);
+
+	if(!strcmp("", target)) {
+		state_get_list(state_get_current_list())->selected = playing - 1; // TODO: -1 ?!
+
+		tui_submit_action(update_list);
+		tui_submit_status_line_print(cline_default, strdup(""));
+	}
+	return true;
+}
+
 /** \brief Exit SCTC
  *
  *  Writes the list of bookmarks to file and shuts down SCTC.
@@ -360,6 +372,7 @@ static struct command commands[] = {
 	{"repeat-none", "Set repeat to 'none'",  cmd_repeat_none},
 	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
+	{"goto",        "Set selection to specific entry", cmd_goto},
 	{"help",        "Show help",             cmd_help},
 	{"write",       "Write current playlist to file (.jspf)",  cmd_write_playlist},
 	{"exit",        "Terminate SCTC",        cmd_exit},

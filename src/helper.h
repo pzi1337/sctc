@@ -55,6 +55,8 @@
 	 */
 	void strcrep(char *str, char s, char r);
 
+	char* strstrp(char *str);
+
 	/** \brief Yank the provided text
 	 *
 	 *  \param text  The text to yank
