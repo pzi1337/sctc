@@ -17,25 +17,29 @@
 */
 
 
+#include "tui.h"
+
 //\cond
-#include <string.h>
-#include <stdlib.h>
-#include <semaphore.h>
-#include <pthread.h>
-#include <assert.h>
-#include <signal.h>
-#include <term.h>
-#include <errno.h>
-#include <wchar.h>
+#include <assert.h>                     // for assert
+#include <errno.h>                      // for errno
+#include <pthread.h>                    // for pthread_create, etc
+#include <semaphore.h>                  // for sem_post, sem_init, etc
+#include <signal.h>                     // for SIGWINCH, signal, SIG_ERR
+#include <stdarg.h>                     // for va_start, va_end, va_list
+#include <stddef.h>                     // for size_t
+#include <stdio.h>                      // for vsnprintf
+#include <stdlib.h>                     // for NULL, mbstowcs, free
+#include <string.h>                     // for strlen, strtok, strdup, etc
+#include <time.h>                       // for strftime
 //\endcond
 
-#include <ncurses.h>
+#include <ncurses.h>                    // for init_pair, ERR, LINES, etc
+#include <term.h>                       // for del_curterm, cur_term
 
-#include "log.h"
-#include "tui.h"
-#include "helper.h"
-#include "state.h"
-#include "track.h"
+#include "helper.h"                     // for snprint_ftime, strcrep
+#include "log.h"                        // for _log
+#include "state.h"                      // for state_get_current_list, etc
+#include "track.h"                      // for track, track_list, etc
 
 /* user defined colors */
 #define COLOR_SHELL  -1 /* the default color used by the shell, required to be -1 */
@@ -47,10 +51,10 @@
 
 static void tui_track_print_line(struct track* entry, bool selected, int line);
 
-static void tui_mvprint(int x, int y, char *fmt, ...);
+static void tui_print(char *fmt, ...);
 static void tui_track_list_print();
 static size_t tui_track_focus(size_t new_selected);
-static void tui_show_textbox_window(char *title, char *text);
+static void tui_show_textbox_window();
 static void tui_textbox_window_action(enum tui_action_kind action);
 static void tui_suggestion_window_action(enum tui_action_kind action);
 static void tui_update_suggestion_list();
@@ -134,7 +138,8 @@ void* _thread_tui_function(void *unused) {
 						const int y = LINES - 1;
 
 						color_set(cline_default, NULL);
-						tui_mvprint(x, y, state_get_input());
+						move(y, x);
+						tui_print("%s", state_get_input());
 
 						color_set(inp_cursor, NULL);
 						printw(" ");
@@ -146,7 +151,7 @@ void* _thread_tui_function(void *unused) {
 					}
 
 					case show_textbox: {
-						tui_show_textbox_window(state_get_tb_title(), state_get_tb_text());
+						tui_show_textbox_window();
 						break;
 					}
 
@@ -172,7 +177,7 @@ static void tui_redraw() {
 	tui_track_list_print();
 
 	if(state_get_tb_title()) {
-		tui_show_textbox_window(state_get_tb_title(), state_get_tb_text());
+		tui_show_textbox_window();
 	}
 
 	tui_draw_status_line(); // redraw the status line
@@ -181,14 +186,16 @@ static void tui_redraw() {
 static void tui_draw_title_line() {
 	color_set(sbar_default, NULL);
 
-	tui_mvprint(0, 0, "%s%0*c", state_get_title_text(), COLS - strlen(state_get_title_text()), ' ');
+	move(0, 0);
+	tui_print("%s%0*c", state_get_title_text(), COLS - strlen(state_get_title_text()), ' ');
 	refresh();
 }
 
 static void tui_draw_status_line() {
 	color_set(state_get_status_color(), NULL);
 
-	tui_mvprint(0, LINES - 1, "%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ');
+	move(LINES - 1, 0);
+	tui_print("%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ');
 	refresh();
 }
 
@@ -290,7 +297,7 @@ static void tui_draw_tab_bar() {
 
 	move(1, 0);
 	for(size_t i = 0; state_get_list(i); i++) {
-		color_set(i == state_get_current_list()  ? tbar_tab_selected : tbar_tab_nselected, NULL);
+		color_set(i == state_get_current_list() ? tbar_tab_selected : tbar_tab_nselected, NULL);
 
 		if(i == state_get_current_list()) attron(A_BOLD);
 		printw(" [%i] %s ", i + 1, state_get_list(i)->name);
@@ -300,23 +307,9 @@ static void tui_draw_tab_bar() {
 	move(1, COLS - 3);
 	color_set(tbar_default, NULL);
 	switch(state_get_repeat()) {
-		case rep_none: break;
-
-		case rep_one:
-		#ifdef USE_UNICODE
-			addwstr(L"\u21BA1");
-		#else
-			addstr("r1");
-		#endif
-			break;
-
-		case rep_all:
-		#ifdef USE_UNICODE
-			addwstr(L"\u21BA\u221E");
-		#else
-			addstr("ra");
-		#endif
-			break;
+		case rep_none:                        break;
+		case rep_one: addstr("\u21BA1");      break;
+		case rep_all: addstr("\u21BA\u221E"); break;
 	}
 }
 
@@ -362,11 +355,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	move(line, 0);
 	if(entry->flags & FLAG_PLAYING) {
 		color_set(tline_status, NULL);
-	#ifdef USE_UNICODE
-		addwstr(L"\u25B8");
-	#else
-		addch('>');
-	#endif
+		addstr("\u25B8");
 	} else if(entry->flags & FLAG_PAUSED) {
 		color_set(tline_status, NULL);
 		attron(A_BOLD);
@@ -398,36 +387,11 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	}
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c", (entry->current_position ? 0 : 12) + 3, ' ');
 
-	#ifdef USE_UNICODE
-		// TODO
-	#else
-		char* cached     = FLAG_CACHED     & entry->flags ? "C"      : " ";
-		char* new        = FLAG_NEW        & entry->flags ? "\u27EA" : " ";
-		char* bookmarked = FLAG_BOOKMARKED & entry->flags ? "\u2661" : " ";
+	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%s%s%s",
+		FLAG_CACHED     & entry->flags ? "C"      : " ",
+		FLAG_NEW        & entry->flags ? "\u27EA" : " ",
+		FLAG_BOOKMARKED & entry->flags ? "\u2661" : " ");
 
-		played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%s%s%s", cached, new, bookmarked);
-	#endif
-/*
-	color_set(selected ? tline_default_selected : tline_default, NULL);
-	if(FLAG_CACHED & entry->flags) {
-		move(line, COLS - 13);
-		addch('C');
-	}
-
-	if(FLAG_NEW & entry->flags) {
-		move(line, COLS - 12);
-	#ifdef USE_UNICODE
-		addwstr(L"\u27EA");
-	#endif
-	}
-
-	if(FLAG_BOOKMARKED & entry->flags) {
-		move(line, COLS - 11);
-	#ifdef USE_UNICODE
-		addwstr(L"\u2661");
-	#endif
-	}
-*/
 	char time_buffer[TIME_BUFFER_SIZE];
 	int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, entry->duration);
 	tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_time_selected, "%0*c%s", 9 - time_len, ' ', time_buffer);
@@ -455,10 +419,11 @@ static void tui_track_list_print() {
 	refresh();
 }
 
+static void tui_print(char *fmt, ...) {
+	va_list va;
+	va_start(va, fmt);
 
-size_t tui_vaprint(char *fmt, va_list va) {
 	char buffer[512];
-	size_t not_printed = 0;
 	vsnprintf(buffer, sizeof(buffer), fmt, va);
 
 	unsigned int i;
@@ -466,11 +431,9 @@ size_t tui_vaprint(char *fmt, va_list va) {
 		switch(buffer[i]) {
 			case '\1':
 				attron(A_BOLD);
-				not_printed++;
 				break;
 			case '\2':
 				attroff(A_BOLD);
-				not_printed++;
 				break;
 
 			default:
@@ -478,17 +441,6 @@ size_t tui_vaprint(char *fmt, va_list va) {
 				break;
 		}
 	}
-
-	return i - not_printed;
-}
-
-static void tui_mvprint(int x, int y, char *fmt, ...) {
-	move(y, x);
-
-	va_list va;
-	va_start(va, fmt);
-
-	tui_vaprint(fmt, va);
 
 	va_end(va);
 }
@@ -531,21 +483,21 @@ static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
 	return y;
 }
 
-static void tui_show_textbox_window(char *title, char *text) {
+static void tui_show_textbox_window() {
 	const int width = COLS - 8;
-	const size_t pad_height = tui_draw_text(NULL, text, width - 4);
+	const size_t pad_height = tui_draw_text(NULL, state_get_tb_text(), width - 4);
 
 	textbox_window.win = newwin(LINES - 8, width, 4, 4);
 	box(textbox_window.win, 0, 0);
 
 	wattron(textbox_window.win, A_BOLD);
-	mvwprintw(textbox_window.win, 0, 2, " %s ", title);
+	mvwprintw(textbox_window.win, 0, 2, " %s ", state_get_tb_title());
 	wattroff(textbox_window.win, A_BOLD);
 
 	textbox_window.pad = newpad(pad_height + LINES, width - 4);
 
 	int start_line = 0;
-	tui_draw_text(textbox_window.pad, text, width - 10);
+	tui_draw_text(textbox_window.pad, state_get_tb_text(), width - 10);
 	wrefresh(textbox_window.win);
 	prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
 }
@@ -565,7 +517,7 @@ static void tui_suggestion_window_action(enum tui_action_kind action) {
 			const int y = LINES - 1;
 
 			color_set(cline_default, NULL);
-			tui_mvprint(x, y, state_get_input());
+			mvprintw(y, x, "%s", state_get_input());
 
 			color_set(inp_cursor, NULL);
 			printw(" ");
@@ -578,12 +530,9 @@ static void tui_suggestion_window_action(enum tui_action_kind action) {
 		case set_suggestion_list:
 		//	suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
 			wrefresh(suggestion_window.win);
-
-			suggestion_window.selected   = 0;
-
+			suggestion_window.selected = 0;
 			tui_update_suggestion_list();
 			break;
-
 
 		default:
 			_log("currently not implemented action-kind %d", action);
@@ -661,7 +610,7 @@ bool tui_init() {
 		if(can_change_color()) {
 			_log("color id in [0; %i]", COLORS);
 
-		#define INIT_COLOR(C, R, G, B) if(ERR == init_color(C, R, G, B)) { _log("init_pair("#C", %d, %d, %d) failed", R, G, B); }
+		#define INIT_COLOR(C, R, G, B) if(ERR == init_color(C, R, G, B)) { _log("init_color("#C", %d, %d, %d) failed", R, G, B); }
 			INIT_COLOR(COLOR_GRAY,   280, 280, 280);
 			INIT_COLOR(COLOR_DGRAY,  200, 200, 200);
 			INIT_COLOR(COLOR_DGREEN, 100, 500, 100);

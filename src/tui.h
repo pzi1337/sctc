@@ -19,6 +19,8 @@
 #ifndef _TUI_H
 	#define _TUI_H
 
+	#include <stdbool.h>                    // for bool, false, true
+
 	enum color {
 		cline_default = 1, cline_cmd_char, cline_warning,
 		tbar_default, tbar_tab_selected, tbar_tab_nselected,
