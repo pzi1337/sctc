@@ -38,6 +38,7 @@
 #include "network/network.h"            // for network_conn
 #include "soundcloud.h"                 // for soundcloud_connect_track
 #include "track.h"                      // for track, FLAG_CACHED
+#include "state.h"
 #include "tui.h"
 
 #define BUFFER_SIZE 256 * 1024 * 1024

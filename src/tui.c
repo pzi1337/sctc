@@ -81,16 +81,6 @@ static struct suggestion_window {
 	size_t selected;
 } suggestion_window = { NULL };
 
-static void tui_sbar_time_draw(int time) {
-	color_set(sbar_default, NULL);
-
-	char time_buffer[TIME_BUFFER_SIZE];
-	int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, time);
-	mvprintw(0, COLS - time_len, "%s", time_buffer);
-
-	refresh();
-}
-
 static sem_t sem_have_action;
 static sem_t sem_wait_action;
 
@@ -225,9 +215,16 @@ static void tui_update_suggestion_list() {
 static bool tui_handle_generic_action(enum tui_action_kind action) {
 
 	switch(action) {
-		case set_sbar_time:
-			tui_sbar_time_draw(state_get_current_time());
+		case set_sbar_time: {
+			color_set(sbar_default, NULL);
+
+			char time_buffer[TIME_BUFFER_SIZE];
+			int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_time());
+			mvprintw(0, COLS - time_len, "%s", time_buffer);
+
+			refresh();
 			return true;
+		}
 
 		default: /* only the most basic actions are handled here */
 			return false;
@@ -624,11 +621,6 @@ static void tui_textbox_window_action(enum tui_action_kind action) {
    these functions are the only exported ones, which may be called by different threads (and thus are synchronized).
    tui_init / tui_finalize each may only be called once (at the very beginning and the very end)
 */
-void tui_submit_status_line_print(enum color color, char *text) {
-	state_set_status(text, color);
-	tui_submit_action(set_status_text);
-}
-
 void tui_submit_action(enum tui_action_kind _action) {
 	sem_wait(&sem_wait_action);
 	action = _action;
@@ -729,8 +721,6 @@ bool tui_init() {
 }
 
 void tui_finalize() {
-	_log("enter: tui_finalize");
-
 	action = none;
 	terminate = true;
 	sem_post(&sem_have_action);
@@ -740,6 +730,4 @@ void tui_finalize() {
 	delwin(stdscr);
 	endwin();
 	del_curterm(cur_term);
-
-	_log("leave: tui_finalize");
 }

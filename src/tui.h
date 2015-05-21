@@ -19,12 +19,6 @@
 #ifndef _TUI_H
 	#define _TUI_H
 
-	//\cond
-	#include <stdarg.h>
-	//\endcond
-
-	#include "track.h" // TODO: remove once enum repeat has been moved!
-
 	enum color {
 		cline_default = 1, cline_cmd_char, cline_warning,
 		tbar_default, tbar_tab_selected, tbar_tab_nselected,
@@ -83,7 +77,8 @@
 
 	void tui_submit_action(enum tui_action_kind kind);
 
-	void tui_submit_status_line_print(enum color c, char *text);
+	#define tui_submit_status_line_print(c, t) state_set_status(t, c); \
+		tui_submit_action(set_status_text)
 
 	bool tui_init();
 	void tui_finalize();
