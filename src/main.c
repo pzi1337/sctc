@@ -605,6 +605,9 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	size_t pos = 0;
 	int c;
 
+	// `clear` the buffer on starting search
+	buffer[0] = '\0';
+
 	tui_submit_action(input_modify_text);
 
 	while( (c = getch()) ) {
@@ -618,9 +621,9 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 
 			case KEY_BACKSPACE: {
 				if(pos) {
+					pos--;
 					buffer[pos] = '\0';
 					tui_submit_action(input_modify_text);
-					pos--;
 				} else {
 					return false;
 				}
