@@ -82,6 +82,7 @@ bool config_finalize() {
 		free(config_subscribe[i]);
 	}
 	free(config_subscribe);
+	free(cache_path);
 
 	return true;
 }

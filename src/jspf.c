@@ -146,7 +146,7 @@ struct track_list* jspf_read(char *file) {
 	struct stat jspf_stat;
 	fstat(fileno(fh), &jspf_stat);
 
-	char buffer[jspf_stat.st_size + 1];
+	char *buffer = lmalloc(jspf_stat.st_size + 1);
 	fread(buffer, sizeof(char), jspf_stat.st_size, fh);
 	buffer[jspf_stat.st_size] = '\0';
 
@@ -191,6 +191,9 @@ struct track_list* jspf_read(char *file) {
 			}
 		}
 	}
+
+	yajl_tree_free(node_root);
+	free(buffer);
 
 	return list;
 }

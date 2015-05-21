@@ -99,6 +99,7 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 				url_connect(u);
 				resp = http_request_get_only_header(u->nwc, u->request, u->host, follow_redirect_steps - 1);
 				resp->nwc = u->nwc;
+				url_destroy(u);
 			} else {
 				resp = NULL;
 			}

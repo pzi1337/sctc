@@ -168,10 +168,13 @@ struct http_response* soundcloud_connect_track(struct track *track) {
 
 	url_connect(u);
 	if(!u->nwc) {
+		url_destroy(u);
 		return NULL;
 	}
 
 	struct http_response *resp = http_request_get_only_header(u->nwc, u->request, u->host, MAX_REDIRECT_STEPS);
+
+	url_destroy(u);
 
 	return resp;
 }
