@@ -48,6 +48,8 @@
 #define CACHE_STREAM_FOLDER "./cache/streams/"
 #define CACHE_STREAM_EXT ".mp3"
 
+#define SEEKPOS_NONE ((unsigned int) ~0)
+
 static sem_t sem_io;
 static sem_t sem_play;
 static sem_t sem_stopped;
@@ -62,6 +64,8 @@ static volatile int           buffer_pos  = 0;
 static volatile char         *buffer      = NULL;
 static volatile struct track *track       = NULL;
 static volatile int           current_pos = 0;
+
+static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
 
 /** The amount of data for the whole track.
     As soon as we reach this position during playback the end of track has been reached */
@@ -229,7 +233,6 @@ static void* _thread_play_function(void *unused) {
 
 		bool playback_done = false;
 
-		long decoded_frames = 0;
 		while(!terminate && !stopped && !playback_done && track) {
 			int current_buffer_pos = buffer_pos;
 			if(last_buffer_pos != current_buffer_pos) {
@@ -261,13 +264,9 @@ static void* _thread_play_function(void *unused) {
 					break;
 
 				case MPG123_OK:
-					//_log("%i Bytes (= %i Samples) ready in buffer", done, done / (format.channels * format.bits/8));
-
-					decoded_frames++;
 					ao_play(dev, (char*)audio, done);
 
-					current_pos = (int) (time_per_frame * decoded_frames);
-
+					current_pos = (int) (time_per_frame * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
 					// meant to reduce the number of redraws possibly issued by time_callback
 					if(current_pos != last_reported_pos) {
@@ -292,6 +291,15 @@ static void* _thread_play_function(void *unused) {
 
 				default:
 					break;
+			}
+
+			// do seeking to specified position if required
+			if(SEEKPOS_NONE != seek_to_pos) {
+				off_t target_frame_off = mpg123_timeframe(mh, seek_to_pos);
+				mpg123_seek_frame(mh, target_frame_off, SEEK_SET);
+
+				// reset seek_to_pos to avoid seeking multiple times
+				seek_to_pos = SEEKPOS_NONE;
 			}
 		}
 
@@ -410,11 +418,17 @@ int sound_get_current_pos() {
 	return current_pos;
 }
 
+void sound_seek(unsigned int pos) {
+	seek_to_pos = pos;
+}
+
 bool sound_play(struct track *_track) {
 	track       = _track;
 	current_pos = 0;
 	buffer_pos  = 0;
 	track_size  = 0;
+
+	seek_to_pos = _track->current_position;
 
 	sem_post(&sem_io);
 

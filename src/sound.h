@@ -45,6 +45,8 @@
 	 */
 	bool sound_play(struct track *track);
 
+	void sound_seek(unsigned int pos);
+
 	int sound_get_current_pos();
 
 	bool sound_finalize();
