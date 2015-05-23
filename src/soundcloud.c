@@ -72,6 +72,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 		do {
 			struct url *u = url_parse_string(href);
 			struct http_response *resp = http_request_get(nwc, u->request, u->host);
+			url_destroy(u);
 
 			/* free any href, which is not the initial request url (strdup'd below, the initial request url is on stack) */
 			if(href != request_url) {
@@ -109,7 +110,6 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 					next_part->entries[i].track_id      = yajl_helper_get_int   (array->u.array.values[i], "id", NULL);
 
 					next_part->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration", NULL) / 1000;
-					next_part->entries[i].bpm           = yajl_helper_get_int   (array->u.array.values[i], "bpm", NULL);
 
 					char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
 					if(date_str) {
@@ -127,6 +127,8 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 			}
 
 			href = yajl_helper_get_string(node, "next_href", NULL);
+
+			yajl_tree_free(node);
 
 			http_response_destroy(resp);
 

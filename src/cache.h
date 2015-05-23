@@ -19,6 +19,7 @@
 #ifndef _CACHE_H
 	#define _CACHE_H
 	//\cond
+	#include <stdbool.h>                    // for bool
 	#include <stddef.h>                     // for size_t
 	//\endcond
 

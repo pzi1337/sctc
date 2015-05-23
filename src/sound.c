@@ -16,30 +16,32 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-//\cond
-#include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
-#include <errno.h>                      // for errno
-#include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
-#include <pthread.h>                    // for pthread_create, etc
-#include <semaphore.h>                  // for sem_post, sem_wait, etc
-#include <stddef.h>                     // for NULL, size_t
-#include <stdio.h>                      // for fclose, fopen, FILE, fileno, etc
-#include <stdlib.h>                     // for free
-#include <string.h>                     // for strerror
-#include <sys/stat.h>                   // for stat, fstat, off_t
-//\endcond
+
 
 #include "sound.h"
 
-#include "cache.h"
+#include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
+#include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
+
+//\cond
+#include <errno.h>                      // for errno
+#include <pthread.h>                    // for pthread_create, etc
+#include <semaphore.h>                  // for sem_post, sem_wait, etc
+#include <stddef.h>                     // for NULL, size_t
+#include <stdlib.h>                     // for free
+#include <string.h>                     // for strerror, strdup
+#include <sys/stat.h>                   // for off_t
+//\endcond
+
+#include "cache.h"                      // for cache_track_get, etc
 #include "helper.h"                     // for lmalloc
 #include "http.h"                       // for http_response, etc
 #include "log.h"                        // for _log
 #include "network/network.h"            // for network_conn
 #include "soundcloud.h"                 // for soundcloud_connect_track
 #include "track.h"                      // for track, FLAG_CACHED
+#include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
-#include "tui.h"
 
 #define BUFFER_SIZE 256 * 1024 * 1024
 

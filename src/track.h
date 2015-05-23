@@ -60,7 +60,6 @@
 		char   *description;
 		struct tm created_at;
 		int    duration; ///< duration in seconds
-		int    bpm;      ///< beats per minute
 		int    user_id;
 		int    track_id;
 

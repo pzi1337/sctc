@@ -300,10 +300,9 @@ static bool cmd_bookmark(char *unused) {
  *  \return true
  */
 static bool cmd_help(char *unused) {
-	// TODO
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
-	state_set_tb(strdup("Help / About"), strdup(help_msg));
+	state_set_tb("Help / About", help_msg);
 	tui_submit_action(show_textbox);
 
 	handle_textbox();
@@ -409,7 +408,7 @@ static int command_dispatcher(char *command) {
 static struct track_list* get_list() {
 	struct network_conn *nwc = NULL;
 	if(!param_is_offline) {
-		tui_submit_status_line_print(cline_default, strdup("Info: Connecting to soundcloud.com"));
+		tui_submit_status_line_print(cline_default, "Info: Connecting to soundcloud.com");
 		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 	}
 
@@ -680,11 +679,11 @@ int main(int argc, char **argv) {
 	tui_init();
 	sound_init(tui_update_time);
 
-	tui_submit_status_line_print(cline_default, strdup(""));
-	state_set_title(strdup(""));
+	tui_submit_status_line_print(cline_default, "");
+	state_set_title("");
 	tui_submit_action(set_title_text);
 
-	struct track_list **lists = lcalloc(4, sizeof(struct track_list*));
+	struct track_list *lists[4] = {NULL};
 	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
 
@@ -750,7 +749,7 @@ int main(int argc, char **argv) {
 			}
 
 			case '/':
-				tui_submit_status_line_print(cline_cmd_char, strdup(F_BOLD"/"F_RESET));
+				tui_submit_status_line_print(cline_cmd_char, F_BOLD"/"F_RESET);
 				handle_search(state_get_input(), 127);
 				_log("have search: %s", state_get_input());
 
@@ -819,10 +818,11 @@ int main(int argc, char **argv) {
 				struct track_list *list = state_get_list(state_get_current_list());
 
 				char *title = smprintf("%s by %s", list->entries[list->selected].name, list->entries[list->selected].username);
-				state_set_tb(title, strdup(list->entries[list->selected].description));
+				state_set_tb(title, list->entries[list->selected].description);
 				tui_submit_action(show_textbox);
 
 				handle_textbox();
+				free(title);
 				break;
 			}
 

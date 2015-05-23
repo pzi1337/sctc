@@ -16,14 +16,14 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-//\cond
-#include <stdio.h>                      // for fclose, fileno, fopen, etc
-#include <string.h>                     // for strlen
-#include <sys/stat.h>                   // for stat, fstat
-#include <errno.h>
-//\endcond
-
 #include "cache.h"
+
+//\cond
+#include <errno.h>                      // for errno, ENOENT
+#include <stdio.h>                      // for fclose, fopen, snprintf, etc
+#include <string.h>                     // for strlen, strerror
+#include <sys/stat.h>                   // for stat, fstat, mkdir
+//\endcond
 
 #include "log.h"                        // for _log
 #include "track.h"                      // for track

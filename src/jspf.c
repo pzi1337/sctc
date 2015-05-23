@@ -88,14 +88,13 @@ static void write_jspf_track(yajl_gen hand, struct track *track) {
 	YAJL_GEN_ENTRY    (hand, "annotation", track->description);
 	YAJL_GEN_ENTRY_INT(hand, "duration",   track->duration);
 
-	// use meta-tags to save 'bpm' (beats per minute) and date of creation
+	// use meta-tags to save date of creation, user_id and track_id
 	YAJL_GEN_STRING(hand, "meta");
 	yajl_gen_array_open(hand);
 
 	char time_buffer[256];
 	strftime(time_buffer, sizeof(time_buffer), "%Y/%m/%d %H:%M:%S %z", &track->created_at);
 
-	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/bpm",      track->bpm);
 	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/user_id",  track->user_id);
 	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/track_id", track->track_id);
 
@@ -111,7 +110,6 @@ static void write_jspf_track(yajl_gen hand, struct track *track) {
 
 bool jspf_write(char *file, struct track_list *list) {
 	FILE *fh = fopen(file, "w");
-
 	yajl_gen hand = yajl_gen_alloc(NULL);
 
 	yajl_gen_config(hand, yajl_gen_print_callback, jspf_filewriter, fh);
@@ -130,6 +128,7 @@ bool jspf_write(char *file, struct track_list *list) {
 	yajl_gen_map_close(hand);
 	yajl_gen_map_close(hand);
 
+	yajl_gen_free(hand);
 	fclose(fh);
 
 	return true;
@@ -173,12 +172,10 @@ struct track_list* jspf_read(char *file) {
 			yajl_val node_meta = yajl_helper_get_array(array->u.array.values[i], "meta", NULL);
 			for(int j = 0; j < node_meta->u.array.len; j++) {
 				int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
-				int val_bpm      = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/bpm", NULL);
 				int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
 
 				if(val_user_id)  list->entries[i].user_id = val_user_id;
 				if(val_track_id) list->entries[i].track_id = val_track_id;
-				if(val_bpm)      list->entries[i].bpm = val_bpm;
 
 				char *date_str = yajl_helper_get_string(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);
 				if(date_str) {

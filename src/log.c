@@ -16,6 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+#include "log.h"
+
 //\cond
 #include <assert.h>
 #include <errno.h>
@@ -26,10 +28,7 @@
 #include <semaphore.h>
 //\endcond
 
-#include "log.h"
-
 static FILE* log_fh = NULL;
-static bool  have_sem = false;
 static sem_t log_sem;
 
 /* init the logging (subsequent calls to _log write to 'file') */
@@ -46,10 +45,12 @@ bool log_init(char *file) {
 	/* initialize the semaphore */
 	if(-1 == sem_init(&log_sem, 0, 1)) {
 		_log("sem_init failed: %s", strerror(errno));
+
+		fclose(log_fh);
+		log_fh = NULL;
 		return false;
 	}
 
-	have_sem = true;
 	return true;
 }
 
@@ -57,7 +58,7 @@ bool log_init(char *file) {
 void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) {
 	if(!log_fh) return;
 
-	if(have_sem) sem_wait(&log_sem);
+	sem_wait(&log_sem);
 
 	// append the current timestamp
 	time_t t = time(NULL);
@@ -77,15 +78,15 @@ void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) {
 	fprintf(log_fh, "\n");
 	fflush(log_fh);
 
-	if(have_sem) sem_post(&log_sem);
+	sem_post(&log_sem);
 }
 
 /* close files after logging */
 void log_close() {
+	assert(log_fh);
 	fclose(log_fh);
 	log_fh = NULL;
 
 	sem_destroy(&log_sem);
-	have_sem = false;
 }
 
