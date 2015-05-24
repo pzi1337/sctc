@@ -63,7 +63,6 @@
 #include "soundcloud.h"                 // for soundcloud_get_entries
 #include "track.h"                      // for track_list, track, etc
 #include "tui.h"
-#include "url.h"                        // for url, url_connect, etc
 #include "jspf.h"                       // for jspf_write, jspf_read
 
 #define USE_UNICODE
@@ -445,31 +444,22 @@ static struct command commands[] = {
 	{NULL,          NULL, NULL}
 };
 
-static bool is_valid_int(char *str) {
-	for(int i = 0; str[i] != '\0'; i++) {
-		if(!isdigit(str[i])) return false;
-	}
-	return true;
-}
-
 static int command_dispatcher(char *command) {
-	_log(">> command_dispatcher");
 	const size_t input_size = strlen(command);
 	for(int i = 0; commands[i].name; i++) {
 		const size_t ci_size = strlen(commands[i].name);
 
 		if(!strncmp(commands[i].name, command, MIN(ci_size, input_size))) {
-			_log("exec `%s`", commands[i].name);
 			commands[i].func(command + strlen(commands[i].name) + 1);
-			_log("done");
 			return -1;
 		}
 	}
 
-	if(is_valid_int(command)) {
-		_log("jumping to %i", atoi(command));
-		state_set_status(0, smprintf("Info: Jumping to %i", atoi(command)));
-		return atoi(command);
+	char *endptr;
+	long val = strtol(command, &endptr, 10);
+	if('\0' == *endptr) {
+		state_set_status(0, smprintf("Info: Jumping to %i", val));
+		return val;
 	}
 
 	_log("Unknown command '%s'", command);
@@ -579,6 +569,8 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 	while( (c = getch()) ) {
 		switch(c) {
 			case KEY_EXIT: // ESC
+			case 0x1B:
+				tui_submit_action(back_exit);
 				return false;
 
 			case 0x0A: // LF (aka 'enter')
@@ -625,7 +617,6 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 				break;
 			}
 
-
 			case KEY_BACKSPACE: {
 				if(pos) {
 					pos--;
@@ -635,6 +626,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 
 					submit_updated_suggestion_list(buffer);
 				} else {
+					tui_submit_action(back_exit);
 					return false;
 				}
 
@@ -651,6 +643,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 				pos++;
 
 				if(pos == buffer_size) {
+					tui_submit_action(back_exit);
 					return true;
 				}
 			}
@@ -672,6 +665,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	while( (c = getch()) ) {
 		switch(c) {
 			case KEY_EXIT: // ESC
+			case 0x1B:
 				return false;
 
 			case 0x0A: // LF (aka 'enter')
@@ -710,8 +704,6 @@ int main(int argc, char **argv) {
 	log_init("sctc.log");
 
 	for(size_t i = 1; i < argc; i++) {
-		_log("param: %s", argv[i]);
-
 		if(!strcmp("--offline", argv[i])) {
 			param_is_offline = true;
 			_log("switching to offline-mode due to parameter");
@@ -755,7 +747,6 @@ int main(int argc, char **argv) {
 	}
 	BENCH_STOP(SB, "Searching for bookmarks")
 
-
 	state_set_lists(lists);
 
 	// send new list to tui-thread
@@ -769,12 +760,8 @@ int main(int argc, char **argv) {
 		struct track_list *list = state_get_list(state_get_current_list());
 
 		switch(c) {
-			case 'q':
-				cmd_exit(NULL);
-				break;
-
-			case '0': /** \todo show logs */
-				break;
+			case 'q': cmd_exit(NULL);        break;
+			case '0': /** \todo show logs */ break;
 
 			case '1':
 			case '2':

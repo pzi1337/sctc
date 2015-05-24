@@ -60,7 +60,7 @@
 	/** \brief Get the current `repeat` state
 	 *  \return The current `repeat` state
 	 */
-	enum   repeat      state_get_repeat();
+	enum repeat        state_get_repeat();
 
 	/** \brief Get the current text in the title bar
 	 *  \return The current text in the title bar
