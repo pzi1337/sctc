@@ -63,7 +63,7 @@ static mpg123_handle *mh = NULL;
 static volatile int           buffer_pos  = 0;
 static volatile char         *buffer      = NULL;
 static volatile struct track *track       = NULL;
-static volatile int           current_pos = 0;
+static volatile unsigned int  current_pos = 0;
 
 static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
 
@@ -229,7 +229,7 @@ static void* _thread_play_function(void *unused) {
 		int last_buffer_pos = 0;
 		bool started = false;
 
-		int last_reported_pos = -1;
+		unsigned int last_reported_pos = ~0;
 
 		bool playback_done = false;
 
@@ -266,7 +266,7 @@ static void* _thread_play_function(void *unused) {
 				case MPG123_OK:
 					ao_play(dev, (char*)audio, done);
 
-					current_pos = (int) (time_per_frame * mpg123_tellframe(mh));
+					current_pos = (unsigned int) (time_per_frame * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
 					// meant to reduce the number of redraws possibly issued by time_callback
 					if(current_pos != last_reported_pos) {
@@ -414,7 +414,7 @@ bool sound_stop() {
 	return true;
 }
 
-int sound_get_current_pos() {
+unsigned int sound_get_current_pos() {
 	return current_pos;
 }
 

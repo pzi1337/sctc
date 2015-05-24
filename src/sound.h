@@ -47,7 +47,7 @@
 
 	void sound_seek(unsigned int pos);
 
-	int sound_get_current_pos();
+	unsigned int sound_get_current_pos();
 
 	bool sound_finalize();
 

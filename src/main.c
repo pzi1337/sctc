@@ -85,6 +85,10 @@
 
 #define TIME_BUFFER_SIZE 64
 
+#define MIN(x,y) (x < y ? x : y)
+
+#define INVALID_TIME ((unsigned int) ~0)
+
 static void handle_textbox();
 
 static bool param_is_offline = false;
@@ -260,6 +264,75 @@ static bool cmd_goto(char *hint) {
 	return true;
 }
 
+static unsigned int cmd_seek_parse(char *str) {
+	unsigned int sec;
+	unsigned int min;
+	unsigned int hour;
+
+	if(3 == sscanf(str, " %u : %u : %u ", &hour, &min, &sec)) {
+		if(sec >= 60) {
+			_log("invalid #seconds: %u (>= 60)", sec);
+			return INVALID_TIME;
+		}
+		if(min >= 60) {
+			_log("invalid #minutes: %u (>= 60)", min);
+			return INVALID_TIME;
+		}
+
+		return 60 * (min + 60 * hour) + sec;
+	}
+
+	// check if we have a time consisting of min and sec (ab:cd)
+	if(2 == sscanf(str, " %u : %u ", &min, &sec)) {
+		if(sec >= 60) {
+			_log("invalid #seconds: %u (>= 60)", sec);
+			return INVALID_TIME;
+		}
+		return 60 * min + sec;
+	}
+
+	// check if we have a "second only" time
+	if(1 == sscanf(str, " %u ", &sec)) {
+		return sec;
+	}
+
+	return INVALID_TIME;
+}
+
+static bool cmd_seek(char *time) {
+	char *seekto = strstrp(time);
+
+	if(!strcmp("", seekto)) {
+		return false;
+	} else {
+		unsigned int new_abs = INVALID_TIME;
+
+		if('+' == *seekto || '-' == *seekto) {
+			// relative offset to current position
+			unsigned int delta = cmd_seek_parse(seekto + 1);
+			if(INVALID_TIME != delta) {
+				new_abs = sound_get_current_pos();
+				if('+' == *seekto) {
+					new_abs += delta;
+				} else {
+					new_abs -= delta;
+				}
+			}
+		} else {
+			// absolute
+			new_abs = cmd_seek_parse(seekto);
+		}
+
+		if(INVALID_TIME == new_abs) {
+			_log("seeking aborted due to input error");
+			return false;
+		} else {
+			sound_seek(new_abs);
+		}
+	}
+	return true;
+}
+
 /** \brief Exit SCTC
  *
  *  Writes the list of bookmarks to file and shuts down SCTC.
@@ -272,7 +345,6 @@ static bool cmd_exit(char *unused) {
 
 	track_list_destroy(state_get_list(LIST_STREAM), true);
 	track_list_destroy(state_get_list(LIST_BOOKMARKS), true); // TODO: double free!
-	//free(playlists[LIST_USER1]); /** \todo */
 	sound_finalize();
 	tls_finalize();
 	config_finalize();
@@ -371,6 +443,7 @@ static struct command commands[] = {
 	{"repeat-none", "Set repeat to 'none'",  cmd_repeat_none},
 	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
+	{"seek",        "Seek",                  cmd_seek},
 	{"goto",        "Set selection to specific entry", cmd_goto},
 	{"help",        "Show help",             cmd_help},
 	{"write",       "Write current playlist to file (.jspf)",  cmd_write_playlist},
@@ -386,9 +459,15 @@ static bool is_valid_int(char *str) {
 }
 
 static int command_dispatcher(char *command) {
+	_log(">> command_dispatcher");
+	const size_t input_size = strlen(command);
 	for(int i = 0; commands[i].name; i++) {
-		if(!strncmp(commands[i].name, command, strlen(commands[i].name))) {
+		const size_t ci_size = strlen(commands[i].name);
+
+		if(!strncmp(commands[i].name, command, MIN(ci_size, input_size))) {
+			_log("exec `%s`", commands[i].name);
 			commands[i].func(command + strlen(commands[i].name) + 1);
+			_log("done");
 			return -1;
 		}
 	}
