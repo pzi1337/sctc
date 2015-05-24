@@ -110,7 +110,6 @@ void* _thread_tui_function(void *unused) {
 			} else {
 				switch(action) {
 					case update_list:   tui_track_list_print(); break;
-					case set_playlists: tui_draw_tab_bar();     break;
 
 					case updown: { /* move focus relative to the currently selected entry */
 						// TODO

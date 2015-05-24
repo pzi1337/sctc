@@ -36,6 +36,7 @@
 		cbe_textbox_modified = 0,
 		cbe_repeat_modified, 
 		cbe_tabs_modified,
+		cbe_titlebar_modified,
 		cbe_statusbar_modified,
 		cbe_input_modified,
 		cbe_list_modified,

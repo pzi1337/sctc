@@ -64,8 +64,6 @@
 		tabbar_modified,     ///< TODO
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
-		set_playlists,       ///< set the list of playlists
-		set_repeat,          ///< set repeat to the provided value
 		set_suggestion_list, ///< set the suggestion list
 		updown,              ///< move cursor up/down
 		input_modify_text,   ///< set the currently visible input

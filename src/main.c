@@ -763,7 +763,6 @@ int main(int argc, char **argv) {
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
 
-	tui_submit_action(set_playlists);
 	tui_submit_status_line_print(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
 	tui_submit_action(update_list);
 
@@ -789,7 +788,6 @@ int main(int argc, char **argv) {
 
 					state_set_current_list(c - '1');
 					tui_submit_action(update_list);
-					tui_submit_action(set_playlists);
 				} else {
 					tui_submit_status_line_print(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
 				}
