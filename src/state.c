@@ -81,9 +81,11 @@ void state_set_tb_pos_rel(int delta) {
 	CALL_CALLBACK(cbe_textbox_modified);
 }
 
-void state_set_status(char *text, enum color color) {
+void state_set_status(enum color color, char *text) {
 	_status_text  = text;
 	_status_color = color;
+
+	CALL_CALLBACK(cbe_statusbar_modified);
 }
 
 void state_set_tb(char *title, char *text) {

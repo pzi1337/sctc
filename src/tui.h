@@ -63,12 +63,12 @@
 		textbox_modified,    ///< redraw the textbox with new data
 		tabbar_modified,     ///< TODO
 		titlebar_modified,   ///< TODO
+		statusbar_modified,  ///< TODO
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
 		set_suggestion_list, ///< set the suggestion list
 		updown,              ///< move cursor up/down
 		input_modify_text,   ///< set the currently visible input
-		set_status_text,     ///< set the test in the statusbar
 		back_exit            ///< destroy current 'window'
 	};
 
@@ -76,9 +76,6 @@
 	#define F_RESET "\2"
 
 	void tui_submit_action(enum tui_action_kind kind);
-
-	#define tui_submit_status_line_print(c, t) state_set_status(t, c); \
-		tui_submit_action(set_status_text)
 
 	bool tui_init();
 	void tui_finalize();

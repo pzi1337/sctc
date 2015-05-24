@@ -120,7 +120,7 @@
 	void state_set_lists       (struct track_list **lists);
 	void state_set_repeat      (enum   repeat       repeat);
 	void state_set_title       (char *title_line_text);
-	void state_set_status      (char *text, enum color color);
+	void state_set_status      (enum color color, char *text);
 	void state_set_tb          (char *title, char *text);
 	void state_set_current_time(size_t time);
 	void state_set_tb_pos      (size_t pos);

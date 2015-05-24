@@ -179,7 +179,7 @@ static bool cmd_download(char *unused) { // TODO!
 	struct track_list *list = state_get_list(state_get_current_list());
 	_log("cmd_download for '%s' (url: '%s')", list->entries[list->selected].name, list->entries[list->selected].download_url);
 /*
-	tui_submit_status_line_print(cline_default, smprintf("Info: Downloading "F_BOLD"%s"F_RESET"", list->entries[list->selected].name));
+	state_set_status(cline_default, smprintf("Info: Downloading "F_BOLD"%s"F_RESET"", list->entries[list->selected].name));
 
 	char urlbuf[2048];
 	sprintf(urlbuf, "%s?client_id=848ee866ea93c21373f6a8b61772b412", list->entries[list->selected].download_url);
@@ -220,7 +220,7 @@ static bool cmd_download(char *unused) { // TODO!
 
 	_log("finished downloading from SC, result: %i", resp->http_status);
 
-	tui_submit_status_line_print(cline_default, strdup("Info: Download finished"));
+	state_set_status(cline_default, strdup("Info: Download finished"));
 */
 
 	return true;
@@ -229,7 +229,7 @@ static bool cmd_download(char *unused) { // TODO!
 static bool cmd_open_user(char *user) {
 	_log("TODO"); /** \todo implement (and integrate to 'workflow') cmd_open_user */
 /*
-	tui_submit_status_line_print(cline_default, smprintf("Info: Switch to %s's channel\n", user));
+	state_set_status(cline_default, smprintf("Info: Switch to %s's channel\n", user));
 
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 	list = soundcloud_get_entries(nwc, user);
@@ -245,7 +245,7 @@ static bool cmd_open_user(char *user) {
 static bool cmd_write_playlist(char *file) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
-	tui_submit_status_line_print(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: XSPF)\n", file));
+	state_set_status(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: XSPF)\n", file));
 	jspf_write(file, list);
 
 	return true;
@@ -258,7 +258,7 @@ static bool cmd_goto(char *hint) {
 		state_get_list(state_get_current_list())->selected = playing - 1; // TODO: -1 ?!
 
 		tui_submit_action(update_list);
-		tui_submit_status_line_print(cline_default, strdup(""));
+		state_set_status(cline_default, strdup(""));
 	}
 	return true;
 }
@@ -360,7 +360,7 @@ static bool cmd_bookmark(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	track_list_add(state_get_list(LIST_BOOKMARKS), &list->entries[list->selected]);
-	tui_submit_status_line_print(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[list->selected].name));
+	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[list->selected].name));
 
 	return true;
 }
@@ -385,7 +385,7 @@ static bool cmd_help(char *unused) {
  */
 static bool cmd_repeat_none(char *unused) {
 	state_set_repeat(rep_none);
-	tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'none'");
+	state_set_status(cline_default, "Info: Switched repeat to 'none'");
 	return true;
 }
 
@@ -396,7 +396,7 @@ static bool cmd_repeat_none(char *unused) {
  */
 static bool cmd_repeat_one(char *unused) {
 	state_set_repeat(rep_one);
-	tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'one'");
+	state_set_status(cline_default, "Info: Switched repeat to 'one'");
 	return true;
 }
 
@@ -407,7 +407,7 @@ static bool cmd_repeat_one(char *unused) {
  */
 static bool cmd_repeat_all(char *unused) {
 	state_set_repeat(rep_all);
-	tui_submit_status_line_print(cline_default, "Info: Switched repeat to 'all'");
+	state_set_status(cline_default, "Info: Switched repeat to 'all'");
 	return true;
 }
 
@@ -468,12 +468,12 @@ static int command_dispatcher(char *command) {
 
 	if(is_valid_int(command)) {
 		_log("jumping to %i", atoi(command));
-		tui_submit_status_line_print(0, smprintf("Info: Jumping to %i", atoi(command)));
+		state_set_status(0, smprintf("Info: Jumping to %i", atoi(command)));
 		return atoi(command);
 	}
 
 	_log("Unknown command '%s'", command);
-	tui_submit_status_line_print(cline_warning, smprintf("Error: Unknown command "F_BOLD"%s"F_RESET, command));
+	state_set_status(cline_warning, smprintf("Error: Unknown command "F_BOLD"%s"F_RESET, command));
 	return -1;
 }
 
@@ -481,7 +481,7 @@ static int command_dispatcher(char *command) {
 static struct track_list* get_list() {
 	struct network_conn *nwc = NULL;
 	if(!param_is_offline) {
-		tui_submit_status_line_print(cline_default, "Info: Connecting to soundcloud.com");
+		state_set_status(cline_default, "Info: Connecting to soundcloud.com");
 		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 	}
 
@@ -490,7 +490,7 @@ static struct track_list* get_list() {
 	lists[lists_size - 1] = NULL;
 
 	for(int i = 0; i < config_get_subscribe_count(); i++) {
-		tui_submit_status_line_print(cline_default, smprintf("Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i)));
+		state_set_status(cline_default, smprintf("Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i)));
 		lists[i] = soundcloud_get_entries(nwc, config_get_subscribe(i));
 	}
 
@@ -726,7 +726,7 @@ int main(int argc, char **argv) {
 	tui_init();
 	sound_init(tui_update_time);
 
-	tui_submit_status_line_print(cline_default, "");
+	state_set_status(cline_default, "");
 	state_set_title("");
 
 	struct track_list *lists[4] = {NULL};
@@ -761,7 +761,7 @@ int main(int argc, char **argv) {
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
 
-	tui_submit_status_line_print(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
+	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
 	tui_submit_action(update_list);
 
 	int c;
@@ -782,18 +782,18 @@ int main(int argc, char **argv) {
 				struct track_list *list = state_get_list(c - '1');
 				if(list->count) {
 					list->position = 0;
-					tui_submit_status_line_print(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
+					state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
 
 					state_set_current_list(c - '1');
 					tui_submit_action(update_list);
 				} else {
-					tui_submit_status_line_print(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
+					state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
 				}
 				break;
 			}
 
 			case '/':
-				tui_submit_status_line_print(cline_cmd_char, F_BOLD"/"F_RESET);
+				state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 				handle_search(state_get_input(), 127);
 				_log("have search: %s", state_get_input());
 
@@ -831,7 +831,7 @@ int main(int argc, char **argv) {
 
 			case ':': {
 				struct track_list *list = state_get_list(state_get_current_list());
-				tui_submit_status_line_print(cline_cmd_char, strdup(F_BOLD":"F_RESET));
+				state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
 				char *buffer = state_get_input();
 
@@ -841,10 +841,10 @@ int main(int argc, char **argv) {
 						list->selected = jump_target;
 
 						tui_submit_action(update_list);
-						tui_submit_status_line_print(cline_default, strdup(""));
+						state_set_status(cline_default, strdup(""));
 					}
 				} else {
-					tui_submit_status_line_print(cline_default, strdup(""));
+					state_set_status(cline_default, strdup(""));
 				}
 				break;
 			}
@@ -896,7 +896,7 @@ int main(int argc, char **argv) {
 
 			case 'y': { /* copy url to selected entry */
 				yank(list->entries[list->selected].permalink_url);
-				tui_submit_status_line_print(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[list->selected].permalink_url));
+				state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[list->selected].permalink_url));
 				break;
 			}
 
@@ -977,7 +977,7 @@ int main(int argc, char **argv) {
 			}
 
 			default:
-				tui_submit_status_line_print(cline_warning, smprintf("Error: got unkown keycode %x", c));
+				state_set_status(cline_warning, smprintf("Error: got unkown keycode %x", c));
 		}
 	}
 
