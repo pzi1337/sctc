@@ -64,6 +64,19 @@
 	 */
 	bool yank(char *text);
 
+
+	#define INVALID_TIME ((unsigned int) ~0) ///< value indicating an invalid time
+
+	/** \brief Parse a string to seconds
+	 *
+	 *  Parses a string in format `hour:min:sec`, `min:sec` or `sec` to a number of seconds.
+	 *  If `str` does not match any of the formats shown above INVALID_TIME is returned.
+	 *
+	 *  \param str  The string to be parsed
+	 *  \return     The corresponding number of seconds or INVALID_TIME in case of invalid format
+	 */
+	unsigned int parse_time_to_sec(char *str);
+
 	/** \brief Logging wrapper for malloc().
 	 *
 	 *  Behaves like malloc(), but writes a message to the logfile in case of an error.

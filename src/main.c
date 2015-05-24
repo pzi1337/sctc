@@ -86,8 +86,6 @@
 
 #define MIN(x,y) (x < y ? x : y)
 
-#define INVALID_TIME ((unsigned int) ~0)
-
 static void handle_textbox();
 
 static bool param_is_offline = false;
@@ -258,41 +256,6 @@ static bool cmd_goto(char *hint) {
 	return true;
 }
 
-static unsigned int cmd_seek_parse(char *str) {
-	unsigned int sec;
-	unsigned int min;
-	unsigned int hour;
-
-	if(3 == sscanf(str, " %u : %u : %u ", &hour, &min, &sec)) {
-		if(sec >= 60) {
-			_log("invalid #seconds: %u (>= 60)", sec);
-			return INVALID_TIME;
-		}
-		if(min >= 60) {
-			_log("invalid #minutes: %u (>= 60)", min);
-			return INVALID_TIME;
-		}
-
-		return 60 * (min + 60 * hour) + sec;
-	}
-
-	// check if we have a time consisting of min and sec (ab:cd)
-	if(2 == sscanf(str, " %u : %u ", &min, &sec)) {
-		if(sec >= 60) {
-			_log("invalid #seconds: %u (>= 60)", sec);
-			return INVALID_TIME;
-		}
-		return 60 * min + sec;
-	}
-
-	// check if we have a "second only" time
-	if(1 == sscanf(str, " %u ", &sec)) {
-		return sec;
-	}
-
-	return INVALID_TIME;
-}
-
 static bool cmd_seek(char *time) {
 	char *seekto = strstrp(time);
 
@@ -303,7 +266,7 @@ static bool cmd_seek(char *time) {
 
 		if('+' == *seekto || '-' == *seekto) {
 			// relative offset to current position
-			unsigned int delta = cmd_seek_parse(seekto + 1);
+			unsigned int delta = parse_time_to_sec(seekto + 1);
 			if(INVALID_TIME != delta) {
 				new_abs = sound_get_current_pos();
 				if('+' == *seekto) {
@@ -314,7 +277,7 @@ static bool cmd_seek(char *time) {
 			}
 		} else {
 			// absolute
-			new_abs = cmd_seek_parse(seekto);
+			new_abs = parse_time_to_sec(seekto);
 		}
 
 		if(INVALID_TIME == new_abs) {
