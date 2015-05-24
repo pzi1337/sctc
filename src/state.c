@@ -61,6 +61,15 @@ void state_set_tb_pos(size_t pos) {
 	_tb_pos = pos;
 }
 
+void state_set_tb_pos_rel(int delta) {
+	_tb_old_pos = _tb_pos;
+	if(delta < 0) {
+		_tb_pos = _tb_pos < -delta ? 0 : _tb_pos - delta;
+	} else {
+		_tb_pos += delta;
+	}
+}
+
 void state_set_status(char *text, enum color color) {
 	_status_text  = text;
 	_status_color = color;

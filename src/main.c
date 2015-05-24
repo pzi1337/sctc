@@ -491,8 +491,9 @@ static struct track_list* get_list() {
 		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 	}
 
-	struct track_list **lists = lcalloc(config_get_subscribe_count() + 1, sizeof(struct track_list*));
-	if(!lists) return NULL;
+	const size_t lists_size = config_get_subscribe_count() + 1;
+	struct track_list *lists[lists_size];
+	lists[lists_size - 1] = NULL;
 
 	for(int i = 0; i < config_get_subscribe_count(); i++) {
 		tui_submit_status_line_print(cline_default, smprintf("Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i)));
@@ -513,8 +514,6 @@ static struct track_list* get_list() {
 			track_list_destroy(lists[i], false);
 		}
 	}
-	free(lists);
-
 	return list;
 }
 
@@ -528,38 +527,16 @@ static void handle_textbox() {
 				state_set_tb(NULL, NULL);
 				tui_submit_action(back_exit);
 				return;
-				break;
 
 			/* manual scrolling
 			 *  -> single line up
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:
-				if(state_get_tb_pos()) {
-					state_set_tb_pos(state_get_tb_pos() - 1);
-				}
-				tui_submit_action(updown);
-				break;
-
-			case KEY_DOWN:
-				state_set_tb_pos(state_get_tb_pos() + 1);
-				tui_submit_action(updown);
-				break;
-
-			case KEY_PPAGE:
-				if(state_get_tb_pos() >= LINES - 2) {
-					state_set_tb_pos(state_get_tb_pos() - (LINES - 2));
-				} else {
-					state_set_tb_pos(0);
-				}
-				tui_submit_action(updown);
-				break;
-
-			case KEY_NPAGE:
-				state_set_tb_pos(state_get_tb_pos() +  LINES - 2);
-				tui_submit_action(updown);
-				break;
+			case KEY_UP:    state_set_tb_pos_rel(-1);            tui_submit_action(updown); break;
+			case KEY_DOWN:  state_set_tb_pos_rel(+1);            tui_submit_action(updown); break;
+			case KEY_PPAGE: state_set_tb_pos_rel(- (LINES - 2)); tui_submit_action(updown); break;
+			case KEY_NPAGE: state_set_tb_pos_rel(+ (LINES - 2)); tui_submit_action(updown); break;
 		}
 	}
 }
@@ -619,8 +596,6 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 
 				// disable the suggestion list
 				tui_submit_action(back_exit);
-
-				_log("sl_selected = %i -> buffer = %s", sl_selected - 1, buffer);
 				return true;
 			}
 

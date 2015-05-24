@@ -113,5 +113,6 @@
 	void state_set_tb          (char *title, char *text);
 	void state_set_current_time(size_t time);
 	void state_set_tb_pos      (size_t pos);
+	void state_set_tb_pos_rel  (int delta);
 	/** @}*/
 #endif /* _STATE_H */
