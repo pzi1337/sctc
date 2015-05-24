@@ -110,7 +110,6 @@ void* _thread_tui_function(void *unused) {
 			} else {
 				switch(action) {
 					case update_list:   tui_track_list_print(); break;
-					case set_repeat:    tui_draw_tab_bar();     break;
 					case set_playlists: tui_draw_tab_bar();     break;
 
 					case updown: { /* move focus relative to the currently selected entry */
@@ -150,6 +149,10 @@ void* _thread_tui_function(void *unused) {
 
 					case textbox_modified:
 						tui_update_textbox();
+						break;
+
+					case tabbar_modified:
+						tui_draw_tab_bar();
 						break;
 
 					default:
@@ -524,7 +527,6 @@ static void tui_update_textbox() {
 
 	/* create new textbox if there is none, but a title was supplied */
 	if(!textbox_window.win && state_get_tb_title()) {
-		_log("creating new TB!");
 		const size_t pad_height = tui_draw_text(NULL, state_get_tb_text(), width - 4);
 
 		textbox_window.win = newwin(LINES - 8, width, 4, 4);
@@ -542,7 +544,6 @@ static void tui_update_textbox() {
 		prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
 
 	} else if(textbox_window.win && !state_get_tb_title()) {
-		_log("destroying TB!");
 		delwin(textbox_window.pad);
 		delwin(textbox_window.win);
 		textbox_window.win = NULL;
@@ -550,7 +551,6 @@ static void tui_update_textbox() {
 		touchwin(stdscr);
 		refresh();
 	} else {
-		_log("scrolling TB");
 		textbox_window.start_line = state_get_tb_pos();
 		prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
 	}
@@ -574,6 +574,10 @@ void tui_submit_action(enum tui_action_kind _action) {
 
 static void tui_callback_textbox_modifed() {
 	tui_submit_action(textbox_modified);
+}
+
+static void tui_callback_tabbar_modified() {
+	tui_submit_action(tabbar_modified);
 }
 
 /* signal handler, exectued in case of resize of terminal
@@ -664,6 +668,8 @@ bool tui_init() {
 	}
 
 	state_register_callback(cbe_textbox_modified, tui_callback_textbox_modifed);
+	state_register_callback(cbe_repeat_modified,  tui_callback_tabbar_modified);
+	state_register_callback(cbe_tabs_modified,    tui_callback_tabbar_modified);
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 

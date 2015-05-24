@@ -61,9 +61,9 @@
 		none,                ///< "do nothing"
 		redraw,              ///< redraw the whole screen
 		textbox_modified,    ///< redraw the textbox with new data
+		tabbar_modified,     ///< TODO
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
-		set_tbar_text,       ///< update the text
 		set_playlists,       ///< set the list of playlists
 		set_repeat,          ///< set repeat to the provided value
 		set_suggestion_list, ///< set the suggestion list

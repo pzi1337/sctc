@@ -386,7 +386,6 @@ static bool cmd_help(char *unused) {
  */
 static bool cmd_repeat_none(char *unused) {
 	state_set_repeat(rep_none);
-	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'none'"));
 	return true;
 }
@@ -398,7 +397,6 @@ static bool cmd_repeat_none(char *unused) {
  */
 static bool cmd_repeat_one(char *unused) {
 	state_set_repeat(rep_one);
-	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'one'"));
 	return true;
 }
@@ -410,7 +408,6 @@ static bool cmd_repeat_one(char *unused) {
  */
 static bool cmd_repeat_all(char *unused) {
 	state_set_repeat(rep_all);
-	tui_submit_action(set_repeat);
 	tui_submit_status_line_print(cline_default, strdup("Info: Switched repeat to 'all'"));
 	return true;
 }

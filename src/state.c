@@ -57,8 +57,9 @@ void state_set_lists(struct track_list **_lists) {
 		lists[i].selected = 0;
 		lists[i].position = 0;
 	}
+	CALL_CALLBACK(cbe_tabs_modified);
 }
-void state_set_repeat(enum repeat repeat)       { _repeat       = repeat; }
+void state_set_repeat(enum repeat repeat)       { _repeat       = repeat; CALL_CALLBACK(cbe_repeat_modified); }
 void state_set_title(char *text)                { _title_text   = text;   }
 void state_set_current_time(size_t time)        { _current_time = time;   }
 
