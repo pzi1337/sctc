@@ -142,7 +142,6 @@ void tui_update_time(int time) {
 		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[playing].duration);
 
 		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-		tui_submit_action(set_title_text);
 
 		tui_submit_action(update_list);
 		sound_play(&list->entries[playing]);
@@ -729,7 +728,6 @@ int main(int argc, char **argv) {
 
 	tui_submit_status_line_print(cline_default, "");
 	state_set_title("");
-	tui_submit_action(set_title_text);
 
 	struct track_list *lists[4] = {NULL};
 	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
@@ -969,7 +967,6 @@ int main(int argc, char **argv) {
 				playing = list->selected;
 
 				state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-				tui_submit_action(set_title_text);
 
 				list->entries[list->selected].flags = (list->entries[list->selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 

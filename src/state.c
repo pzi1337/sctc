@@ -60,7 +60,7 @@ void state_set_lists(struct track_list **_lists) {
 	CALL_CALLBACK(cbe_tabs_modified);
 }
 void state_set_repeat(enum repeat repeat)       { _repeat       = repeat; CALL_CALLBACK(cbe_repeat_modified); }
-void state_set_title(char *text)                { _title_text   = text;   }
+void state_set_title(char *text)                { _title_text   = text;   CALL_CALLBACK(cbe_titlebar_modified); }
 void state_set_current_time(size_t time)        { _current_time = time;   }
 
 void state_set_tb_pos(size_t pos) {

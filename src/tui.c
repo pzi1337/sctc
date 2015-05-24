@@ -126,7 +126,6 @@ void* _thread_tui_function(void *unused) {
 						tui_update_suggestion_list();
 						break;
 
-					case set_title_text:  tui_draw_title_line();  break;
 					case set_status_text: tui_draw_status_line(); break;
 
 					case input_modify_text: {
@@ -146,12 +145,16 @@ void* _thread_tui_function(void *unused) {
 						break;
 					}
 
-					case textbox_modified:
-						tui_update_textbox();
+					case titlebar_modified:
+						tui_draw_title_line();
 						break;
 
 					case tabbar_modified:
 						tui_draw_tab_bar();
+						break;
+
+					case textbox_modified:
+						tui_update_textbox();
 						break;
 
 					default:
@@ -579,6 +582,10 @@ static void tui_callback_tabbar_modified() {
 	tui_submit_action(tabbar_modified);
 }
 
+static void tui_callback_titlebar_modified() {
+	tui_submit_action(titlebar_modified);
+}
+
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
 void tui_terminal_resized(int signum) {
@@ -666,9 +673,10 @@ bool tui_init() {
 		_log("terminal does not support colors at all(!)");
 	}
 
-	state_register_callback(cbe_textbox_modified, tui_callback_textbox_modifed);
-	state_register_callback(cbe_repeat_modified,  tui_callback_tabbar_modified);
-	state_register_callback(cbe_tabs_modified,    tui_callback_tabbar_modified);
+	state_register_callback(cbe_textbox_modified,  tui_callback_textbox_modifed);
+	state_register_callback(cbe_repeat_modified,   tui_callback_tabbar_modified);
+	state_register_callback(cbe_tabs_modified,     tui_callback_tabbar_modified);
+	state_register_callback(cbe_titlebar_modified, tui_callback_titlebar_modified);
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 
