@@ -60,6 +60,7 @@
 	enum tui_action_kind {
 		none,                ///< "do nothing"
 		redraw,              ///< redraw the whole screen
+		textbox_modified,    ///< redraw the textbox with new data
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
 		set_tbar_text,       ///< update the text
@@ -67,7 +68,6 @@
 		set_repeat,          ///< set repeat to the provided value
 		set_suggestion_list, ///< set the suggestion list
 		updown,              ///< move cursor up/down
-		show_textbox,        ///< show a textbox with provided content
 		input_modify_text,   ///< set the currently visible input
 		set_title_text,      ///< set the text in the titlebar
 		set_status_text,     ///< set the test in the statusbar

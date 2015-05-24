@@ -1,10 +1,12 @@
 #include "state.h"
-#include "helper.h"
 
 //\cond
 #include <assert.h>
 #include <stdlib.h>
 //\endcond
+
+#include "helper.h"
+#include "log.h"
 
 #define MAX_LISTS 16
 
@@ -13,6 +15,10 @@ struct track_list_state {
 	size_t selected;
 	size_t position;
 } lists[MAX_LISTS];
+
+void (*callbacks[callback_event_size])(void) = {NULL};
+
+#define CALL_CALLBACK(EVT) { if(callbacks[EVT]) {_log("calling callback!"); callbacks[EVT]();} }
 
 static size_t       _current_list = 0;        ///< the index in lists of the currently displayed list (default: 0)
 static enum repeat  _repeat       = rep_none; ///< the repeat state, one out of (none, one, all)
@@ -59,15 +65,19 @@ void state_set_current_time(size_t time)        { _current_time = time;   }
 void state_set_tb_pos(size_t pos) {
 	_tb_old_pos = _tb_pos;
 	_tb_pos = pos;
+
+	CALL_CALLBACK(cbe_textbox_modified);
 }
 
 void state_set_tb_pos_rel(int delta) {
 	_tb_old_pos = _tb_pos;
 	if(delta < 0) {
-		_tb_pos = _tb_pos < -delta ? 0 : _tb_pos - delta;
+		_tb_pos = _tb_pos < -delta ? 0 : _tb_pos + delta;
 	} else {
 		_tb_pos += delta;
 	}
+
+	CALL_CALLBACK(cbe_textbox_modified);
 }
 
 void state_set_status(char *text, enum color color) {
@@ -78,6 +88,19 @@ void state_set_status(char *text, enum color color) {
 void state_set_tb(char *title, char *text) {
 	_tb_title = title;
 	_tb_text  = text;
+
+	CALL_CALLBACK(cbe_textbox_modified);
+}
+
+bool state_register_callback(enum callback_event evt, void (*cb)(void)) {
+	if(callbacks[evt]) {
+		_log("trying to register an additional event");
+		return false;
+	}
+
+	callbacks[evt] = cb;
+
+	return true;
 }
 
 bool state_init() {

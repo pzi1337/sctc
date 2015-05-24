@@ -375,8 +375,6 @@ static bool cmd_help(char *unused) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
 	state_set_tb("Help / About", help_msg);
-	tui_submit_action(show_textbox);
-
 	handle_textbox();
 	return true;
 }
@@ -525,7 +523,6 @@ static void handle_textbox() {
 			case 'q':
 				state_set_tb_pos(0);
 				state_set_tb(NULL, NULL);
-				tui_submit_action(back_exit);
 				return;
 
 			/* manual scrolling
@@ -533,10 +530,10 @@ static void handle_textbox() {
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:    state_set_tb_pos_rel(-1);            tui_submit_action(updown); break;
-			case KEY_DOWN:  state_set_tb_pos_rel(+1);            tui_submit_action(updown); break;
-			case KEY_PPAGE: state_set_tb_pos_rel(- (LINES - 2)); tui_submit_action(updown); break;
-			case KEY_NPAGE: state_set_tb_pos_rel(+ (LINES - 2)); tui_submit_action(updown); break;
+			case KEY_UP:    state_set_tb_pos_rel(-1);            break;
+			case KEY_DOWN:  state_set_tb_pos_rel(+1);            break;
+			case KEY_PPAGE: state_set_tb_pos_rel(- (LINES - 2)); break;
+			case KEY_NPAGE: state_set_tb_pos_rel(+ (LINES - 2)); break;
 		}
 	}
 }
@@ -873,8 +870,6 @@ int main(int argc, char **argv) {
 
 				char *title = smprintf("%s by %s", list->entries[list->selected].name, list->entries[list->selected].username);
 				state_set_tb(title, list->entries[list->selected].description);
-				tui_submit_action(show_textbox);
-
 				handle_textbox();
 				free(title);
 				break;

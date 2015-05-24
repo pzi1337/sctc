@@ -32,6 +32,15 @@
 		bool (*func)(char*);
 	};
 
+	enum callback_event {
+		cbe_textbox_modified = 0,
+		cbe_tabbar_modified,
+		cbe_statusbar_modified,
+		cbe_input_modified,
+		cbe_list_modified,
+		callback_event_size
+	};
+
 	/** \addtogroup state_get State: Getter
 	 *
 	 *  @{
@@ -115,4 +124,8 @@
 	void state_set_tb_pos      (size_t pos);
 	void state_set_tb_pos_rel  (int delta);
 	/** @}*/
+
+
+	bool state_register_callback(enum callback_event evt, void (*cb)(void));
+
 #endif /* _STATE_H */

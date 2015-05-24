@@ -54,11 +54,11 @@ static void tui_track_print_line(struct track* entry, bool selected, int line);
 static void tui_print(char *fmt, ...);
 static void tui_track_list_print();
 static size_t tui_track_focus(size_t new_selected);
-static void tui_show_textbox_window();
-static void tui_textbox_window_action(enum tui_action_kind action);
 static void tui_suggestion_window_action(enum tui_action_kind action);
 static void tui_update_suggestion_list();
 static bool tui_handle_generic_action(enum tui_action_kind action);
+
+static void tui_update_textbox();
 
 /* functions handling (re)drawing of (parts of) screen */
 static void tui_redraw();
@@ -105,9 +105,7 @@ void* _thread_tui_function(void *unused) {
 			tui_redraw();
 		} else if(none == action) { // FIXME
 		} else if(!tui_handle_generic_action(action)) {
-			if(textbox_window.win) {
-				tui_textbox_window_action(action);
-			} else if(suggestion_window.win) {
+			if(suggestion_window.win) {
 				tui_suggestion_window_action(action);
 			} else {
 				switch(action) {
@@ -150,10 +148,9 @@ void* _thread_tui_function(void *unused) {
 						break;
 					}
 
-					case show_textbox: {
-						tui_show_textbox_window();
+					case textbox_modified:
+						tui_update_textbox();
 						break;
-					}
 
 					default:
 						_log("currently not implemented action-kind %d", action);
@@ -177,7 +174,7 @@ static void tui_redraw() {
 	tui_track_list_print();
 
 	if(state_get_tb_title()) {
-		tui_show_textbox_window();
+//		tui_show_textbox_window();
 	}
 
 	tui_draw_status_line(); // redraw the status line
@@ -483,25 +480,6 @@ static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
 	return y;
 }
 
-static void tui_show_textbox_window() {
-	const int width = COLS - 8;
-	const size_t pad_height = tui_draw_text(NULL, state_get_tb_text(), width - 4);
-
-	textbox_window.win = newwin(LINES - 8, width, 4, 4);
-	box(textbox_window.win, 0, 0);
-
-	wattron(textbox_window.win, A_BOLD);
-	mvwprintw(textbox_window.win, 0, 2, " %s ", state_get_tb_title());
-	wattroff(textbox_window.win, A_BOLD);
-
-	textbox_window.pad = newpad(pad_height + LINES, width - 4);
-
-	int start_line = 0;
-	tui_draw_text(textbox_window.pad, state_get_tb_text(), width - 10);
-	wrefresh(textbox_window.win);
-	prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
-}
-
 static void tui_suggestion_window_action(enum tui_action_kind action) {
 	switch(action) {
 		case back_exit:
@@ -540,28 +518,41 @@ static void tui_suggestion_window_action(enum tui_action_kind action) {
 	}
 }
 
-static void tui_textbox_window_action(enum tui_action_kind action) {
+static void tui_update_textbox() {
 	const int height = LINES - 8;
 	const int width = COLS - 8;
 
-	switch(action) {
-		case back_exit:
-			delwin(textbox_window.pad);
-			delwin(textbox_window.win);
-			textbox_window.win = NULL;
+	/* create new textbox if there is none, but a title was supplied */
+	if(!textbox_window.win && state_get_tb_title()) {
+		_log("creating new TB!");
+		const size_t pad_height = tui_draw_text(NULL, state_get_tb_text(), width - 4);
 
-			touchwin(stdscr);
-			refresh();
-			return;
+		textbox_window.win = newwin(LINES - 8, width, 4, 4);
+		box(textbox_window.win, 0, 0);
 
-		case updown:
-			textbox_window.start_line = state_get_tb_pos();
-			prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
-			break;
+		wattron(textbox_window.win, A_BOLD);
+		mvwprintw(textbox_window.win, 0, 2, " %s ", state_get_tb_title());
+		wattroff(textbox_window.win, A_BOLD);
 
-		default:
-			_log("currently not implemented action-kind %d", action);
-			break;
+		textbox_window.pad = newpad(pad_height + LINES, width - 4);
+
+		int start_line = 0;
+		tui_draw_text(textbox_window.pad, state_get_tb_text(), width - 10);
+		wrefresh(textbox_window.win);
+		prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
+
+	} else if(textbox_window.win && !state_get_tb_title()) {
+		_log("destroying TB!");
+		delwin(textbox_window.pad);
+		delwin(textbox_window.win);
+		textbox_window.win = NULL;
+
+		touchwin(stdscr);
+		refresh();
+	} else {
+		_log("scrolling TB");
+		textbox_window.start_line = state_get_tb_pos();
+		prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
 	}
 }
 
@@ -574,8 +565,16 @@ void tui_submit_action(enum tui_action_kind _action) {
 	sem_wait(&sem_wait_action);
 	action = _action;
 	sem_post(&sem_have_action);
+
+	// TODO: this blocks everything
+	sem_wait(&sem_wait_action);
+	sem_post(&sem_wait_action);
 }
 
+
+static void tui_callback_textbox_modifed() {
+	tui_submit_action(textbox_modified);
+}
 
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
@@ -663,6 +662,8 @@ bool tui_init() {
 	} else {
 		_log("terminal does not support colors at all(!)");
 	}
+
+	state_register_callback(cbe_textbox_modified, tui_callback_textbox_modifed);
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 
