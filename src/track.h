@@ -71,8 +71,6 @@
 	struct track_list {
 		char   *name;
 		size_t count;
-		size_t position;
-		size_t selected;
 		struct track *entries;
 	};
 

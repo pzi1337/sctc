@@ -53,7 +53,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line);
 
 static void tui_print(char *fmt, ...);
 static void tui_track_list_print();
-static size_t tui_track_focus(size_t new_selected);
+static size_t tui_track_focus();
 static void tui_suggestion_window_action(enum tui_action_kind action);
 static void tui_update_suggestion_list();
 static bool tui_handle_generic_action(enum tui_action_kind action);
@@ -111,14 +111,6 @@ void* _thread_tui_function(void *unused) {
 				switch(action) {
 					case update_list:   tui_track_list_print(); break;
 
-					case updown: { /* move focus relative to the currently selected entry */
-						// TODO
-						struct track_list *list = state_get_list(state_get_current_list());
-						tui_track_focus(list->selected);
-						tui_track_list_print();
-						break;
-					}
-
 					case set_suggestion_list:
 						suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
 						wrefresh(suggestion_window.win);
@@ -154,6 +146,12 @@ void* _thread_tui_function(void *unused) {
 					case textbox_modified:
 						tui_update_textbox();
 						break;
+
+					case list_modified: {
+						tui_track_focus();
+						tui_track_list_print();
+						break;
+					}
 
 					case statusbar_modified:
 						tui_draw_status_line();
@@ -244,19 +242,12 @@ static bool tui_handle_generic_action(enum tui_action_kind action) {
 	return false;
 }
 
-static size_t tui_track_focus(size_t new_selected) {
-
+static size_t tui_track_focus() {
 	struct track_list *list = state_get_list(state_get_current_list());
-	size_t current_list_pos = list->position;
+	size_t current_list_pos = state_get_current_position();
 
-	if(new_selected >= list->count) {
-		new_selected = list->count - 1;
-	}
-
-	size_t old_selected = list->selected;
-
-	// update the selection to the requested element
-	list->selected = new_selected;
+	size_t old_selected = state_get_old_selected();
+	size_t new_selected = state_get_current_selected();
 
 	// check if new selection is currently visible
 	if(new_selected >= current_list_pos && new_selected < current_list_pos + LINES - 4) {
@@ -283,15 +274,16 @@ static size_t tui_track_focus(size_t new_selected) {
 				current_list_pos += LINES / 4;
 			} else {
 				current_list_pos = list->count - LINES / 2;
+				break; // GNAA TODO
 			}
 		}
 
 		// do the actual redrawing
-		list->position = current_list_pos;
+		state_set_current_position(current_list_pos);
 		tui_track_list_print();
 	}
 
-	list->position = current_list_pos;
+	state_set_current_position(current_list_pos);
 	return current_list_pos;
 }
 
@@ -410,8 +402,8 @@ static void tui_track_list_print() {
 	}
 
 	int y = 2;
-	for(int i = list->position; i < list->count && y < LINES - 2; i++) {
-		tui_track_print_line(&list->entries[i], i == list->selected, y);
+	for(int i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
+		tui_track_print_line(&list->entries[i], i == state_get_current_selected(), y);
 		y++;
 	}
 
@@ -592,6 +584,10 @@ static void tui_callback_statusbar_modified() {
 	tui_submit_action(statusbar_modified);
 }
 
+static void tui_callback_list_modified() {
+	tui_submit_action(list_modified);
+}
+
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
 void tui_terminal_resized(int signum) {
@@ -684,6 +680,7 @@ bool tui_init() {
 	state_register_callback(cbe_tabs_modified,      tui_callback_tabbar_modified);
 	state_register_callback(cbe_titlebar_modified,  tui_callback_titlebar_modified);
 	state_register_callback(cbe_statusbar_modified, tui_callback_statusbar_modified);
+	state_register_callback(cbe_list_modified,      tui_callback_list_modified);
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 

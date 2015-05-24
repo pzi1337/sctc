@@ -91,6 +91,9 @@
 	size_t             state_get_current_time();
 	size_t             state_get_tb_old_pos();
 	size_t             state_get_tb_pos();
+	size_t             state_get_old_selected();
+	size_t             state_get_current_selected();
+	size_t             state_get_current_position();
 	/** @}*/
 
 	/** \brief Global initialization of the internal state of SCTC.
@@ -117,6 +120,9 @@
 	 */
 	void state_set_commands    (struct command *commands);
 	void state_set_current_list(size_t              list);
+	void state_set_current_position(size_t pos);
+	void state_set_current_selected(size_t selected);
+	void state_set_current_selected_rel(int delta);
 	void state_set_lists       (struct track_list **lists);
 	void state_set_repeat      (enum   repeat       repeat);
 	void state_set_title       (char *title_line_text);

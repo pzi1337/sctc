@@ -175,8 +175,6 @@ void tui_update_time(int time) {
 
 /** \todo a) does not belong here\n b) does not work */
 static bool cmd_download(char *unused) { // TODO!
-	struct track_list *list = state_get_list(state_get_current_list());
-	_log("cmd_download for '%s' (url: '%s')", list->entries[list->selected].name, list->entries[list->selected].download_url);
 /*
 	state_set_status(cline_default, smprintf("Info: Downloading "F_BOLD"%s"F_RESET"", list->entries[list->selected].name));
 
@@ -254,10 +252,8 @@ static bool cmd_goto(char *hint) {
 	char *target = strstrp(hint);
 
 	if(!strcmp("", target)) {
-		state_get_list(state_get_current_list())->selected = playing - 1; // TODO: -1 ?!
-
-		tui_submit_action(update_list);
-		state_set_status(cline_default, strdup(""));
+		state_set_current_selected(playing - 1);
+		state_set_status(cline_default, "");
 	}
 	return true;
 }
@@ -358,8 +354,8 @@ static bool cmd_exit(char *unused) {
 static bool cmd_bookmark(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
-	track_list_add(state_get_list(LIST_BOOKMARKS), &list->entries[list->selected]);
-	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[list->selected].name));
+	track_list_add(state_get_list(LIST_BOOKMARKS), &list->entries[state_get_current_selected()]);
+	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[state_get_current_selected()].name));
 
 	return true;
 }
@@ -751,13 +747,12 @@ int main(int argc, char **argv) {
 
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
-
 	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
-	tui_submit_action(update_list);
 
 	int c;
 	while( (c = getch()) ) {
 		struct track_list *list = state_get_list(state_get_current_list());
+		size_t current_selected = state_get_current_selected();
 
 		switch(c) {
 			case 'q': cmd_exit(NULL);        break;
@@ -768,11 +763,9 @@ int main(int argc, char **argv) {
 			case '3': {
 				struct track_list *list = state_get_list(c - '1');
 				if(list->count) {
-					list->position = 0;
+					//list->position = 0;
 					state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
-
 					state_set_current_list(c - '1');
-					tui_submit_action(update_list);
 				} else {
 					state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
 				}
@@ -787,12 +780,9 @@ int main(int argc, char **argv) {
 				// fall through
 
 			case 'n': {
-				struct track_list *list = state_get_list(state_get_current_list());
-				if(list->selected >= list->count) list->selected = 0;
-				for(int i = list->selected + 1; i < list->count; i++) {
+				for(int i = state_get_current_selected(); i < list->count; i++) {
 					if(strcasestr(list->entries[i].name, state_get_input())) {
-						list->selected = i;
-						tui_submit_action(updown);
+						state_set_current_selected(i);
 						break;
 					}
 				}
@@ -801,12 +791,9 @@ int main(int argc, char **argv) {
 			}
 
 			case 'N': {
-				struct track_list *list = state_get_list(state_get_current_list());
-				if(list->selected >= list->count) list->selected = 0;
-				for(int i = list->selected - 1; i >= 0; i--) {
+				for(int i = state_get_current_selected() - 1; i >= 0; i--) {
 					if(strcasestr(list->entries[i].name, state_get_input())) {
-						list->selected = i;
-						tui_submit_action(updown);
+						state_set_current_selected(i);
 						break;
 					}
 				}
@@ -817,7 +804,6 @@ int main(int argc, char **argv) {
 			case 'b': cmd_bookmark(NULL); break;
 
 			case ':': {
-				struct track_list *list = state_get_list(state_get_current_list());
 				state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
 				char *buffer = state_get_input();
@@ -825,13 +811,11 @@ int main(int argc, char **argv) {
 				if(handle_command(buffer, 127)) {
 					int jump_target = command_dispatcher(buffer);
 					if(-1 != jump_target) {
-						list->selected = jump_target;
-
-						tui_submit_action(update_list);
-						state_set_status(cline_default, strdup(""));
+						state_set_current_selected(jump_target);
+						state_set_status(cline_default, "");
 					}
 				} else {
-					state_set_status(cline_default, strdup(""));
+					state_set_status(cline_default, "");
 				}
 				break;
 			}
@@ -846,10 +830,8 @@ int main(int argc, char **argv) {
 			}
 
 			case 'd': {
-				struct track_list *list = state_get_list(state_get_current_list());
-
-				char *title = smprintf("%s by %s", list->entries[list->selected].name, list->entries[list->selected].username);
-				state_set_tb(title, list->entries[list->selected].description);
+				char *title = smprintf("%s by %s", list->entries[current_selected].name, list->entries[current_selected].username);
+				state_set_tb(title, list->entries[current_selected].description);
 				handle_textbox();
 				free(title);
 				break;
@@ -882,61 +864,27 @@ int main(int argc, char **argv) {
 			}
 
 			case 'y': { /* copy url to selected entry */
-				yank(list->entries[list->selected].permalink_url);
-				state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[list->selected].permalink_url));
+				yank(list->entries[current_selected].permalink_url);
+				state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[current_selected].permalink_url));
 				break;
 			}
 
 			/* jump to start/end of list */
-			case 'g':
-				list->selected = 0;
-				tui_submit_action(updown);
-				break;
-
-			case 'G':
-				list->selected = list->count - 1;
-				tui_submit_action(updown);
-				break;
+			case 'g': state_set_current_selected(0);               break;
+			case 'G': state_set_current_selected(list->count - 1); break;
 
 			/* manual scrolling
 			 *  -> single line up
 			 *  -> single line down
 			 *  -> page up
 			 *  -> page down */
-			case KEY_UP:
-				if(list->selected > 0) {
-					list->selected -= 1;
-					tui_submit_action(updown);
-				}
-				break;
-
-			case KEY_DOWN:
-				if(list->selected < list->count - 1) {
-					list->selected += 1;
-					tui_submit_action(updown);
-				}
-				break;
-
-			case KEY_NPAGE:
-				list->selected += LINES - 2;
-				if(list->selected >= list->count) {
-					list->selected = list->count - 1;
-				}
-				tui_submit_action(updown);
-				break;
-
-			case KEY_PPAGE:
-				if(list->selected < LINES - 2) {
-					list->selected = 0;
-				} else {
-					list->selected -= LINES - 2;
-				}
-				tui_submit_action(updown);
-				break;
+			case KEY_UP:    state_set_current_selected_rel(-1);            break;
+			case KEY_DOWN:  state_set_current_selected_rel(+1);            break;
+			case KEY_NPAGE: state_set_current_selected_rel(+ (LINES - 2)); break;
+			case KEY_PPAGE: state_set_current_selected_rel(- (LINES - 2)); break;
 
 			case 0x0A: // LF (aka 'enter')
 			case KEY_ENTER: {
-				struct track_list *list = state_get_list(state_get_current_list());
 				if(-1 != playing) {
 					sound_stop();
 					list->entries[playing].current_position = sound_get_current_pos();
@@ -949,17 +897,17 @@ int main(int argc, char **argv) {
 				}
 
 				char time_buffer[TIME_BUFFER_SIZE];
-				snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[list->selected].duration);
+				snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
 
-				playing = list->selected;
+				playing = current_selected;
 
 				state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
 
-				list->entries[list->selected].flags = (list->entries[list->selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
+				list->entries[current_selected].flags = (list->entries[current_selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
 				tui_submit_action(update_list);
 
-				sound_play(&list->entries[list->selected]);
+				sound_play(&list->entries[current_selected]);
 				break;
 			}
 
