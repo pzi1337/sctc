@@ -126,6 +126,6 @@
 	/** @}*/
 
 
-	bool state_register_callback(enum callback_event evt, void (*cb)(void));
+	void state_register_callback(enum callback_event evt, void (*cb)(void));
 
 #endif /* _STATE_H */

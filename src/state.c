@@ -92,15 +92,9 @@ void state_set_tb(char *title, char *text) {
 	CALL_CALLBACK(cbe_textbox_modified);
 }
 
-bool state_register_callback(enum callback_event evt, void (*cb)(void)) {
-	if(callbacks[evt]) {
-		_log("trying to register an additional event");
-		return false;
-	}
-
+void state_register_callback(enum callback_event evt, void (*cb)(void)) {
+	assert(!callbacks[evt] && "ERROR: trying to reregister a callback for an event");
 	callbacks[evt] = cb;
-
-	return true;
 }
 
 bool state_init() {
