@@ -179,7 +179,7 @@ static void tui_redraw() {
 	tui_track_list_print();
 
 	if(state_get_tb_title()) {
-//		tui_show_textbox_window();
+		//tui_show_textbox_window();
 	}
 
 	tui_draw_status_line(); // redraw the status line

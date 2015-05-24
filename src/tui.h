@@ -68,7 +68,6 @@
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
 		set_suggestion_list, ///< set the suggestion list
-		updown,              ///< move cursor up/down
 		input_modify_text,   ///< set the currently visible input
 		back_exit            ///< destroy current 'window'
 	};

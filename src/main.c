@@ -406,6 +406,39 @@ static bool cmd_repeat_all(char *unused) {
 	return true;
 }
 
+static bool stop_playback(bool reset) {
+	struct track_list *list = state_get_list(state_get_current_list());
+
+	if(-1 != playing) {
+		sound_stop();
+
+		list->entries[playing].flags &= ~FLAG_PLAYING;
+		if(reset) {
+			list->entries[playing].current_position = 0;
+		} else {
+			if(list->entries[playing].current_position) {
+				list->entries[playing].flags |= FLAG_PAUSED;
+			}
+
+			list->entries[playing].current_position = sound_get_current_pos();
+		}
+
+		tui_submit_action(update_list);
+
+		playing = -1;
+		return true;
+	}
+	return false;
+}
+
+static bool cmd_pause(char *unused) {
+	return stop_playback(false);
+}
+
+static bool cmd_stop(char *unused) {
+	return stop_playback(true);
+}
+
 /** \brief Issue a redraw of the whole screen
  *
  *  \return true
@@ -432,6 +465,8 @@ static struct command commands[] = {
 	{"repeat-none", "Set repeat to 'none'",  cmd_repeat_none},
 	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
 	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
+	{"stop",        "Stop playback of current track", cmd_stop},
+	{"pause",       "Paise playback of current track", cmd_pause},
 	{"seek",        "Seek",                  cmd_seek},
 	{"goto",        "Set selection to specific entry", cmd_goto},
 	{"help",        "Show help",             cmd_help},
@@ -837,31 +872,8 @@ int main(int argc, char **argv) {
 				break;
 			}
 
-			case 'c': { // pause / continue
-				if(-1 != playing) {
-					sound_stop();
-					list->entries[playing].flags = (list->entries[playing].flags & ~FLAG_PLAYING) | FLAG_PAUSED;
-					list->entries[playing].current_position = sound_get_current_pos();
-
-					tui_submit_action(update_list);
-
-					playing = -1;
-				}
-				break;
-			}
-
-			case 's': { // stop (= reset current position to 0)
-				if(-1 != playing) {
-					sound_stop();
-					list->entries[playing].flags &= ~FLAG_PLAYING;
-					list->entries[playing].current_position = 0;
-
-					tui_submit_action(update_list);
-
-					playing = -1;
-				}
-				break;
-			}
+			case 'c': cmd_pause(NULL); break; // pause
+			case 's': cmd_stop(NULL);  break; // stop (= reset current position to 0)
 
 			case 'y': { /* copy url to selected entry */
 				yank(list->entries[current_selected].permalink_url);
@@ -885,16 +897,7 @@ int main(int argc, char **argv) {
 
 			case 0x0A: // LF (aka 'enter')
 			case KEY_ENTER: {
-				if(-1 != playing) {
-					sound_stop();
-					list->entries[playing].current_position = sound_get_current_pos();
-					list->entries[playing].flags = (list->entries[playing].flags & ~FLAG_PLAYING);
-					if(list->entries[playing].current_position) {
-						list->entries[playing].flags |= FLAG_PAUSED;
-					}
-
-					tui_submit_action(update_list);
-				}
+				stop_playback(false); // pause other playing track (if any)
 
 				char time_buffer[TIME_BUFFER_SIZE];
 				snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
