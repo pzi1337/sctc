@@ -28,33 +28,35 @@
 		sbar_default,
 
 		/* track-line colors */
-		tline_status,           ///< **trackline**: the status ('>' or '=')
+		tline_status,                ///< **trackline**: the status ('>' or '=')
 
-		tline_default,          ///< **trackline**: the default colors (title / empty parts)
-		tline_default_selected, ///< **trackline**: the default colors (title / empty parts) [if track is selected]
-		tline_default_played,   ///< **trackline**: the default colors (title / empty parts) [if part is already played]
+		tline_default,               ///< **trackline**: the default colors (title / empty parts)
+		tline_default_selected,      ///< **trackline**: the default colors (title / empty parts) [if track is selected]
+		tline_default_played,        ///< **trackline**: the default colors (title / empty parts) [if part is already played]
 
-		tline_date,             ///< **trackline**: the created_at date
-		tline_date_selected,    ///< **trackline**: the created_at date [if track is selected]
-		tline_date_played,      ///< **trackline**: the created_at date [if part is already played]
+		tline_date,                  ///< **trackline**: the created_at date
+		tline_date_selected,         ///< **trackline**: the created_at date [if track is selected]
+		tline_date_played,           ///< **trackline**: the created_at date [if part is already played]
 
-		tline_ctime,            ///< **trackline**: the current position of playback
-		tline_ctime_selected,   ///< **trackline**: the current position of playback [if track is selected]
-		tline_ctime_played,     ///< **trackline**: the current position of playback [if part is already played]
+		tline_ctime,                 ///< **trackline**: the current position of playback
+		tline_ctime_selected,        ///< **trackline**: the current position of playback [if track is selected]
+		tline_ctime_played,          ///< **trackline**: the current position of playback [if part is already played]
 
-		tline_user,             ///< **trackline**: the username
-		tline_user_selected,    ///< **trackline**: the username [if track is selected]
-		tline_user_played,      ///< **trackline**: the username [if part is already played]
+		tline_user,                  ///< **trackline**: the username
+		tline_user_selected,         ///< **trackline**: the username [if track is selected]
+		tline_user_played,           ///< **trackline**: the username [if part is already played]
 
-		tline_time,             ///< **trackline**: the total time
-		tline_time_selected,    ///< **trackline**: the total time [if track is selected]
-		tline_time_played,      ///< **trackline**: the total time [if part is already played]
+		tline_time,                  ///< **trackline**: the total time
+		tline_time_selected,         ///< **trackline**: the total time [if track is selected]
+		tline_time_played,           ///< **trackline**: the total time [if part is already played]
 
 		/* command-list colors */
-		cmdlist_default,        ///< **commandlist**: the default color
-		cmdlist_selected,       ///< **commandlist**: the name [if entry is selected]
-		cmdlist_desc_selected,  ///< **commandlist**: the description [if entry is selected]
-		cmdlist_desc            ///< **commandlist**: the description
+		cmdlist_default,             ///< **commandlist**: the default color
+		cmdlist_selected,            ///< **commandlist**: the name [if entry is selected]
+		cmdlist_desc_selected,       ///< **commandlist**: the description [if entry is selected]
+		cmdlist_desc,                ///< **commandlist**: the description
+		cmdlist_descparam_selected,  ///< **commandlist**: the description of parameters [if entry is selected]
+		cmdlist_descparam            ///< **commandlist**: the description of parameters
 	};
 
 	enum tui_action_kind {
@@ -65,11 +67,10 @@
 		titlebar_modified,   ///< TODO
 		statusbar_modified,  ///< TODO
 		list_modified,       ///< TODO
+		sugg_modified,       ///< TODO
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
-		set_suggestion_list, ///< set the suggestion list
 		input_modify_text,   ///< set the currently visible input
-		back_exit            ///< destroy current 'window'
 	};
 
 	#define F_BOLD  "\1"

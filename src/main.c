@@ -421,22 +421,23 @@ static bool cmd_redraw(char *unused) {
  *  At some point in time we want to be able to bind keys via configfile.
  */
 static struct command commands[] = {
-	{"bookmark",    "Add currently selected entry to booksmarks",  cmd_bookmark},
-	{"open",        "Open a specific user's stream",  cmd_open_user},
-	{"download",    "Download the currently selected entry to file",  cmd_download},
-	{"redraw",      "Redraw the screen",     cmd_redraw},
-	{"repeat-none", "Set repeat to 'none'",  cmd_repeat_none},
-	{"repeat-one",  "Set repeat to 'one'",   cmd_repeat_one},
-	{"repeat-all",  "Set repeat to 'all'",   cmd_repeat_all},
-	{"stop",        "Stop playback of current track", cmd_stop},
-	{"pause",       "Paise playback of current track", cmd_pause},
-	{"seek",        "Seek",                  cmd_seek},
-	{"goto",        "Set selection to specific entry", cmd_goto},
-	{"help",        "Show help",             cmd_help},
-	{"write",       "Write current playlist to file (.jspf)",  cmd_write_playlist},
-	{"exit",        "Terminate SCTC",        cmd_exit},
-	{NULL,          NULL, NULL}
+	{"bookmark",    cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
+	{"open",        cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
+	{"download",    cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
+	{"redraw",      cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
+	{"repeat-none", cmd_repeat_none,    "<none/ignored>",                "Set repeat to 'none'"},
+	{"repeat-one",  cmd_repeat_one,     "<none/ignored>",                "Set repeat to 'one'"},
+	{"repeat-all",  cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
+	{"stop",        cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
+	{"pause",       cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
+	{"seek",        cmd_seek,           "<time to seek to>",             "Seek"},
+	{"goto",        cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
+	{"help",        cmd_help,           "<none/ignored>",                "Show help"},
+	{"write",       cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)",  },
+	{"exit",        cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
+	{NULL, NULL, NULL}
 };
+static const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
 
 static int command_dispatcher(char *command) {
 	const size_t input_size = strlen(command);
@@ -525,122 +526,138 @@ static void handle_textbox() {
  *
  *  \param filter  The filter to use for filtering the list of commands
  */
-static void submit_updated_suggestion_list(char *filter) {
-	const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
-	struct command *matching = lcalloc(command_count + 1, sizeof(struct command));
-
+static size_t submit_updated_suggestion_list(struct command *buffer, char *filter) {
 	size_t matching_pos = 0;
 	for(size_t i = 0; i < command_count; i++) {
 		if(!strncmp(commands[i].name, filter, strlen(filter))) {
-			memcpy(&matching[matching_pos], &commands[i], sizeof(struct command));
+			memcpy(&buffer[matching_pos], &commands[i], sizeof(struct command));
 			matching_pos++;
 		}
 	}
-	_log("submit: set_suggestion_list, %i elements", matching_pos);
+	bzero(&buffer[matching_pos], sizeof(struct command));
 
-	state_set_commands(matching);
-	tui_submit_action(set_suggestion_list);
+	tui_submit_action(sugg_modified);
+	return matching_pos;
 }
 
 static bool handle_command(char *buffer, size_t buffer_size) {
+	struct command matching_commands[command_count + 1];
+	memcpy(matching_commands, commands, sizeof(commands));
 
-	const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
+	size_t shown_commands = command_count;
 
-	size_t pos = 0;
-	int c;
-
+	size_t pos = 0; // the position in buffer
 	size_t suggest_pos = 0;
-	size_t pos_prior_suggest = 0;
+	size_t pos_prior_suggest = NOTHING_SELECTED;
 
-	/* the currently selected entry, -1 if "nothing" is selected */
-	size_t sl_selected = 0;
+	bool retab = false;
 
 	tui_submit_action(input_modify_text);
 
-	state_set_commands(commands);
-	tui_submit_action(set_suggestion_list);
+	state_set_commands(matching_commands);
+	state_set_sugg_selected(NOTHING_SELECTED);
 
+	int c;
 	while( (c = getch()) ) {
+		size_t selected = state_get_sugg_selected();
 		switch(c) {
 			case KEY_EXIT: // ESC
 			case 0x1B:
-				tui_submit_action(back_exit);
+				state_set_commands(NULL);
 				return false;
 
 			case 0x0A: // LF (aka 'enter')
-			case KEY_ENTER: {
-				if(sl_selected) {
-					snprintf(buffer, buffer_size, "%s", commands[sl_selected - 1].name);
-				}
-
+			case KEY_ENTER:
 				// disable the suggestion list
-				tui_submit_action(back_exit);
+				state_set_commands(NULL);
 				return true;
-			}
 
-			case KEY_UP: {
-				if(sl_selected > 0) {
-					sl_selected--;
+			case KEY_UP:
+				if(NOTHING_SELECTED == selected) {
+					state_set_sugg_selected(shown_commands - 1);
+				} else if(selected > 0) {
+					state_set_sugg_selected(selected - 1);
+				} else {
+					state_set_sugg_selected(NOTHING_SELECTED);
 				}
+				retab = false;
 				break;
-			}
 
-			case KEY_DOWN: {
-				if(sl_selected < command_count) {
-					sl_selected++;
+			case KEY_DOWN:
+				if(NOTHING_SELECTED == selected) {
+					state_set_sugg_selected(0);
+				} else if(selected < shown_commands) {
+					state_set_sugg_selected(selected + 1);
+				} else {
+					state_set_sugg_selected(NOTHING_SELECTED);
 				}
+				retab = false;
 				break;
-			}
 
-			case 0x09: { // TAB
-				if(-1 == pos_prior_suggest) {
+			case 0x09: // TAB
+				if(NOTHING_SELECTED == pos_prior_suggest) {
 					pos_prior_suggest = pos;
 				} else {
 					buffer[pos_prior_suggest] = '\0';
 				}
 
-				for(int i = suggest_pos; commands[i].name; i++) {
-					if(!strncmp(commands[i].name, buffer, strlen(buffer))) {
-						sprintf(buffer, "%s", commands[i].name);
+				if(!retab && NOTHING_SELECTED != selected) {
+					suggest_pos = selected;
+				}
+
+				retab = true;
+
+				if(suggest_pos >= shown_commands) {
+					suggest_pos = 0;
+					buffer[pos_prior_suggest] = '\0';
+					pos = pos_prior_suggest;
+					pos_prior_suggest = NOTHING_SELECTED;
+					tui_submit_action(input_modify_text);
+					state_set_sugg_selected(NOTHING_SELECTED);
+					break;
+				}
+
+				for(int i = suggest_pos; matching_commands[i].name; i++) {
+					if(!strncmp(matching_commands[i].name, buffer, strlen(buffer))) {
+						sprintf(buffer, "%s ", matching_commands[i].name);
+						pos = strlen(matching_commands[i].name) + 1;
 						tui_submit_action(input_modify_text);
+						state_set_sugg_selected(i);
 						suggest_pos = i + 1;
 						break;
 					}
 				}
-
 				break;
-			}
 
-			case KEY_BACKSPACE: {
+			case KEY_BACKSPACE:
 				if(pos) {
 					pos--;
 					buffer[pos] = '\0';
 
 					tui_submit_action(input_modify_text);
 
-					submit_updated_suggestion_list(buffer);
+					shown_commands = submit_updated_suggestion_list(matching_commands, buffer);
+					retab = false;
 				} else {
-					tui_submit_action(back_exit);
+					state_set_commands(NULL);
 					return false;
 				}
-
 				break;
-			}
 
-			default: {
+			default:
 				buffer[pos] = c;
 				buffer[pos + 1] = '\0';
 
 				tui_submit_action(input_modify_text);
-				submit_updated_suggestion_list(buffer);
+				shown_commands = submit_updated_suggestion_list(matching_commands, buffer);
 
 				pos++;
 
 				if(pos == buffer_size) {
-					tui_submit_action(back_exit);
+					state_set_commands(NULL);
 					return true;
 				}
-			}
+				retab = false;
 		}
 	}
 
@@ -666,7 +683,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 			case KEY_ENTER:
 				return true;
 
-			case KEY_BACKSPACE: {
+			case KEY_BACKSPACE:
 				if(pos) {
 					pos--;
 					buffer[pos] = '\0';
@@ -674,9 +691,7 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 				} else {
 					return false;
 				}
-
 				break;
-			}
 
 			default: {
 				buffer[pos] = c;
@@ -777,27 +792,23 @@ int main(int argc, char **argv) {
 
 				// fall through
 
-			case 'n': {
+			case 'n':
 				for(int i = state_get_current_selected(); i < list->count; i++) {
 					if(strcasestr(list->entries[i].name, state_get_input())) {
 						state_set_current_selected(i);
 						break;
 					}
 				}
-
 				break;
-			}
 
-			case 'N': {
+			case 'N':
 				for(int i = state_get_current_selected() - 1; i >= 0; i--) {
 					if(strcasestr(list->entries[i].name, state_get_input())) {
 						state_set_current_selected(i);
 						break;
 					}
 				}
-
 				break;
-			}
 
 			case 'b': cmd_bookmark(NULL); break;
 
@@ -818,14 +829,13 @@ int main(int argc, char **argv) {
 				break;
 			}
 
-			case 'r': {
+			case 'r':
 				switch(state_get_repeat()) {
 					case rep_none: cmd_repeat_one (NULL); break;
 					case rep_one:  cmd_repeat_all (NULL); break;
 					case rep_all:  cmd_repeat_none(NULL); break;
 				}
 				break;
-			}
 
 			case 'd': {
 				char *title = smprintf("%s by %s", list->entries[current_selected].name, list->entries[current_selected].username);
@@ -838,11 +848,10 @@ int main(int argc, char **argv) {
 			case 'c': cmd_pause(NULL); break; // pause
 			case 's': cmd_stop(NULL);  break; // stop (= reset current position to 0)
 
-			case 'y': { /* copy url to selected entry */
+			case 'y': /* copy url to selected entry */
 				yank(list->entries[current_selected].permalink_url);
 				state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[current_selected].permalink_url));
 				break;
-			}
 
 			/* jump to start/end of list */
 			case 'g': state_set_current_selected(0);               break;

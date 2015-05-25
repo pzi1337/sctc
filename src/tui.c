@@ -54,9 +54,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line);
 static void tui_print(char *fmt, ...);
 static void tui_track_list_print();
 static size_t tui_track_focus();
-static void tui_suggestion_window_action(enum tui_action_kind action);
 static void tui_update_suggestion_list();
-static bool tui_handle_generic_action(enum tui_action_kind action);
 
 static void tui_update_textbox();
 
@@ -103,63 +101,52 @@ void* _thread_tui_function(void *unused) {
 			_log("doing the redraw, sem_wait returned %i, LINES = %d", ret, LINES);
 
 			tui_redraw();
-		} else if(none == action) { // FIXME
-		} else if(!tui_handle_generic_action(action)) {
-			if(suggestion_window.win) {
-				tui_suggestion_window_action(action);
-			} else {
-				switch(action) {
-					case update_list:   tui_track_list_print(); break;
+		} else {
+			switch(action) {
+				case none: break; // FIXME
 
-					case set_suggestion_list:
-						suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
-						wrefresh(suggestion_window.win);
+				case set_sbar_time: {
+					color_set(sbar_default, NULL);
 
-						tui_update_suggestion_list();
-						break;
+					char time_buffer[TIME_BUFFER_SIZE];
+					int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_time());
+					mvprintw(0, COLS - time_len, "%s", time_buffer);
 
-					case input_modify_text: {
-						const int x = 1;
-						const int y = LINES - 1;
-
-						color_set(cline_default, NULL);
-						move(y, x);
-						tui_print("%s", state_get_input());
-
-						color_set(inp_cursor, NULL);
-						printw(" ");
-
-						color_set(cline_default, NULL);
-						mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
-
-						break;
-					}
-
-					case titlebar_modified:
-						tui_draw_title_line();
-						break;
-
-					case tabbar_modified:
-						tui_draw_tab_bar();
-						break;
-
-					case textbox_modified:
-						tui_update_textbox();
-						break;
-
-					case list_modified: {
-						tui_track_focus();
-						tui_track_list_print();
-						break;
-					}
-
-					case statusbar_modified:
-						tui_draw_status_line();
-						break;
-
-					default:
-						_log("currently not implemented action-kind %d", action);
+					refresh();
+					break;
 				}
+
+				case input_modify_text: {
+					const int x = 1;
+					const int y = LINES - 1;
+
+					color_set(cline_default, NULL);
+					move(y, x);
+					tui_print("%s", state_get_input());
+
+					color_set(inp_cursor, NULL);
+					printw(" ");
+
+					color_set(cline_default, NULL);
+					mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
+
+					break;
+				}
+
+				case update_list:        tui_track_list_print();       break;
+				case titlebar_modified:  tui_draw_title_line();        break;
+				case tabbar_modified:    tui_draw_tab_bar();           break;
+				case textbox_modified:   tui_update_textbox();         break;
+				case sugg_modified:      tui_update_suggestion_list(); break;
+				case statusbar_modified: tui_draw_status_line();       break;
+
+				case list_modified:
+					tui_track_focus();
+					tui_track_list_print();
+					break;
+
+				default:
+					_log("currently not implemented action-kind %d", action);
 			}
 			action = none;
 		}
@@ -203,43 +190,47 @@ static void tui_draw_status_line() {
 
 static void tui_update_suggestion_list() {
 	size_t line;
+	size_t sugg_selected = state_get_sugg_selected();
 	struct command* commands = state_get_commands();
-	for(line = 0; line < 10 && commands[line].name; line++) {
-		wcolor_set(suggestion_window.win, line == suggestion_window.selected ? cmdlist_selected : cmdlist_default, NULL);
-		mvwprintw (suggestion_window.win, line, 0, "%0*c", COLS, ' ');
-		mvwprintw (suggestion_window.win, line, 1, "%s", commands[line].name);
 
-		wcolor_set(suggestion_window.win, line == suggestion_window.selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
-		mvwprintw (suggestion_window.win, line, COLS / 2, commands[line].desc);
-	}
+	if(!commands) {
+		assert(suggestion_window.win);
 
-	wcolor_set(suggestion_window.win, cmdlist_default, NULL);
-	for(; line < 10; line++) {
-		mvwprintw(suggestion_window.win, line, 0, "%0*c", COLS, ' ');
-	}
+		delwin(suggestion_window.win);
+		suggestion_window.win = NULL;
 
-	wrefresh(suggestion_window.win);
-}
-
-static bool tui_handle_generic_action(enum tui_action_kind action) {
-
-	switch(action) {
-		case set_sbar_time: {
-			color_set(sbar_default, NULL);
-
-			char time_buffer[TIME_BUFFER_SIZE];
-			int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_time());
-			mvprintw(0, COLS - time_len, "%s", time_buffer);
-
-			refresh();
-			return true;
+		touchwin(stdscr);
+		refresh();
+	} else {
+		if(!suggestion_window.win) {
+			suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
+			wrefresh(suggestion_window.win);
 		}
 
-		default: /* only the most basic actions are handled here */
-			return false;
-	}
+		size_t start = 0;
+		if(NOTHING_SELECTED != sugg_selected) {
+			start = sugg_selected - sugg_selected % 10;
+		}
 
-	return false;
+		for(line = 0; line < 10 && commands[start + line].name; line++) {
+			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
+			mvwprintw (suggestion_window.win, line, 0, "%0*c", COLS, ' ');
+			mvwprintw (suggestion_window.win, line, 1, "%s", commands[start + line].name);
+
+			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_descparam_selected : cmdlist_descparam, NULL);
+			mvwprintw (suggestion_window.win, line, 20, "%s", commands[start + line].desc_param);
+
+			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
+			mvwprintw (suggestion_window.win, line, COLS / 2, commands[start + line].desc);
+		}
+
+		wcolor_set(suggestion_window.win, cmdlist_default, NULL);
+		for(; line < 10; line++) {
+			mvwprintw(suggestion_window.win, line, 0, "%0*c", COLS, ' ');
+		}
+
+		wrefresh(suggestion_window.win);
+	}
 }
 
 static size_t tui_track_focus() {
@@ -479,44 +470,6 @@ static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
 	return y;
 }
 
-static void tui_suggestion_window_action(enum tui_action_kind action) {
-	switch(action) {
-		case back_exit:
-			delwin(suggestion_window.win);
-			suggestion_window.win = NULL;
-
-			touchwin(stdscr);
-			refresh();
-			return;
-
-		case input_modify_text: {
-			const int x = 1;
-			const int y = LINES - 1;
-
-			color_set(cline_default, NULL);
-			mvprintw(y, x, "%s", state_get_input());
-
-			color_set(inp_cursor, NULL);
-			printw(" ");
-
-			color_set(cline_default, NULL);
-			mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
-			break;
-		}
-
-		case set_suggestion_list:
-		//	suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
-			wrefresh(suggestion_window.win);
-			suggestion_window.selected = 0;
-			tui_update_suggestion_list();
-			break;
-
-		default:
-			_log("currently not implemented action-kind %d", action);
-			break;
-	}
-}
-
 static void tui_update_textbox() {
 	const int height = LINES - 8;
 	const int width = COLS - 8;
@@ -567,26 +520,12 @@ void tui_submit_action(enum tui_action_kind _action) {
 	sem_post(&sem_wait_action);
 }
 
-
-static void tui_callback_textbox_modifed() {
-	tui_submit_action(textbox_modified);
-}
-
-static void tui_callback_tabbar_modified() {
-	tui_submit_action(tabbar_modified);
-}
-
-static void tui_callback_titlebar_modified() {
-	tui_submit_action(titlebar_modified);
-}
-
-static void tui_callback_statusbar_modified() {
-	tui_submit_action(statusbar_modified);
-}
-
-static void tui_callback_list_modified() {
-	tui_submit_action(list_modified);
-}
+static void tui_callback_textbox_modifed()    { tui_submit_action(textbox_modified);   }
+static void tui_callback_tabbar_modified()    { tui_submit_action(tabbar_modified);    }
+static void tui_callback_titlebar_modified()  { tui_submit_action(titlebar_modified);  }
+static void tui_callback_statusbar_modified() { tui_submit_action(statusbar_modified); }
+static void tui_callback_list_modified()      { tui_submit_action(list_modified);      }
+static void tui_callback_sugg_modified()      { tui_submit_action(sugg_modified);      }
 
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
@@ -632,45 +571,47 @@ bool tui_init() {
 		_log("color pair id in [1; %d]", COLOR_PAIRS - 1);
 
 	#define INIT_PAIR(CP, CF, CB) if(ERR == init_pair(CP, CF, CB)) { _log("init_pair("#CP", "#CF", "#CB") failed"); }
-		INIT_PAIR(sbar_default,           COLOR_WHITE,  COLOR_BLUE);
+		INIT_PAIR(sbar_default,                COLOR_WHITE,  COLOR_BLUE);
 
-		INIT_PAIR(cline_default,          COLOR_WHITE,  COLOR_BLUE);
-		INIT_PAIR(cline_cmd_char,         COLOR_RED,    COLOR_BLUE);
-		INIT_PAIR(cline_warning,          COLOR_RED,    COLOR_BLUE);
+		INIT_PAIR(cline_default,               COLOR_WHITE,  COLOR_BLUE);
+		INIT_PAIR(cline_cmd_char,              COLOR_RED,    COLOR_BLUE);
+		INIT_PAIR(cline_warning,               COLOR_RED,    COLOR_BLUE);
 
-		INIT_PAIR(tbar_default,           COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tbar_default,                COLOR_BLACK,  COLOR_WHITE);
 
-		INIT_PAIR(tbar_tab_selected,      COLOR_WHITE,  COLOR_BLACK);
-		INIT_PAIR(tbar_tab_nselected,     COLOR_WHITE,  COLOR_GRAY);
+		INIT_PAIR(tbar_tab_selected,           COLOR_WHITE,  COLOR_BLACK);
+		INIT_PAIR(tbar_tab_nselected,          COLOR_WHITE,  COLOR_GRAY);
 
-		INIT_PAIR(inp_cursor,             COLOR_GRAY,   COLOR_GRAY);
+		INIT_PAIR(inp_cursor,                  COLOR_GRAY,   COLOR_GRAY);
 
-		INIT_PAIR(cmdlist_default,        COLOR_WHITE,  COLOR_BLACK);
-		INIT_PAIR(cmdlist_selected,       COLOR_WHITE,  COLOR_GRAY);
-		INIT_PAIR(cmdlist_desc,           COLOR_GREEN,  COLOR_BLACK);
-		INIT_PAIR(cmdlist_desc_selected,  COLOR_GREEN,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_default,             COLOR_WHITE,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_selected,            COLOR_WHITE,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_desc,                COLOR_GREEN,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_desc_selected,       COLOR_GREEN,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_descparam,           COLOR_DGRAY,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_descparam_selected,  COLOR_DGRAY,  COLOR_GRAY);
 
-		INIT_PAIR(tline_default,          COLOR_WHITE,  COLOR_SHELL);
-		INIT_PAIR(tline_default_selected, COLOR_BLACK,  COLOR_WHITE);
-		INIT_PAIR(tline_default_played,   COLOR_WHITE,  COLOR_DGRAY);
+		INIT_PAIR(tline_default,               COLOR_WHITE,  COLOR_SHELL);
+		INIT_PAIR(tline_default_selected,      COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tline_default_played,        COLOR_WHITE,  COLOR_DGRAY);
 
-		INIT_PAIR(tline_status,           COLOR_RED,    COLOR_SHELL);
+		INIT_PAIR(tline_status,                COLOR_RED,    COLOR_SHELL);
 
-		INIT_PAIR(tline_date,             COLOR_CYAN,   COLOR_SHELL);
-		INIT_PAIR(tline_date_played,      COLOR_CYAN,   COLOR_DGRAY);
-		INIT_PAIR(tline_date_selected,    COLOR_BLACK,  COLOR_CYAN);
+		INIT_PAIR(tline_date,                  COLOR_CYAN,   COLOR_SHELL);
+		INIT_PAIR(tline_date_played,           COLOR_CYAN,   COLOR_DGRAY);
+		INIT_PAIR(tline_date_selected,         COLOR_BLACK,  COLOR_CYAN);
 
-		INIT_PAIR(tline_user,             COLOR_GREEN,  COLOR_SHELL);
-		INIT_PAIR(tline_user_played,      COLOR_GREEN,  COLOR_DGRAY);
-		INIT_PAIR(tline_user_selected,    COLOR_DGREEN, COLOR_WHITE);
+		INIT_PAIR(tline_user,                  COLOR_GREEN,  COLOR_SHELL);
+		INIT_PAIR(tline_user_played,           COLOR_GREEN,  COLOR_DGRAY);
+		INIT_PAIR(tline_user_selected,         COLOR_DGREEN, COLOR_WHITE);
 
-		INIT_PAIR(tline_ctime,            COLOR_YELLOW, COLOR_SHELL);
-		INIT_PAIR(tline_ctime_played,     COLOR_YELLOW, COLOR_DGRAY);
-		INIT_PAIR(tline_ctime_selected,   COLOR_YELLOW, COLOR_WHITE);
+		INIT_PAIR(tline_ctime,                 COLOR_YELLOW, COLOR_SHELL);
+		INIT_PAIR(tline_ctime_played,          COLOR_YELLOW, COLOR_DGRAY);
+		INIT_PAIR(tline_ctime_selected,        COLOR_YELLOW, COLOR_WHITE);
 
-		INIT_PAIR(tline_time,             COLOR_WHITE,  COLOR_SHELL);
-		INIT_PAIR(tline_time_played,      COLOR_WHITE,  COLOR_DGRAY);
-		INIT_PAIR(tline_time_selected,    COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tline_time,                  COLOR_WHITE,  COLOR_SHELL);
+		INIT_PAIR(tline_time_played,           COLOR_WHITE,  COLOR_DGRAY);
+		INIT_PAIR(tline_time_selected,         COLOR_BLACK,  COLOR_WHITE);
 	} else {
 		_log("terminal does not support colors at all(!)");
 	}
@@ -681,6 +622,7 @@ bool tui_init() {
 	state_register_callback(cbe_titlebar_modified,  tui_callback_titlebar_modified);
 	state_register_callback(cbe_statusbar_modified, tui_callback_statusbar_modified);
 	state_register_callback(cbe_list_modified,      tui_callback_list_modified);
+	state_register_callback(cbe_sugg_modified,      tui_callback_sugg_modified);
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 

@@ -38,6 +38,8 @@ static char        *_tb_text  = NULL;
 static size_t       _tb_pos   = 0;
 static size_t       _tb_old_pos   = 0;
 
+static size_t       _sugg_selected = 0;
+
 static char        *_input = NULL;
 struct command     *_commands = NULL;
 
@@ -56,8 +58,9 @@ size_t             state_get_tb_pos()        { return _tb_pos; }
 char*              state_get_input()         { return _input; }
 struct command*    state_get_commands()      { return _commands; }
 size_t             state_get_current_time()  { return _current_time; }
+size_t             state_get_sugg_selected() { return _sugg_selected; }
 
-void state_set_commands(struct command *commands) { _commands = commands; }
+void state_set_commands(struct command *commands) { _commands = commands; CALL_CALLBACK(cbe_sugg_modified); }
 void state_set_current_list(size_t list)          { _current_list = list; CALL_CALLBACK(cbe_list_modified); }
 
 void state_set_lists(struct track_list **_lists) {
@@ -73,6 +76,12 @@ void state_set_lists(struct track_list **_lists) {
 void state_set_repeat(enum repeat repeat)       { _repeat       = repeat; CALL_CALLBACK(cbe_repeat_modified); }
 void state_set_title(char *text)                { _title_text   = text;   CALL_CALLBACK(cbe_titlebar_modified); }
 void state_set_current_time(size_t time)        { _current_time = time;   }
+
+void state_set_sugg_selected(size_t selected) {
+	_sugg_selected = selected;
+
+	CALL_CALLBACK(cbe_sugg_modified);
+}
 
 void state_set_tb_pos(size_t pos) {
 	_tb_old_pos = _tb_pos;

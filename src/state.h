@@ -28,8 +28,9 @@
 
 	struct command {
 		char  *name;
-		char  *desc;
 		bool (*func)(char*);
+		char  *desc_param;
+		char  *desc;
 	};
 
 	enum callback_event {
@@ -39,6 +40,7 @@
 		cbe_titlebar_modified,
 		cbe_statusbar_modified,
 		cbe_input_modified,
+		cbe_sugg_modified,
 		cbe_list_modified,
 		callback_event_size
 	};
@@ -94,6 +96,7 @@
 	size_t             state_get_old_selected();
 	size_t             state_get_current_selected();
 	size_t             state_get_current_position();
+	size_t             state_get_sugg_selected();
 	/** @}*/
 
 	/** \brief Global initialization of the internal state of SCTC.
@@ -129,11 +132,14 @@
 	void state_set_status      (enum color color, char *text);
 	void state_set_tb          (char *title, char *text);
 	void state_set_current_time(size_t time);
+	void state_set_sugg_selected(size_t selected);
 	void state_set_tb_pos      (size_t pos);
 	void state_set_tb_pos_rel  (int delta);
 	/** @}*/
 
 
 	void state_register_callback(enum callback_event evt, void (*cb)(void));
+
+	#define NOTHING_SELECTED ((unsigned int) ~0)
 
 #endif /* _STATE_H */
