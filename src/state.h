@@ -45,6 +45,8 @@
 		callback_event_size
 	};
 
+	void state_add_list(struct track_list *_list);
+
 	/** \addtogroup state_get State: Getter
 	 *
 	 *  @{

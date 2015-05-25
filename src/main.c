@@ -221,20 +221,24 @@ static bool cmd_download(char *unused) { // TODO!
 	return true;
 }
 
-static bool cmd_open_user(char *user) {
-	_log("TODO"); /** \todo implement (and integrate to 'workflow') cmd_open_user */
-/*
-	state_set_status(cline_default, smprintf("Info: Switch to %s's channel\n", user));
+static bool cmd_open_user(char *_user) {
+	char *user = strstrp(_user);
+	state_set_status(cline_default, smprintf("Info: Switch to "F_BOLD"%s"F_RESET"'s channel\n", user));
 
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
-	list = soundcloud_get_entries(nwc, user);
+	struct track_list *list = soundcloud_get_entries(nwc, user);
 	nwc->disconnect(nwc);
 
-	list->position = 0;
+	if(list->count) {
+		list->name = list->entries[0].username;
+		state_add_list(list);
 
-	tui_submit_action(update_list);
-*/
-	return true;
+		return true;
+	}
+
+	state_set_status(cline_warning, smprintf("Info: Cannot switch to "F_BOLD"%s"F_RESET"'s channel: No tracks found!\n", user));
+	track_list_destroy(list, true);
+	return false;
 }
 
 static bool cmd_write_playlist(char *file) {
@@ -254,6 +258,32 @@ static bool cmd_goto(char *hint) {
 		state_set_status(cline_default, "");
 	}
 	return true;
+}
+
+static bool switch_to_list(unsigned int id) {
+	struct track_list *list = state_get_list(id);
+	if(!list) {
+		state_set_status(cline_warning, "Error: Not switching to list: No such list");
+	} else if(list->count) {
+		state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
+		state_set_current_list(id);
+		return true;
+	} else {
+		state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
+	}
+
+	return false;
+}
+
+static bool cmd_list(char *list) {
+	unsigned int list_id;
+
+	if(1 == sscanf(list, " %u ", &list_id)) {
+		return switch_to_list(list_id - 1);
+	} else {
+		_log("cannot switch to list %s", list);
+		return false;
+	}
 }
 
 static bool cmd_seek(char *time) {
@@ -430,7 +460,8 @@ static struct command commands[] = {
 	{"repeat-all",  cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
 	{"stop",        cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
 	{"pause",       cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
-	{"seek",        cmd_seek,           "<time to seek to>",             "Seek"},
+	{"seek",        cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
+	{"list",        cmd_list,           "<number of list>",              "Switch to specified playlist"},
 	{"goto",        cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
 	{"help",        cmd_help,           "<none/ignored>",                "Show help"},
 	{"write",       cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)",  },
@@ -734,9 +765,6 @@ int main(int argc, char **argv) {
 	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
 
-	lists[LIST_USER1] = lcalloc(1, sizeof(struct track_list));
-	lists[LIST_USER1]->name = "User List 1";
-
 	lists[LIST_STREAM] = get_list();
 	lists[LIST_STREAM]->name = "Stream";
 
@@ -767,23 +795,14 @@ int main(int argc, char **argv) {
 		struct track_list *list = state_get_list(state_get_current_list());
 		size_t current_selected = state_get_current_selected();
 
+		if(isdigit(c) && '0' != c) {
+			switch_to_list(c - '1');
+			continue;
+		}
+
 		switch(c) {
 			case 'q': cmd_exit(NULL);        break;
 			case '0': /** \todo show logs */ break;
-
-			case '1':
-			case '2':
-			case '3': {
-				struct track_list *list = state_get_list(c - '1');
-				if(list->count) {
-					//list->position = 0;
-					state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
-					state_set_current_list(c - '1');
-				} else {
-					state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
-				}
-				break;
-			}
 
 			case '/':
 				state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);

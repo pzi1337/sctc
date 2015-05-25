@@ -47,7 +47,11 @@ size_t             state_get_current_list()  { return _current_list; }
 size_t             state_get_current_selected() { return lists[_current_list].selected; }
 size_t             state_get_current_position() { return lists[_current_list].position; }
 size_t             state_get_old_selected() { return lists[_current_list].old_selected; }
-struct track_list* state_get_list(size_t id) { assert(id < MAX_LISTS); return lists[id].list; }
+
+struct track_list* state_get_list(size_t id) {
+	return id < MAX_LISTS ? lists[id].list : NULL;
+}
+
 enum   repeat      state_get_repeat()        { return _repeat; }
 char*              state_get_title_text()    { return _title_text; }
 char*              state_get_status_text()   { return _status_text; }
@@ -61,7 +65,15 @@ size_t             state_get_current_time()  { return _current_time; }
 size_t             state_get_sugg_selected() { return _sugg_selected; }
 
 void state_set_commands(struct command *commands) { _commands = commands; CALL_CALLBACK(cbe_sugg_modified); }
-void state_set_current_list(size_t list)          { _current_list = list; CALL_CALLBACK(cbe_list_modified); }
+
+void state_set_current_list(size_t list) {
+	_current_list = list;
+
+	// we need to redraw both tabs and the list
+	// -> both callbacks called
+	CALL_CALLBACK(cbe_tabs_modified);
+	CALL_CALLBACK(cbe_list_modified);
+}
 
 void state_set_lists(struct track_list **_lists) {
 	for(size_t i = 0; _lists[i] && i < MAX_LISTS; i++) {
@@ -70,6 +82,19 @@ void state_set_lists(struct track_list **_lists) {
 		lists[i].old_selected = 0;
 		lists[i].position     = 0;
 	}
+	CALL_CALLBACK(cbe_tabs_modified);
+}
+
+void state_add_list(struct track_list *_list) {
+	// TODO \todo check MAX_LISTS!
+	size_t pos;
+	for(pos = 0; pos < MAX_LISTS && lists[pos].list; pos++);
+
+	lists[pos].list         = _list;
+	lists[pos].selected     = 0;
+	lists[pos].old_selected = 0;
+	lists[pos].position     = 0;
+
 	CALL_CALLBACK(cbe_tabs_modified);
 }
 
