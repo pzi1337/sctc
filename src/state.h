@@ -28,7 +28,7 @@
 
 	struct command {
 		char  *name;
-		bool (*func)(char*);
+		void (*func)(char*);
 		char  *desc_param;
 		char  *desc;
 	};

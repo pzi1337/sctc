@@ -19,7 +19,9 @@
 #ifndef _TUI_H
 	#define _TUI_H
 
+	//\cond
 	#include <stdbool.h>                    // for bool, false, true
+	//\endcond
 
 	enum color {
 		cline_default = 1, cline_cmd_char, cline_warning,
