@@ -344,6 +344,30 @@ static bool cmd_exit(char *unused) {
 	return true;
 }
 
+static bool cmd_search_next(char *unused) {
+	struct track_list *list = state_get_list(state_get_current_list());
+
+	for(int i = state_get_current_selected() + 1; i < list->count; i++) {
+		if(strcasestr(list->entries[i].name, state_get_input())) {
+			state_set_current_selected(i);
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool cmd_search_prev(char *unused) {
+	struct track_list *list = state_get_list(state_get_current_list());
+
+	for(int i = state_get_current_selected() - 1; i >= 0; i--) {
+		if(strcasestr(list->entries[i].name, state_get_input())) {
+			state_set_current_selected(i);
+			return true;
+		}
+	}
+	return false;
+}
+
 static bool cmd_bookmark(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
@@ -807,29 +831,12 @@ int main(int argc, char **argv) {
 			case '/':
 				state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 				handle_search(state_get_input(), 127);
-				_log("have search: %s", state_get_input());
 
 				// fall through
 
-			case 'n':
-				for(int i = state_get_current_selected(); i < list->count; i++) {
-					if(strcasestr(list->entries[i].name, state_get_input())) {
-						state_set_current_selected(i);
-						break;
-					}
-				}
-				break;
-
-			case 'N':
-				for(int i = state_get_current_selected() - 1; i >= 0; i--) {
-					if(strcasestr(list->entries[i].name, state_get_input())) {
-						state_set_current_selected(i);
-						break;
-					}
-				}
-				break;
-
-			case 'b': cmd_bookmark(NULL); break;
+			case 'n': cmd_search_next(NULL); break;
+			case 'N': cmd_search_prev(NULL); break;
+			case 'b': cmd_bookmark(NULL);    break;
 
 			case ':': {
 				state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
