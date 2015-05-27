@@ -18,13 +18,17 @@
 
 //\cond
 #include <stdlib.h>  /* free   */
+#include <string.h>
+#include <assert.h>
 //\endcond
 
 #include <confuse.h> /* cfg_*  */
+#include <ncurses.h>
 
 #include "config.h"
 #include "helper.h"
 #include "log.h"
+#include "state.h" // FIXME
 
 #define SCTC_CONFIG_FILE "sctc.conf"
 
@@ -38,11 +42,74 @@ static int config_subscribe_count = 0;
 static char* cache_path;
 static int   cache_limit;
 
+// FIXME `cleanup`
+extern struct command commands[];
+
+static struct {
+	void (*func)(char*);
+	const char *param;
+} key_command_mapping[KEY_MAX] = { {NULL} };
+
+static int get_curses_ch(const char *str) {
+	if(!str[0]) {
+		return ERR;
+	}
+
+	if(!str[1]) {
+		return str[0];
+	}
+
+	if(!strcmp("KEY_ENTER",     str)) return KEY_ENTER;
+	if(!strcmp("KEY_UP",        str)) return KEY_UP;
+	if(!strcmp("KEY_DOWN",      str)) return KEY_DOWN;
+	if(!strcmp("KEY_LEFT",      str)) return KEY_LEFT;
+	if(!strcmp("KEY_RIGHT",     str)) return KEY_RIGHT;
+	if(!strcmp("KEY_BACKSPACE", str)) return KEY_BACKSPACE;
+	if(!strcmp("KEY_PPAGE",     str)) return KEY_PPAGE;
+	if(!strcmp("KEY_NPAGE",     str)) return KEY_NPAGE;
+
+	return ERR;
+}
+
+// KEY_MAX
+
+int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
+	if(2 != argc) {
+		_log("map() requires exactly 2 parameters!");
+		return -1;
+	}
+
+	// search for corresponding key
+	int key = get_curses_ch(argv[0]);
+	if(ERR == key) {
+		_log("Unknown key '%s', ommiting `map(\"%s\", \"%s\")`", argv[0], argv[0], argv[1]);
+		return -1;
+	}
+
+	// search for function to call
+	const size_t in_len = strlen(argv[1]);
+	for(size_t i = 0; commands[i].name; i++) {
+		const size_t cmd_len = strlen(commands[i].name);
+
+		if(in_len >= cmd_len) {
+			if(!strncmp(commands[i].name, argv[1], strlen(commands[i].name))) {
+				_log("Mapping key \"%s\"(%i) to command \"%s\"", argv[0], key, argv[1]);
+				key_command_mapping[key].func  = commands[i].func;
+				key_command_mapping[key].param = argv[1] + strlen(commands[i].name);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 void config_init() {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
 		CFG_SIMPLE_STR(OPTION_CACHE_PATH,  &cache_path),
 		CFG_SIMPLE_INT(OPTION_CACHE_LIMIT, &cache_limit),
+		CFG_FUNC("map", config_map_command),
 		CFG_END()
 	};
 
@@ -67,6 +134,16 @@ void config_init() {
 		_log("| * %s", config_subscribe[i]);
 	}
 	_log("| cache: `%s`, limit: %i", cache_path, cache_limit);
+}
+
+command_func_ptr config_get_function(int key) {
+	assert(key < KEY_MAX);
+	return key_command_mapping[key].func;
+}
+
+const char* config_get_param(int key) {
+	assert(key < KEY_MAX);
+	return key_command_mapping[key].param;
 }
 
 int config_get_subscribe_count() {

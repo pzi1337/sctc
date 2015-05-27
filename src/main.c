@@ -349,6 +349,11 @@ static void search_direction(bool down) {
 	}
 }
 
+static void cmd_entry_1up   (char *unused) { state_set_current_selected_rel(-1);            }
+static void cmd_entry_1down (char *unused) { state_set_current_selected_rel(+1);            }
+static void cmd_entry_pgup  (char *unused) { state_set_current_selected_rel(- (LINES - 2)); }
+static void cmd_entry_pgdown(char *unused) { state_set_current_selected_rel(+ (LINES - 2)); }
+
 static void cmd_search_next(char *unused) { search_direction(true);  }
 static void cmd_search_prev(char *unused) { search_direction(false); }
 
@@ -470,10 +475,14 @@ static void cmd_redraw(char *unused) {
  *  \todo Step by step, 'everything' should be moved here.\n
  *  At some point in time we want to be able to bind keys via configfile.
  */
-static struct command commands[] = {
+struct command commands[] = {
 	{"bookmark",     cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
 	{"details",      cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
 	{"download",     cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
+	{"entry-1up",    cmd_entry_1up,      "<none/ignored>",                "Go one entry up"},
+	{"entry-1down",  cmd_entry_1down,    "<none/ignored>",                "Go one entry down"},
+	{"entry-pgup",   cmd_entry_pgup,     "<none/ignored>",                "Go one page up"},
+	{"entry-pgdown", cmd_entry_pgdown,   "<none/ignored>",                "Go one page down"},
 	{"exit",         cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
 	{"goto",         cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
 	{"help",         cmd_help,           "<none/ignored>",                "Show help"},
@@ -484,7 +493,7 @@ static struct command commands[] = {
 	{"repeat-none",  cmd_repeat_none,    "<none/ignored>",                "Set repeat to 'none'"},
 	{"repeat-one",   cmd_repeat_one,     "<none/ignored>",                "Set repeat to 'one'"},
 	{"repeat-all",   cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
-	{"repeat-toggle",cmd_repeat_all,     "<none/ignored>",                "Toggle repeat (none -> one -> all -> none)"},
+	{"repeat-toggle",cmd_repeat_toggle,  "<none/ignored>",                "Toggle repeat (none -> one -> all -> none)"},
 	{"search-next",  cmd_search_prev,    "<none/ignored>",                "Continue search downwards"},
 	{"search-prev",  cmd_search_next,    "<none/ignored>",                "Continue search upwards"},
 	{"seek",         cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
@@ -616,6 +625,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 	int c;
 	while( (c = getch()) ) {
 		size_t selected = state_get_sugg_selected();
+
 		switch(c) {
 			case KEY_EXIT: // ESC
 			case 0x1B:
@@ -825,19 +835,21 @@ int main(int argc, char **argv) {
 			continue;
 		}
 
+		command_func_ptr func = config_get_function(c);
+		if(func) {
+			func((char*)config_get_param(c));
+			continue;
+		}
+
 		switch(c) {
-			case 'q': cmd_exit(NULL);        break;
 			case '0': /** \todo show logs */ break;
 
 			case '/':
 				state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 				handle_search(state_get_input(), 127);
 
-				// fall through
-
-			case 'n': cmd_search_next(NULL); break;
-			case 'N': cmd_search_prev(NULL); break;
-			case 'b': cmd_bookmark(NULL);    break;
+				cmd_search_next(NULL);
+				break;
 
 			case ':': {
 				state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
@@ -856,25 +868,9 @@ int main(int argc, char **argv) {
 				break;
 			}
 
-			case 'r': cmd_repeat_toggle(NULL); break;
-			case 'd': cmd_details(NULL);       break;
-			case 'c': cmd_pause(NULL);         break; // pause
-			case 's': cmd_stop(NULL);          break; // stop (= reset current position to 0)
-			case 'y': cmd_yank(NULL);          break; // copy url to selected entry
-
 			/* jump to start/end of list */
 			case 'g': state_set_current_selected(0);               break;
 			case 'G': state_set_current_selected(list->count - 1); break;
-
-			/* manual scrolling
-			 *  -> single line up
-			 *  -> single line down
-			 *  -> page up
-			 *  -> page down */
-			case KEY_UP:    state_set_current_selected_rel(-1);            break;
-			case KEY_DOWN:  state_set_current_selected_rel(+1);            break;
-			case KEY_NPAGE: state_set_current_selected_rel(+ (LINES - 2)); break;
-			case KEY_PPAGE: state_set_current_selected_rel(- (LINES - 2)); break;
 
 			case 0x0A: // LF (aka 'enter')
 			case KEY_ENTER: {

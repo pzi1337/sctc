@@ -23,9 +23,13 @@
 	#include <stdbool.h>
 	//\endcond
 
+	#include "state.h"
+
 	void config_init();
 	int config_get_subscribe_count();
 	char* config_get_subscribe(int id);
+	command_func_ptr config_get_function(int key);
+	const char* config_get_param(int key);
 	bool config_finalize();
 
 #endif /* _CONFIG_H */

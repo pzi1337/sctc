@@ -26,9 +26,11 @@
 	#define LIST_BOOKMARKS 1
 	#define LIST_USER1     2
 
+	typedef void (*command_func_ptr)(char*);
+
 	struct command {
 		char  *name;
-		void (*func)(char*);
+		command_func_ptr func;
 		char  *desc_param;
 		char  *desc;
 	};
