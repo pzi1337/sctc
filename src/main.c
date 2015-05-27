@@ -248,6 +248,29 @@ static void cmd_goto(char *hint) {
 	if(!strcmp("", target)) {
 		state_set_current_selected(playing - 1);
 		state_set_status(cline_default, "");
+	} else if(!strcmp("end", target)) {
+		struct track_list *list = state_get_list(state_get_current_list());
+
+		state_set_current_selected(list->count - 1);
+		state_set_status(cline_default, "");
+	} else if('+' == *target || '-' == *target) {
+		int delta = 0;
+		bool valid = false;
+
+		if(NULL != strchr(target, '.')) {
+			float pages = 0;
+			valid = (1 == sscanf(target, " %f ", &pages));
+
+			delta = pages * (LINES - 2);
+		} else {
+			valid = (1 == sscanf(target, " %d ", &delta));
+		}
+		if(valid) state_set_current_selected_rel(delta);
+	} else {
+		unsigned int pos;
+		if(1 == sscanf(target, " %u ", &pos)) {
+			state_set_current_selected(pos);
+		}
 	}
 }
 
@@ -348,11 +371,6 @@ static void search_direction(bool down) {
 		}
 	}
 }
-
-static void cmd_entry_1up   (char *unused) { state_set_current_selected_rel(-1);            }
-static void cmd_entry_1down (char *unused) { state_set_current_selected_rel(+1);            }
-static void cmd_entry_pgup  (char *unused) { state_set_current_selected_rel(- (LINES - 2)); }
-static void cmd_entry_pgdown(char *unused) { state_set_current_selected_rel(+ (LINES - 2)); }
 
 static void cmd_search_next(char *unused) { search_direction(true);  }
 static void cmd_search_prev(char *unused) { search_direction(false); }
@@ -479,10 +497,6 @@ struct command commands[] = {
 	{"bookmark",     cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
 	{"details",      cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
 	{"download",     cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
-	{"entry-1up",    cmd_entry_1up,      "<none/ignored>",                "Go one entry up"},
-	{"entry-1down",  cmd_entry_1down,    "<none/ignored>",                "Go one entry down"},
-	{"entry-pgup",   cmd_entry_pgup,     "<none/ignored>",                "Go one page up"},
-	{"entry-pgdown", cmd_entry_pgdown,   "<none/ignored>",                "Go one page down"},
 	{"exit",         cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
 	{"goto",         cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
 	{"help",         cmd_help,           "<none/ignored>",                "Show help"},
@@ -867,10 +881,6 @@ int main(int argc, char **argv) {
 				}
 				break;
 			}
-
-			/* jump to start/end of list */
-			case 'g': state_set_current_selected(0);               break;
-			case 'G': state_set_current_selected(list->count - 1); break;
 
 			case 0x0A: // LF (aka 'enter')
 			case KEY_ENTER: {

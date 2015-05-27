@@ -71,8 +71,6 @@ static int get_curses_ch(const char *str) {
 	return ERR;
 }
 
-// KEY_MAX
-
 int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
 	if(2 != argc) {
 		_log("map() requires exactly 2 parameters!");
@@ -93,9 +91,10 @@ int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) 
 
 		if(in_len >= cmd_len) {
 			if(!strncmp(commands[i].name, argv[1], strlen(commands[i].name))) {
-				_log("Mapping key \"%s\"(%i) to command \"%s\"", argv[0], key, argv[1]);
+				_log("Mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(commands[i].name));
 				key_command_mapping[key].func  = commands[i].func;
-				key_command_mapping[key].param = argv[1] + strlen(commands[i].name);
+				const char *param = argv[1] + strlen(commands[i].name);
+				if(strcmp("", param)) key_command_mapping[key].param = lstrdup(param);
 				break;
 			}
 		}
