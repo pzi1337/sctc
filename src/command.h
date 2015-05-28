@@ -16,10 +16,22 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#ifndef _XSPF_H
-	#include "track.h"
+#ifndef _COMMAND_H
+	#define _COMMAND_H
 
-	bool jspf_write(char *file, struct track_list *list);
-	struct track_list* jspf_read(char *file);
+	//\cond
+	#include <stddef.h>                     // for size_t
+	//\endcond
 
-#endif /* _XSPF_H */
+	typedef void (*command_func_ptr)(char*);
+
+	struct command {
+		char  *name;
+		command_func_ptr func;
+		char  *desc_param;
+		char  *desc;
+	};
+
+	extern struct command commands[];
+	extern const size_t command_count;
+#endif

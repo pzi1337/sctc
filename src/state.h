@@ -26,15 +26,6 @@
 	#define LIST_BOOKMARKS 1
 	#define LIST_USER1     2
 
-	typedef void (*command_func_ptr)(char*);
-
-	struct command {
-		char  *name;
-		command_func_ptr func;
-		char  *desc_param;
-		char  *desc;
-	};
-
 	enum callback_event {
 		cbe_textbox_modified = 0,
 		cbe_repeat_modified, 

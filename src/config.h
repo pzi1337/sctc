@@ -23,7 +23,7 @@
 	#include <stdbool.h>
 	//\endcond
 
-	#include "state.h"
+	#include "command.h"
 
 	void config_init();
 	int config_get_subscribe_count();

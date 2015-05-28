@@ -16,19 +16,20 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+#include "config.h"
+
 //\cond
-#include <stdlib.h>  /* free   */
-#include <string.h>
-#include <assert.h>
+#include <assert.h>                     // for assert
+#include <stddef.h>                     // for size_t
+#include <stdlib.h>                     // for free, NULL
+#include <string.h>                     // for strcmp, strlen, strncmp
 //\endcond
 
-#include <confuse.h> /* cfg_*  */
-#include <ncurses.h>
+#include <confuse.h>                    // for cfg_free, cfg_getnstr, etc
+#include <ncurses.h>                    // for ERR, KEY_MAX, KEY_BACKSPACE, etc
 
-#include "config.h"
-#include "helper.h"
-#include "log.h"
-#include "state.h" // FIXME
+#include "helper.h"                     // for lstrdup, lcalloc
+#include "log.h"                        // for _log
 
 #define SCTC_CONFIG_FILE "sctc.conf"
 

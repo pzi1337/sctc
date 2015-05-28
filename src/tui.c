@@ -40,6 +40,7 @@
 #include "log.h"                        // for _log
 #include "state.h"                      // for state_get_current_list, etc
 #include "track.h"                      // for track, track_list, etc
+#include "command.h"
 
 /* user defined colors */
 #define COLOR_SHELL  -1 /* the default color used by the shell, required to be -1 */
