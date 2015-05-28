@@ -85,6 +85,8 @@
 #define MIN(x,y) (x < y ? x : y)
 
 static void handle_textbox();
+static bool handle_command(char *buffer, size_t buffer_size);
+static int command_dispatcher(char *command);
 
 static bool param_is_offline = false;
 
@@ -364,22 +366,91 @@ static void search_direction(bool down) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	const int step = down ? 1 : -1;
 
-	for(int i = state_get_current_selected() + step; i >=0 && i < list->count; i += step) {
+	for(int i = state_get_current_selected() + step; i >= 0 && i < list->count; i += step) {
 		if(strcasestr(list->entries[i].name, state_get_input())) {
 			state_set_current_selected(i);
 			return;
 		}
 	}
+	state_set_status(cline_warning, smprintf("search hit %s", down ? "BOTTOM" : "TOP"));
+}
+
+static bool handle_search(char *buffer, size_t buffer_size) {
+	// `clear` the buffer on starting search
+	buffer[0] = '\0';
+
+	tui_submit_action(input_modify_text);
+
+	size_t pos = 0;
+	int c;
+	while( (c = getch()) ) {
+		switch(c) {
+			case KEY_EXIT: // ESC
+			case 0x1B:
+				return false;
+
+			case 0x0A: // LF (aka 'enter')
+			case KEY_ENTER:
+				return true;
+
+			case KEY_BACKSPACE:
+				if(pos) {
+					pos--;
+					buffer[pos] = '\0';
+					tui_submit_action(input_modify_text);
+				} else {
+					return false;
+				}
+				break;
+
+			default: {
+				buffer[pos] = c;
+				buffer[pos + 1] = '\0';
+				tui_submit_action(input_modify_text);
+				pos++;
+
+				if(pos == buffer_size) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false; // never reached
 }
 
 static void cmd_search_next(char *unused) { search_direction(true);  }
 static void cmd_search_prev(char *unused) { search_direction(false); }
+
+static void cmd_search_start(char *unused) {
+	state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
+	handle_search(state_get_input(), 127);
+
+	cmd_search_next(NULL);
+}
 
 static void cmd_bookmark(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	track_list_add(state_get_list(LIST_BOOKMARKS), &list->entries[state_get_current_selected()]);
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[state_get_current_selected()].name));
+}
+
+static void cmd_command_input(char *unused) {
+	state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
+
+	char *buffer = state_get_input();
+
+	if(handle_command(buffer, 127)) {
+		int jump_target = command_dispatcher(buffer);
+		if(-1 != jump_target) {
+			state_set_current_selected(jump_target);
+			state_set_status(cline_default, "");
+		}
+	} else {
+		state_set_status(cline_default, "");
+	}
+
 }
 
 /** \brief Display 'Help' Dialog
@@ -473,6 +544,26 @@ static void stop_playback(bool reset) {
 	}
 }
 
+static void cmd_play(char *unused) {
+	size_t current_selected = state_get_current_selected();
+	struct track_list *list = state_get_list(state_get_current_list());
+
+	stop_playback(false); // pause other playing track (if any)
+
+	char time_buffer[TIME_BUFFER_SIZE];
+	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
+
+	playing = current_selected;
+
+	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
+
+	list->entries[current_selected].flags = (list->entries[current_selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
+
+	tui_submit_action(update_list);
+
+	sound_play(&list->entries[current_selected]);
+}
+
 static void cmd_pause(char *unused) { stop_playback(false); }
 static void cmd_stop(char *unused)  { stop_playback(true);  }
 
@@ -494,26 +585,29 @@ static void cmd_redraw(char *unused) {
  *  At some point in time we want to be able to bind keys via configfile.
  */
 struct command commands[] = {
-	{"bookmark",     cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
-	{"details",      cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
-	{"download",     cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
-	{"exit",         cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
-	{"goto",         cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
-	{"help",         cmd_help,           "<none/ignored>",                "Show help"},
-	{"list",         cmd_list,           "<number of list>",              "Switch to specified playlist"},
-	{"open",         cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
-	{"pause",        cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
-	{"redraw",       cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
-	{"repeat-none",  cmd_repeat_none,    "<none/ignored>",                "Set repeat to 'none'"},
-	{"repeat-one",   cmd_repeat_one,     "<none/ignored>",                "Set repeat to 'one'"},
-	{"repeat-all",   cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
-	{"repeat-toggle",cmd_repeat_toggle,  "<none/ignored>",                "Toggle repeat (none -> one -> all -> none)"},
-	{"search-next",  cmd_search_prev,    "<none/ignored>",                "Continue search downwards"},
-	{"search-prev",  cmd_search_next,    "<none/ignored>",                "Continue search upwards"},
-	{"seek",         cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
-	{"stop",         cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
-	{"write",        cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)",  },
-	{"yank",         cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
+	{"bookmark",      cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
+	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
+	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
+	{"download",      cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
+	{"exit",          cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
+	{"goto",          cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
+	{"help",          cmd_help,           "<none/ignored>",                "Show help"},
+	{"list",          cmd_list,           "<number of list>",              "Switch to specified playlist"},
+	{"open",          cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
+	{"pause",         cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
+	{"play",          cmd_play,           "<none/ignored>",                "Start playback of currently selected track"},
+	{"redraw",        cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
+	{"repeat-none",   cmd_repeat_none,    "<none/ignored>",                "Set repeat to 'none'"},
+	{"repeat-one",    cmd_repeat_one,     "<none/ignored>",                "Set repeat to 'one'"},
+	{"repeat-all",    cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
+	{"repeat-toggle", cmd_repeat_toggle,  "<none/ignored>",                "Toggle repeat (none -> one -> all -> none)"},
+	{"search-start",  cmd_search_start,   "<none/ignored>",                "Start searching (open input field)"},
+	{"search-next",   cmd_search_next,    "<none/ignored>",                "Continue search downwards"},
+	{"search-prev",   cmd_search_prev,    "<none/ignored>",                "Continue search upwards"},
+	{"seek",          cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
+	{"stop",          cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
+	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)",  },
+	{"yank",          cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
 	{NULL, NULL, NULL}
 };
 static const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
@@ -622,6 +716,9 @@ static size_t submit_updated_suggestion_list(struct command *buffer, char *filte
 static bool handle_command(char *buffer, size_t buffer_size) {
 	struct command matching_commands[command_count + 1];
 	memcpy(matching_commands, commands, sizeof(commands));
+
+	// `clear` the buffer on starting search
+	buffer[0] = '\0';
 
 	size_t shown_commands = command_count;
 
@@ -744,51 +841,6 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 	return false; // never reached
 }
 
-static bool handle_search(char *buffer, size_t buffer_size) {
-	size_t pos = 0;
-	int c;
-
-	// `clear` the buffer on starting search
-	buffer[0] = '\0';
-
-	tui_submit_action(input_modify_text);
-
-	while( (c = getch()) ) {
-		switch(c) {
-			case KEY_EXIT: // ESC
-			case 0x1B:
-				return false;
-
-			case 0x0A: // LF (aka 'enter')
-			case KEY_ENTER:
-				return true;
-
-			case KEY_BACKSPACE:
-				if(pos) {
-					pos--;
-					buffer[pos] = '\0';
-					tui_submit_action(input_modify_text);
-				} else {
-					return false;
-				}
-				break;
-
-			default: {
-				buffer[pos] = c;
-				buffer[pos + 1] = '\0';
-				tui_submit_action(input_modify_text);
-				pos++;
-
-				if(pos == buffer_size) {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false; // never reached
-}
-
 int main(int argc, char **argv) {
 	log_init("sctc.log");
 
@@ -841,9 +893,6 @@ int main(int argc, char **argv) {
 
 	int c;
 	while( (c = getch()) ) {
-		struct track_list *list = state_get_list(state_get_current_list());
-		size_t current_selected = state_get_current_selected();
-
 		if(isdigit(c) && '0' != c) {
 			switch_to_list(c - '1');
 			continue;
@@ -852,57 +901,8 @@ int main(int argc, char **argv) {
 		command_func_ptr func = config_get_function(c);
 		if(func) {
 			func((char*)config_get_param(c));
-			continue;
-		}
-
-		switch(c) {
-			case '0': /** \todo show logs */ break;
-
-			case '/':
-				state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
-				handle_search(state_get_input(), 127);
-
-				cmd_search_next(NULL);
-				break;
-
-			case ':': {
-				state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
-
-				char *buffer = state_get_input();
-
-				if(handle_command(buffer, 127)) {
-					int jump_target = command_dispatcher(buffer);
-					if(-1 != jump_target) {
-						state_set_current_selected(jump_target);
-						state_set_status(cline_default, "");
-					}
-				} else {
-					state_set_status(cline_default, "");
-				}
-				break;
-			}
-
-			case 0x0A: // LF (aka 'enter')
-			case KEY_ENTER: {
-				stop_playback(false); // pause other playing track (if any)
-
-				char time_buffer[TIME_BUFFER_SIZE];
-				snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
-
-				playing = current_selected;
-
-				state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-
-				list->entries[current_selected].flags = (list->entries[current_selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
-
-				tui_submit_action(update_list);
-
-				sound_play(&list->entries[current_selected]);
-				break;
-			}
-
-			default:
-				state_set_status(cline_warning, smprintf("Error: got unkown keycode %x", c));
+		} else {
+			state_set_status(cline_warning, smprintf("Error: got non-mapped keycode %x", c));
 		}
 	}
 
