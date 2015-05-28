@@ -71,6 +71,21 @@ static int get_curses_ch(const char *str) {
 	return ERR;
 }
 
+static struct command* get_cmd_by_name(const char *input) {
+	const size_t in_len = strlen(input);
+
+	for(size_t i = 0; commands[i].name; i++) {
+		const size_t cmd_len = strlen(commands[i].name);
+
+		if(in_len >= cmd_len) {
+			if(!strncmp(commands[i].name, input, cmd_len)) {
+				return &commands[i];
+			}
+		}
+	}
+	return NULL;
+}
+
 int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
 	if(2 != argc) {
 		_log("map() requires exactly 2 parameters!");
@@ -81,24 +96,20 @@ int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) 
 	int key = get_curses_ch(argv[0]);
 	if(ERR == key) {
 		_log("Unknown key '%s', ommiting `map(\"%s\", \"%s\")`", argv[0], argv[0], argv[1]);
-		return -1;
+		return 0;
 	}
 
 	// search for function to call
-	const size_t in_len = strlen(argv[1]);
-	for(size_t i = 0; commands[i].name; i++) {
-		const size_t cmd_len = strlen(commands[i].name);
-
-		if(in_len >= cmd_len) {
-			if(!strncmp(commands[i].name, argv[1], strlen(commands[i].name))) {
-				_log("Mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(commands[i].name));
-				key_command_mapping[key].func  = commands[i].func;
-				const char *param = argv[1] + strlen(commands[i].name);
-				if(strcmp("", param)) key_command_mapping[key].param = lstrdup(param);
-				break;
-			}
-		}
+	struct command *cmd = get_cmd_by_name(argv[1]);
+	if(!cmd) {
+		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\")`", argv[1], argv[0], argv[1]);
+		return 0;
 	}
+
+	_log("Mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(cmd->name));
+	key_command_mapping[key].func  = cmd->func;
+	const char *param = argv[1] + strlen(cmd->name);
+	if(strcmp("", param)) key_command_mapping[key].param = lstrdup(param);
 
 	return 0;
 }
