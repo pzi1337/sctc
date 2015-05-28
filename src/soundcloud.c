@@ -17,26 +17,27 @@
 */
 
 #define _XOPEN_SOURCE 500
+#include "_hard_config.h"               // for MAX_REDIRECT_STEPS
+
+
+#include "soundcloud.h"
 
 //\cond
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <time.h>
-#include <errno.h>
+#include <errno.h>                      // for errno
+#include <stdbool.h>                    // for false
+#include <stdio.h>                      // for NULL, sprintf
+#include <stdlib.h>                     // for free
+#include <string.h>                     // for strlen, strerror
+#include <time.h>                       // for mktime, strftime, tm
 //\endcond
 
-#include <yajl/yajl_tree.h>
+#include <yajl/yajl_tree.h>             // for yajl_val_s, etc
 
-#include "log.h"
-#include "soundcloud.h"
-#include "network/network.h"
-#include "jspf.h"
-#include "http.h"
-#include "helper.h"
-#include "url.h"
-#include "yajl_helper.h"
+#include "helper.h"                     // for lcalloc
+#include "jspf.h"                       // for jspf_read, jspf_write
+#include "log.h"                        // for _log
+#include "url.h"                        // for url, url_destroy, etc
+#include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
 #define CLIENTID_GET "client_id=848ee866ea93c21373f6a8b61772b412"
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET

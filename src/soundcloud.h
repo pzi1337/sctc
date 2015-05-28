@@ -19,7 +19,7 @@
 #ifndef _SOUNDCLOUD_H
 	#define _SOUNDCLOUD_H
 
-	#include "network/tls.h"
+	#include "network/network.h"
 	#include "track.h"
 	#include "http.h"
 

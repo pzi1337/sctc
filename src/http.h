@@ -19,8 +19,6 @@
 #ifndef _HTTP_H
 	#define _HTTP_H
 
-	#define MAX_REDIRECT_STEPS 20
-
 	//\cond
 	#include <stddef.h>                     // for size_t
 	//\endcond

@@ -20,6 +20,8 @@
  *  \brief Basic HTTP implementation
  */
 
+#include "_hard_config.h"
+
 //\cond
 #include <stdlib.h>                     // for free, atoi
 #include <string.h>                     // for strncmp, strtok

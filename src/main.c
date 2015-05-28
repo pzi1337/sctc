@@ -68,8 +68,6 @@
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
 #define TIME_BUFFER_SIZE 64
-#define SERVER_PORT 443
-#define SERVER_NAME "api.soundcloud.com"
 
 #define BENCH_START(ID) \
 	struct timespec bench_start##ID; \
@@ -81,11 +79,7 @@
 		_log("%s took %dms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
 	}
 
-static int command_dispatcher(char *command);
-
 static bool param_is_offline = false;
-
-int playing = -1; ///< the currently playing entry
 
 /** \brief Update the current playback time.
  *
@@ -94,7 +88,8 @@ int playing = -1; ///< the currently playing entry
  *  \param time  The time in seconds to print to the screen
  */
 void tui_update_time(int time) {
-	struct track_list *list = state_get_list(state_get_current_list());
+	struct track_list *list = state_get_list(state_get_current_playback_list());
+	size_t playing = state_get_current_playback_track();
 
 	if(-1 != time) {
 		list->entries[playing].current_position = time;
@@ -111,7 +106,7 @@ void tui_update_time(int time) {
 			case rep_none:
 				playing++;
 				if(playing >= list->count) {
-					playing = -1;
+					playing = ~0;
 					return;
 				}
 				break;
@@ -135,6 +130,7 @@ void tui_update_time(int time) {
 
 		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
 
+		state_set_current_playback(state_get_current_playback_list(), playing);
 		tui_submit_action(update_list);
 		sound_play(&list->entries[playing]);
 	}

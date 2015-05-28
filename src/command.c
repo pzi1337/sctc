@@ -25,14 +25,9 @@
 #include "track.h"                      // for track, track_list, etc
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
-#define SERVER_PORT 443
-#define SERVER_NAME "api.soundcloud.com"
-
 #define TIME_BUFFER_SIZE 64
 
 #define MIN(x,y) (x < y ? x : y)
-
-extern int playing;
 
 static void handle_textbox();
 static bool handle_command(char *buffer, size_t buffer_size);
@@ -137,7 +132,7 @@ static void cmd_download(char *unused) { // TODO!
 
 static void cmd_open_user(char *_user) {
 	char *user = strstrp(_user);
-	state_set_status(cline_default, smprintf("Info: Switch to "F_BOLD"%s"F_RESET"'s channel\n", user));
+	state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET"'s channel\n", user));
 
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 	struct track_list *list = soundcloud_get_entries(nwc, user);
@@ -164,7 +159,9 @@ static void cmd_goto(char *hint) {
 	char *target = strstrp(hint);
 
 	if(!strcmp("", target)) {
-		state_set_current_selected(playing - 1);
+		if(state_get_current_playback_list() == state_get_current_list()) {
+			state_set_current_selected(state_get_current_list() - 1);
+		}
 		state_set_status(cline_default, "");
 	} else if(!strcmp("end", target)) {
 		struct track_list *list = state_get_list(state_get_current_list());
@@ -438,9 +435,10 @@ static void cmd_details(char *unused) {
 }
 
 static void stop_playback(bool reset) {
-	struct track_list *list = state_get_list(state_get_current_list());
+	struct track_list *list = state_get_list(state_get_current_playback_list());
+	size_t playing = state_get_current_playback_track();
 
-	if(-1 != playing) {
+	if((~0) != playing) {
 		sound_stop();
 
 		list->entries[playing].flags &= ~FLAG_PLAYING;
@@ -456,7 +454,7 @@ static void stop_playback(bool reset) {
 
 		tui_submit_action(update_list);
 
-		playing = -1;
+		state_set_current_playback(0, ~0);
 	}
 }
 
@@ -469,7 +467,8 @@ static void cmd_play(char *unused) {
 	char time_buffer[TIME_BUFFER_SIZE];
 	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
 
-	playing = current_selected;
+	state_set_current_playback(state_get_current_list(), current_selected);
+	size_t playing = state_get_current_playback_track();
 
 	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
 
@@ -528,7 +527,6 @@ struct command commands[] = {
 	{NULL, NULL, NULL}
 };
 const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
-
 
 static void handle_textbox() {
 	int c;

@@ -1,3 +1,5 @@
+#include "_hard_config.h"
+
 #include "state.h"
 
 //\cond
@@ -7,8 +9,6 @@
 
 #include "helper.h"
 #include "log.h"
-
-#define MAX_LISTS 16
 
 struct track_list_state {
 	struct track_list *list;
@@ -119,6 +119,10 @@ void state_set_current_playback(size_t list, size_t track) {
 	current_playback.list  = list;
 	current_playback.track = track;
 }
+
+
+size_t state_get_current_playback_list()  { return current_playback.list;  }
+size_t state_get_current_playback_track() { return current_playback.track; }
 
 void state_set_current_selected(size_t selected) {
 	lists[_current_list].old_selected = lists[_current_list].selected;

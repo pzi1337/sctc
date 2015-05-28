@@ -16,6 +16,8 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+#include "../_hard_config.h"
+
 //\cond
 #include <assert.h>
 #include <errno.h>
@@ -41,9 +43,6 @@
 #include "network.h"
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
-
-#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections
-
 #define SHA512_LEN 64
 
 static x509_crt cacerts;

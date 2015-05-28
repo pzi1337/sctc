@@ -17,7 +17,7 @@
 */
 
 
-
+#include "_hard_config.h"
 #include "sound.h"
 
 #include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
@@ -44,9 +44,6 @@
 #include "state.h"
 
 #define BUFFER_SIZE 256 * 1024 * 1024
-
-#define CACHE_STREAM_FOLDER "./cache/streams/"
-#define CACHE_STREAM_EXT ".mp3"
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 

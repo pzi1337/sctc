@@ -74,9 +74,6 @@
 		struct track *entries;
 	};
 
-	// TODO: put to location it belongs to (where?)
-	enum repeat {rep_none, rep_one, rep_all};
-
 	/** \brief Add a single track to an existing track_list
 	 *
 	 *  \param list   The list receiving the new track

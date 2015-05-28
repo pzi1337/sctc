@@ -24,7 +24,6 @@
 
 	#define LIST_STREAM    0
 	#define LIST_BOOKMARKS 1
-	#define LIST_USER1     2
 
 	enum callback_event {
 		cbe_textbox_modified = 0,
@@ -37,6 +36,8 @@
 		cbe_list_modified,
 		callback_event_size
 	};
+
+	enum repeat {rep_none, rep_one, rep_all};
 
 	void state_add_list(struct track_list *_list);
 
@@ -92,6 +93,8 @@
 	size_t             state_get_current_selected();
 	size_t             state_get_current_position();
 	size_t             state_get_sugg_selected();
+	size_t             state_get_current_playback_list();
+	size_t             state_get_current_playback_track();
 	/** @}*/
 
 	/** \brief Global initialization of the internal state of SCTC.
@@ -130,6 +133,7 @@
 	void state_set_sugg_selected(size_t selected);
 	void state_set_tb_pos      (size_t pos);
 	void state_set_tb_pos_rel  (int delta);
+	void state_set_current_playback(size_t list, size_t track);
 	/** @}*/
 
 
