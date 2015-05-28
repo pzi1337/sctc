@@ -154,7 +154,6 @@ int main(int argc, char **argv) {
 
 	state_set_lists(lists);
 
-	// TODO: speed
 	BENCH_START(SB)
 	for(size_t i = 0; i < lists[LIST_STREAM]->count; i++) {
 		if(track_list_contains(lists[LIST_BOOKMARKS], lists[LIST_STREAM]->entries[i].permalink_url)) {

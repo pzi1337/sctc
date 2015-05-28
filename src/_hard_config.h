@@ -13,6 +13,8 @@
 	#define CACHE_STREAM_FOLDER "./cache/streams/"
 	#define CACHE_STREAM_EXT ".mp3"
 
+	#define CLIENTID "848ee866ea93c21373f6a8b61772b412"
+
 	#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections
 
 	#define BENCH_START(ID) \

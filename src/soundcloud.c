@@ -40,7 +40,7 @@
 #include "state.h"
 #include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
-#define CLIENTID_GET "client_id=848ee866ea93c21373f6a8b61772b412"
+#define CLIENTID_GET "client_id="CLIENTID
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
 #define CACHE_LIST_FOLDER "./cache/lists/"
