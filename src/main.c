@@ -47,7 +47,6 @@
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for EXIT_FAILURE
 #include <string.h>                     // for strcmp
-#include <sys/time.h>                   // for CLOCK_MONOTONIC
 #include <time.h>                       // for timespec, clock_gettime
 //\endcond
 
@@ -59,7 +58,6 @@
 #include "helper.h"                     // for smprintf, snprint_ftime
 #include "jspf.h"                       // for jspf_read
 #include "log.h"                        // for _log, log_init
-#include "network/network.h"            // for network_conn
 #include "network/tls.h"                // for tls_connect, tls_init
 #include "sound.h"                      // for sound_init, sound_play
 #include "soundcloud.h"                 // for soundcloud_get_entries
@@ -68,16 +66,6 @@
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
 #define TIME_BUFFER_SIZE 64
-
-#define BENCH_START(ID) \
-	struct timespec bench_start##ID; \
-	clock_gettime(CLOCK_MONOTONIC, &bench_start##ID);
-
-#define BENCH_STOP(ID, DESC) { \
-		struct timespec bench_end; \
-		clock_gettime(CLOCK_MONOTONIC, &bench_end); \
-		_log("%s took %dms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
-	}
 
 static bool param_is_offline = false;
 
@@ -136,40 +124,6 @@ void tui_update_time(int time) {
 	}
 }
 
-/** \todo remove this early-day-hack */
-static struct track_list* get_list() {
-	struct network_conn *nwc = NULL;
-	if(!param_is_offline) {
-		state_set_status(cline_default, "Info: Connecting to soundcloud.com");
-		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
-	}
-
-	const size_t lists_size = config_get_subscribe_count() + 1;
-	struct track_list *lists[lists_size];
-	lists[lists_size - 1] = NULL;
-
-	for(int i = 0; i < config_get_subscribe_count(); i++) {
-		state_set_status(cline_default, smprintf("Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i)));
-		lists[i] = soundcloud_get_entries(nwc, config_get_subscribe(i));
-	}
-
-	if(nwc) {
-		nwc->disconnect(nwc);
-	}
-
-	BENCH_START(MP)
-	struct track_list* list = track_list_merge(lists);
-	track_list_sort(list);
-	BENCH_STOP(MP, "Merging playlists")
-
-	for(int i = 0; i < config_get_subscribe_count(); i++) {
-		if(lists[i]) {
-			track_list_destroy(lists[i], false);
-		}
-	}
-	return list;
-}
-
 int main(int argc, char **argv) {
 	log_init("sctc.log");
 
@@ -195,7 +149,7 @@ int main(int argc, char **argv) {
 	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
 
-	lists[LIST_STREAM] = get_list();
+	lists[LIST_STREAM] = soundcloud_get_stream();
 	lists[LIST_STREAM]->name = "Stream";
 
 	state_set_lists(lists);

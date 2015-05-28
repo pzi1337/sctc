@@ -18,8 +18,6 @@
 
 #define _XOPEN_SOURCE 500
 #include "_hard_config.h"               // for MAX_REDIRECT_STEPS
-
-
 #include "soundcloud.h"
 
 //\cond
@@ -37,6 +35,9 @@
 #include "jspf.h"                       // for jspf_read, jspf_write
 #include "log.h"                        // for _log
 #include "url.h"                        // for url, url_destroy, etc
+#include "network/tls.h"
+#include "config.h"
+#include "state.h"
 #include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
 #define CLIENTID_GET "client_id=848ee866ea93c21373f6a8b61772b412"
@@ -44,6 +45,39 @@
 
 #define CACHE_LIST_FOLDER "./cache/lists/"
 #define CACHE_LIST_EXT ".jspf"
+
+struct track_list* soundcloud_get_stream() {
+	struct network_conn *nwc = NULL;
+//	if(!param_is_offline) {
+		state_set_status(cline_default, "Info: Connecting to soundcloud.com");
+		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
+//	}
+
+	const size_t lists_size = config_get_subscribe_count() + 1;
+	struct track_list *lists[lists_size];
+	lists[lists_size - 1] = NULL;
+
+	for(int i = 0; i < config_get_subscribe_count(); i++) {
+		state_set_status(cline_default, smprintf("Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i)));
+		lists[i] = soundcloud_get_entries(nwc, config_get_subscribe(i));
+	}
+
+	if(nwc) {
+		nwc->disconnect(nwc);
+	}
+
+	BENCH_START(MP)
+	struct track_list* list = track_list_merge(lists);
+	track_list_sort(list);
+	BENCH_STOP(MP, "Merging playlists")
+
+	for(int i = 0; i < config_get_subscribe_count(); i++) {
+		if(lists[i]) {
+			track_list_destroy(lists[i], false);
+		}
+	}
+	return list;
+}
 
 struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) {
 	char cache_file[strlen(CACHE_LIST_FOLDER) + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
