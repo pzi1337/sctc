@@ -16,7 +16,6 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-
 #include "tui.h"
 
 //\cond
@@ -75,14 +74,9 @@ static bool whole_redraw_required = false;
 static struct textbox_window {
 	WINDOW *win;
 	WINDOW *pad;
-	int start_line;
 } textbox_window = { NULL };
 
-static struct suggestion_window {
-	WINDOW *win;
-	int start_line;
-	size_t selected;
-} suggestion_window = { NULL };
+static WINDOW *suggestion_window = NULL;
 
 static sem_t sem_have_action;
 static sem_t sem_wait_action;
@@ -167,7 +161,7 @@ static void tui_redraw() {
 	tui_track_list_print();
 
 	if(state_get_tb_title()) {
-		//tui_show_textbox_window();
+		tui_update_textbox();
 	}
 
 	tui_draw_status_line(); // redraw the status line
@@ -190,47 +184,46 @@ static void tui_draw_status_line() {
 }
 
 static void tui_update_suggestion_list() {
-	size_t line;
-	size_t sugg_selected = state_get_sugg_selected();
 	struct command* commands = state_get_commands();
 
 	if(!commands) {
-		assert(suggestion_window.win);
-
-		delwin(suggestion_window.win);
-		suggestion_window.win = NULL;
+		assert(suggestion_window);
+		delwin(suggestion_window);
+		suggestion_window = NULL;
 
 		touchwin(stdscr);
 		refresh();
 	} else {
-		if(!suggestion_window.win) {
-			suggestion_window.win = newwin(10, COLS, LINES - 12, 0);
-			wrefresh(suggestion_window.win);
+		if(!suggestion_window) {
+			suggestion_window = newwin(10, COLS, LINES - 12, 0);
+			wrefresh(suggestion_window);
 		}
 
 		size_t start = 0;
+		size_t sugg_selected = state_get_sugg_selected();
 		if(NOTHING_SELECTED != sugg_selected) {
 			start = sugg_selected - sugg_selected % 10;
 		}
 
+		size_t line;
 		for(line = 0; line < 10 && commands[start + line].name; line++) {
-			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
-			mvwprintw (suggestion_window.win, line, 0, "%0*c", COLS, ' ');
-			mvwprintw (suggestion_window.win, line, 1, "%s", commands[start + line].name);
+			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
+			mvwprintw (suggestion_window, line, 0, "%0*c", COLS, ' ');
+			mvwprintw (suggestion_window, line, 1, "%s", commands[start + line].name);
 
-			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_descparam_selected : cmdlist_descparam, NULL);
-			mvwprintw (suggestion_window.win, line, 20, "%s", commands[start + line].desc_param);
+			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_descparam_selected : cmdlist_descparam, NULL);
+			mvwprintw (suggestion_window, line, 20, "%s", commands[start + line].desc_param);
 
-			wcolor_set(suggestion_window.win, line + start == sugg_selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
-			mvwprintw (suggestion_window.win, line, COLS / 2, commands[start + line].desc);
+			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
+			mvwprintw (suggestion_window, line, COLS / 2, commands[start + line].desc);
 		}
 
-		wcolor_set(suggestion_window.win, cmdlist_default, NULL);
+		wcolor_set(suggestion_window, cmdlist_default, NULL);
 		for(; line < 10; line++) {
-			mvwprintw(suggestion_window.win, line, 0, "%0*c", COLS, ' ');
+			mvwprintw(suggestion_window, line, 0, "%0*c", COLS, ' ');
 		}
 
-		wrefresh(suggestion_window.win);
+		wrefresh(suggestion_window);
 	}
 }
 
@@ -302,20 +295,19 @@ static void tui_draw_tab_bar() {
 }
 
 static size_t tui_track_print_played(size_t remaining, bool selected, enum color color, enum color color_played, enum color color_selected, char *format, ...) {
-	va_list va;
-	va_start(va, format);
-
 	if(selected) {
 		color        = color_selected;
 		color_played = color_selected;
 	}
 
+	va_list va;
+	va_start(va, format);
 	int required_buffer = vsnprintf(NULL, 0, format, va);
+	va_end(va);
+
+	va_start(va, format);
 	char string[required_buffer + 1];
-
-	va_start(va, format); // TODO
 	vsnprintf(string, required_buffer + 1, format, va);
-
 	va_end(va);
 
 	if(remaining) {
@@ -501,8 +493,7 @@ static void tui_update_textbox() {
 		touchwin(stdscr);
 		refresh();
 	} else {
-		textbox_window.start_line = state_get_tb_pos();
-		prefresh(textbox_window.pad, textbox_window.start_line, 0, 5, 5, height - 1, width - 1);
+		prefresh(textbox_window.pad, state_get_tb_pos(), 0, 5, 5, height - 1, width - 1);
 	}
 }
 
