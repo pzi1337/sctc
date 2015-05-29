@@ -79,6 +79,8 @@
 	yajl_gen_map_close(hand); \
 }
 
+static char* last_error = NULL;
+
 bool jspf_write(char *file, struct track_list *list);
 
 /** \brief YAJL print callback function for writing JSPF.
@@ -127,14 +129,14 @@ static void write_jspf_track(yajl_gen hand, struct track *track) {
 	yajl_gen_map_close(hand);
 }
 
-/** \brief Write a whole tracklist to file.
- *
- *  \param file  The name of the file to write to
- *  \param list  The tracklist to be written to `file`
- *  \return      `true` in case of success, `false` otherwise
- */
 bool jspf_write(char *file, struct track_list *list) {
 	FILE *fh = fopen(file, "w");
+	if(!fh) {
+		last_error = strerror(errno);
+		_log("failed to open '%s': %s", file, last_error);
+		return false;
+	}
+
 	yajl_gen hand = yajl_gen_alloc(NULL);
 
 	yajl_gen_config(hand, yajl_gen_print_callback, jspf_filewriter, fh);
@@ -220,3 +222,6 @@ struct track_list* jspf_read(char *file) {
 	return list;
 }
 
+char* jspf_error() {
+	return last_error;
+}

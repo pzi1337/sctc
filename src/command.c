@@ -175,7 +175,9 @@ static void cmd_write_playlist(char *_file) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	state_set_status(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: JSPF)\n", file));
-	jspf_write(file, list);
+	if(!jspf_write(file, list)) {
+		state_set_status(cline_warning, smprintf("Error: Writing to file "F_BOLD"%s"F_RESET" failed: "F_BOLD"%s"F_RESET"\n", file, jspf_error()));
+	}
 }
 
 static void cmd_goto(char *hint) {
