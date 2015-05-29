@@ -43,10 +43,8 @@
 //\cond
 #include <ctype.h>                      // for isdigit
 #include <locale.h>                     // for setlocale, LC_CTYPE
-#include <stdbool.h>                    // for false, bool, true
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for EXIT_FAILURE
-#include <string.h>                     // for strcmp
 #include <time.h>                       // for timespec, clock_gettime
 //\endcond
 
@@ -67,15 +65,13 @@
 
 #define TIME_BUFFER_SIZE 64
 
-static bool param_is_offline = false;
-
 /** \brief Update the current playback time.
  *
  *  If time equals -1, then the next track is selected (if any) and playback initiated. (\todo not yet working!)
  *
  *  \param time  The time in seconds to print to the screen
  */
-void tui_update_time(int time) {
+static void tui_update_time(int time) {
 	struct track_list *list = state_get_list(state_get_current_playback_list());
 	size_t playing = state_get_current_playback_track();
 
@@ -90,24 +86,13 @@ void tui_update_time(int time) {
 		TRACK(list, playing)->current_position = 0;
 		TRACK(list, playing)->flags &= ~(FLAG_PAUSED | FLAG_PLAYING);
 
-		switch(state_get_repeat()) {
-			case rep_none:
-				playing++;
-				if(playing >= list->count) {
-					playing = ~0;
-					return;
-				}
-				break;
-
-			case rep_one:
-				break;
-
-			case rep_all: {
-				playing++;
-				if(playing >= list->count) {
-					playing = 0;
-				}
-				break;
+		// select track based on `repeat` state
+		enum repeat rep = state_get_repeat();
+		if(rep_one != rep) {
+			playing++;
+			if(playing >= list->count) {
+				if(rep_none == rep) return;
+				playing = 0;
 			}
 		}
 
@@ -125,14 +110,8 @@ void tui_update_time(int time) {
 }
 
 int main(int argc, char **argv) {
+	// initialize the modules
 	log_init("sctc.log");
-
-	for(size_t i = 1; i < argc; i++) {
-		if(!strcmp("--offline", argv[i])) {
-			param_is_offline = true;
-			_log("switching to offline-mode due to parameter");
-		}
-	}
 
 	setlocale(LC_CTYPE, "C-UTF-8");
 
@@ -142,15 +121,17 @@ int main(int argc, char **argv) {
 	tui_init();
 	sound_init(tui_update_time);
 
+	// start drawing on screen
 	state_set_status(cline_default, "");
 	state_set_title("");
 
-	struct track_list *lists[4] = {NULL};
-	lists[LIST_BOOKMARKS] = jspf_read(BOOKMARK_FILE);
+	struct track_list *lists[] = {
+		jspf_read(BOOKMARK_FILE),
+		soundcloud_get_stream(),
+		NULL
+	};
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";
-
-	lists[LIST_STREAM] = soundcloud_get_stream();
-	lists[LIST_STREAM]->name = "Stream";
+	lists[LIST_STREAM]->name    = "Stream";
 
 	state_set_lists(lists);
 
@@ -179,21 +160,22 @@ int main(int argc, char **argv) {
 	state_set_current_list(LIST_STREAM);
 	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
 
+	// and enter the main `message` loop
 	int c;
 	while( (c = getch()) ) {
+		// chars '1' to '9' are reserved
+		// for switiching to the c-th playlist
 		if(isdigit(c) && '0' != c) {
 			switch_to_list(c - '1');
-			continue;
-		}
-
-		command_func_ptr func = config_get_function(c);
-		if(func) {
-			func((char*)config_get_param(c));
 		} else {
-			state_set_status(cline_warning, smprintf("Error: got non-mapped keycode %x", c));
+			// if the key is non-reserved, then try to read the
+			// corresponding function from configuration and
+			// execute it
+			command_func_ptr func = config_get_function(c);
+			if(func) func((char*)config_get_param(c));
 		}
 	}
 
-	// never reached, exit called in case of 'q'
+	// never reached, exit called in case of 'cmd_exit'
 	return EXIT_FAILURE;
 }
