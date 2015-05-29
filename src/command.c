@@ -623,7 +623,7 @@ static size_t submit_updated_suggestion_list(struct command *buffer, char *filte
  */
 static bool handle_command(char *buffer, size_t buffer_size) {
 	struct command matching_commands[command_count + 1];
-	memcpy(matching_commands, commands, command_count + 1);
+	memcpy(matching_commands, commands, (command_count + 1) * sizeof(struct command));
 
 	// `clear` the buffer on starting search
 	buffer[0] = '\0';
