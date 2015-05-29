@@ -75,16 +75,6 @@ void state_set_current_list(size_t list) {
 	CALL_CALLBACK(cbe_list_modified);
 }
 
-void state_set_lists(struct track_list **_lists) {
-	for(size_t i = 0; _lists[i] && i < MAX_LISTS; i++) {
-		lists[i].list         = _lists[i];
-		lists[i].selected     = 0;
-		lists[i].old_selected = 0;
-		lists[i].position     = 0;
-	}
-	CALL_CALLBACK(cbe_tabs_modified);
-}
-
 void state_add_list(struct track_list *_list) {
 	// TODO \todo check MAX_LISTS!
 	size_t pos;
