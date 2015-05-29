@@ -16,6 +16,10 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+/** \file helper.c
+ *  \brief Implements several basic helper functions (mixed purpose)
+ */
+
 //\cond
 #include <errno.h>
 #include <stdbool.h>

@@ -16,6 +16,15 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+/** \file cache.c
+ *  \brief Implementation of the cache
+ *
+ *  This file contains the actual implementation of the cache for both
+ *  the actual stream (an .mp3 file) and the track_lists.
+ *
+ *  \todo move code for track_lists to cache.c
+ */
+
 #include "cache.h"
 
 //\cond

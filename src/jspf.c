@@ -16,6 +16,17 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+/** \file jspf.c
+ *  \brief Implements JSPF, a variation of the XSPF playlist format.
+ *
+ *  XSPF and JSPF are two related, free and extensible formats for saving playlists.
+ *  JSPF uses JSON as backing format.
+ *  
+ *  \see http://www.xspf.org/jspf/
+ *  \see http://json.org/
+ */
+
+
 #define _XOPEN_SOURCE 500
 
 //\cond
@@ -68,16 +79,24 @@
 	yajl_gen_map_close(hand); \
 }
 
-#define MY_ENCODING "utf-8"
-
-static void jspf_filewriter(void *ctx, const char *str, size_t len);
 bool jspf_write(char *file, struct track_list *list);
 
+/** \brief YAJL print callback function for writing JSPF.
+ *
+ *  \param ctx  A context, here: a `FILE*` receiving the JSPF
+ *  \param str  The string to write to file
+ *  \param len  The length of `str`
+ */
 static void jspf_filewriter(void *ctx, const char *str, size_t len) {
 	FILE *fh = (FILE*) ctx;
 	fwrite(str, sizeof(char), len, fh);
 }
 
+/** \brief Write a single track to file.
+ *
+ *  \param hand   A YAJL handle (represents the document)
+ *  \param track  The track to be written to file
+ */
 static void write_jspf_track(yajl_gen hand, struct track *track) {
 	yajl_gen_map_open(hand);
 
@@ -108,6 +127,12 @@ static void write_jspf_track(yajl_gen hand, struct track *track) {
 	yajl_gen_map_close(hand);
 }
 
+/** \brief Write a whole tracklist to file.
+ *
+ *  \param file  The name of the file to write to
+ *  \param list  The tracklist to be written to `file`
+ *  \return      `true` in case of success, `false` otherwise
+ */
 bool jspf_write(char *file, struct track_list *list) {
 	FILE *fh = fopen(file, "w");
 	yajl_gen hand = yajl_gen_alloc(NULL);
@@ -122,7 +147,7 @@ bool jspf_write(char *file, struct track_list *list) {
 	yajl_gen_array_open(hand);
 	for(int i = 0; i < list->count; i++) {
 		write_jspf_track(hand, TRACK(list, i));
-		}
+	}
 	yajl_gen_array_close(hand);
 
 	yajl_gen_map_close(hand);

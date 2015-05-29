@@ -16,6 +16,10 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+/** \file config.c
+ *  \brief Implements the parsing of the configfile and provides access to those values.
+ */
+
 #include "config.h"
 
 //\cond
