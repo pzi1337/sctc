@@ -65,11 +65,11 @@
 		none,                ///< "do nothing"
 		redraw,              ///< redraw the whole screen
 		textbox_modified,    ///< redraw the textbox with new data
-		tabbar_modified,     ///< TODO
-		titlebar_modified,   ///< TODO
-		statusbar_modified,  ///< TODO
-		list_modified,       ///< TODO
-		sugg_modified,       ///< TODO
+		tabbar_modified,     ///< the tabbar was modified
+		titlebar_modified,   ///< the titlebar was modified
+		statusbar_modified,  ///< the statusbar was modified
+		list_modified,       ///< the list was modified
+		sugg_modified,       ///< the list of suggestions were modified
 		update_list,         ///< set the supplied list as currently visible one
 		set_sbar_time,       ///< update the time shown in the status bar
 		input_modify_text,   ///< set the currently visible input
