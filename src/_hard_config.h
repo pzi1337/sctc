@@ -28,6 +28,9 @@
 	#define SERVER_PORT 443
 	#define SERVER_NAME "api.soundcloud.com"
 
+	#define USERLIST_FOLDER "custom_lists"
+	#define USERLIST_EXT ".jspf"
+
 	#define MAX_LISTS 16
 
 	/** \brief The maximum number of allowed HTTP redirects */

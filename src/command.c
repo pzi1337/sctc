@@ -61,8 +61,7 @@
 static void handle_textbox();
 static bool handle_command(char *buffer, size_t buffer_size);
 
-/** 
- *
+/**
  *  These functions represent the individual commands action.\n
  *  For instance executing a `redraw` will result in calling the function cmd_redraw().
  *
@@ -332,6 +331,15 @@ static void cmd_seek(char *time) {
  */
 static void cmd_exit(char *unused) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
+
+	char *cache_path = config_get_cache_path();
+	struct track_list *list;
+	for(size_t list_id = 2; (list = state_get_list(list_id)); list_id++) {
+		char target_file[strlen(cache_path) + 1 + strlen(USERLIST_FOLDER) + 1 + strlen(list->name) + strlen(USERLIST_EXT) + 1];
+		sprintf(target_file, "%s/"USERLIST_FOLDER"/%s"USERLIST_EXT, cache_path, list->name);
+
+		jspf_write(target_file, list);
+	}
 
 	track_list_destroy(state_get_list(LIST_STREAM), true);
 	track_list_destroy(state_get_list(LIST_BOOKMARKS), true);
