@@ -19,7 +19,7 @@
 /** \file config.c
  *  \brief Implements the parsing of the configfile and provides access to those values.
  */
-
+#include "_hard_config.h"
 #include "config.h"
 
 //\cond
@@ -89,7 +89,7 @@ static const struct command* get_cmd_by_name(const char *input) {
 	return NULL;
 }
 
-int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
+static int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
 	if(2 != argc) {
 		_log("map() requires exactly 2 parameters!");
 		return -1;
@@ -127,7 +127,7 @@ void config_init() {
 	};
 
 	/* set default values for options */
-	cache_path  = lstrdup("./cache/"); // default subdir 'cache' in bin
+	cache_path  = lstrdup(CACHE_DEFAULT_PATH); // default subdir 'cache' in bin
 	cache_limit = -1;                  // default: no limit
 
 	cfg_t *cfg = cfg_init(opts, CFGF_NOCASE);
@@ -165,6 +165,10 @@ int config_get_subscribe_count() {
 
 char* config_get_subscribe(int id) {
 	return config_subscribe[id];
+}
+
+char* config_get_cache_path() {
+	return cache_path;
 }
 
 bool config_finalize() {

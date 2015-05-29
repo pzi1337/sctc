@@ -30,14 +30,50 @@
 
 	#define MAX_LISTS 16
 
+	/** \brief The maximum number of allowed HTTP redirects */
 	#define MAX_REDIRECT_STEPS 20
 
-	#define CACHE_STREAM_FOLDER "./cache/streams/"
+	/** \brief The default cache path
+	 *
+	 *  Keep in mind: this is a default value, which can be modified by the user.
+	 *  Do not use this constant directly.
+	 */
+	#define CACHE_DEFAULT_PATH "./cache/"
+
+	/** \brief Folder holding the cached streams
+	 *
+	 */
+	#define CACHE_STREAM_FOLDER "streams"
+
+	/** \brief The file extension used for caching lists.
+	 *
+	 *  As MP3 is the format provided by soundcloud.com and we directly save
+	 *  cache the data from the server, we use .mp3 too.
+	 */
 	#define CACHE_STREAM_EXT ".mp3"
 
-	#define CACHE_LIST_FOLDER "./cache/lists/"
+	/** \brief Folder holding the cached lists
+	 *
+	 *  The folder specified here is *relative* to the config option `cache_path`
+	 *
+	 *  \see config.c
+	 */
+	#define CACHE_LIST_FOLDER "lists"
+
+	/** \brief The file extension used for caching lists.
+	 *
+	 *  As we use JSPF as format, we'll just use .jspf as extension.
+	 */
 	#define CACHE_LIST_EXT ".jspf"
 
+	/** \brief The soundcloud.com API key
+	 *
+	 *  This key is required to access api.soundcloud.com
+	 *  and is appended to every request sent.
+	 *
+	 *  \see https://developers.soundcloud.com/
+	 *  \see http://soundcloud.com/you/apps/new
+	 */
 	#define CLIENTID "848ee866ea93c21373f6a8b61772b412"
 
 	#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections

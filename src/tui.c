@@ -89,7 +89,7 @@ static sem_t sem_wait_action;
 
 static enum tui_action_kind action;
 
-void* _thread_tui_function(void *unused) {
+static void* _thread_tui_function(void *unused) {
 	do {
 		int ret = sem_wait(&sem_have_action);
 		if(whole_redraw_required) {
@@ -530,7 +530,7 @@ static void tui_callback_sugg_modified()      { tui_submit_action(sugg_modified)
 
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
-void tui_terminal_resized(int signum) {
+static void tui_terminal_resized(int signum) {
 	assert(SIGWINCH == signum);
 
 	whole_redraw_required = true;

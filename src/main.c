@@ -126,8 +126,8 @@ int main(int argc, char **argv) {
 	state_set_title("");
 
 	struct track_list *lists[] = {
-		jspf_read(BOOKMARK_FILE),
 		soundcloud_get_stream(),
+		jspf_read(BOOKMARK_FILE),
 		NULL
 	};
 	lists[LIST_BOOKMARKS]->name = "Bookmarks";

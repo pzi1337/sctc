@@ -10,7 +10,7 @@
 #include "helper.h"
 #include "log.h"
 
-struct track_list_state {
+static struct track_list_state {
 	struct track_list *list;
 	size_t old_selected;
 	size_t selected;
@@ -89,6 +89,7 @@ void state_add_list(struct track_list *_list) {
 	// TODO \todo check MAX_LISTS!
 	size_t pos;
 	for(pos = 0; pos < MAX_LISTS && lists[pos].list; pos++);
+	if(MAX_LISTS == pos) return;
 
 	lists[pos].list         = _list;
 	lists[pos].selected     = 0;

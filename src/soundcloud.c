@@ -44,11 +44,8 @@
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
 struct track_list* soundcloud_get_stream() {
-	struct network_conn *nwc = NULL;
-//	if(!param_is_offline) {
-		state_set_status(cline_default, "Info: Connecting to soundcloud.com");
-		nwc = tls_connect(SERVER_NAME, SERVER_PORT);
-//	}
+	state_set_status(cline_default, "Info: Connecting to soundcloud.com");
+	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 
 	const size_t lists_size = config_get_subscribe_count() + 1;
 	struct track_list *lists[lists_size];
@@ -77,8 +74,9 @@ struct track_list* soundcloud_get_stream() {
 }
 
 struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) {
-	char cache_file[strlen(CACHE_LIST_FOLDER) + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
-	sprintf(cache_file, CACHE_LIST_FOLDER"%s"CACHE_LIST_EXT, user);
+	char *cache_path = config_get_cache_path();
+	char cache_file[strlen(cache_path) + 1 + strlen(CACHE_LIST_FOLDER) + 1 + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
+	sprintf(cache_file, "%s/"CACHE_LIST_FOLDER"/%s"CACHE_LIST_EXT, cache_path, user);
 	struct track_list* cache_tracks = jspf_read(cache_file);
 
 	char created_at_from_string[256] = { 0 };

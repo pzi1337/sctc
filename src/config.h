@@ -30,6 +30,7 @@
 	char* config_get_subscribe(int id);
 	command_func_ptr config_get_function(int key);
 	const char* config_get_param(int key);
+	char* config_get_cache_path();
 	bool config_finalize();
 
 #endif /* _CONFIG_H */

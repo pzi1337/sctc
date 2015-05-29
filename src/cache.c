@@ -25,6 +25,7 @@
  *  \todo move code for track_lists to cache.c
  */
 
+#include "_hard_config.h"
 #include "cache.h"
 
 //\cond
@@ -34,16 +35,15 @@
 #include <sys/stat.h>                   // for stat, fstat, mkdir
 //\endcond
 
+#include "config.h"
 #include "log.h"                        // for _log
 #include "track.h"                      // for track
 
-#define CACHE_STREAM_FOLDER "./cache/streams/"
-#define CACHE_STREAM_EXT ".mp3"
-
 bool cache_track_exists(struct track *track) {
-	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char *cache_path = config_get_cache_path();
+	const size_t buffer_size = strlen(cache_path) + 1 + strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
 	char cache_file[buffer_size];
-	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	snprintf(cache_file, buffer_size, "%s/"CACHE_STREAM_FOLDER"/%d_%d"CACHE_STREAM_EXT, cache_path, track->user_id, track->track_id);
 
 	FILE *fh = fopen(cache_file, "r");
 
@@ -55,9 +55,10 @@ bool cache_track_exists(struct track *track) {
 }
 
 size_t cache_track_get(struct track *track, void *buffer) {
-	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char *cache_path = config_get_cache_path();
+	const size_t buffer_size = strlen(cache_path) + 1 + strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
 	char cache_file[buffer_size];
-	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	snprintf(cache_file, buffer_size, "%s/"CACHE_STREAM_FOLDER"/%d_%d"CACHE_STREAM_EXT, cache_path, track->user_id, track->track_id);
 
 	FILE *fh = fopen(cache_file, "r");
 
@@ -80,9 +81,10 @@ size_t cache_track_get(struct track *track, void *buffer) {
 }
 
 bool cache_track_save(struct track *track, void *buffer, size_t size) {
-	const size_t buffer_size = strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
+	char *cache_path = config_get_cache_path();
+	const size_t buffer_size = strlen(cache_path) + 1 + strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
 	char cache_file[buffer_size];
-	snprintf(cache_file, buffer_size, CACHE_STREAM_FOLDER"%d_%d"CACHE_STREAM_EXT, track->user_id, track->track_id);
+	snprintf(cache_file, buffer_size, "%s/"CACHE_STREAM_FOLDER"/%d_%d"CACHE_STREAM_EXT, cache_path, track->user_id, track->track_id);
 
 	FILE *fh = fopen(cache_file, "w");
 
