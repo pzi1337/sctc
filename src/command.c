@@ -197,6 +197,7 @@ static void cmd_add(char *_list) {
 		.href = TRACK(clist, state_get_current_selected())
 	};
 	track_list_add(list, &track);
+	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
 static void cmd_list_new(char *_name) {
@@ -420,17 +421,6 @@ static void cmd_search_start(char *unused) {
 	cmd_search_next(NULL);
 }
 
-static void cmd_bookmark(char *unused) {
-	struct track_list *list = state_get_list(state_get_current_list());
-	struct track btrack = {
-		.name = NULL,
-		.href = TRACK(list, state_get_current_selected())
-	};
-
-	track_list_add(state_get_list(LIST_BOOKMARKS), &btrack);
-	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", TRACK(list, state_get_current_selected())->name));
-}
-
 /** \brief Initiate a command input
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
@@ -590,7 +580,6 @@ static void cmd_redraw(char *unused) {
  */
 const struct command commands[] = {
 	{"add",           cmd_add,            "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
-	{"bookmark",      cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
 	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
 	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
 	{"download",      cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
