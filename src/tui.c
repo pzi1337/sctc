@@ -245,8 +245,8 @@ static size_t tui_track_focus() {
 	if(new_selected >= current_list_pos && new_selected < current_list_pos + LINES - 4) {
 		// the current selection is always visible, therefore we can modify the line without
 		// any further checking
-		tui_track_print_line(&list->entries[old_selected], false, old_selected - current_list_pos + 2);
-		tui_track_print_line(&list->entries[new_selected], true,  new_selected - current_list_pos + 2);
+		tui_track_print_line(TRACK(list, old_selected), false, old_selected - current_list_pos + 2);
+		tui_track_print_line(TRACK(list, new_selected), true,  new_selected - current_list_pos + 2);
 	} else {
 		// we need to scroll -> redraw 'everything'
 		// obviously one of the two possibilities is sensible ;)
@@ -395,7 +395,7 @@ static void tui_track_list_print() {
 
 	int y = 2;
 	for(int i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
-		tui_track_print_line(&list->entries[i], i == state_get_current_selected(), y);
+		tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
 		y++;
 	}
 

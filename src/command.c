@@ -135,7 +135,7 @@ static void cmd_open_user(char *_user) {
 	nwc->disconnect(nwc);
 
 	if(list->count) {
-		list->name = list->entries[0].username;
+		list->name = TRACK(list, 0)->username;
 		state_add_list(list);
 	} else {
 		state_set_status(cline_warning, smprintf("Info: Cannot switch to "F_BOLD"%s"F_RESET"'s channel: No tracks found!\n", user));
@@ -276,7 +276,7 @@ static void search_direction(bool down) {
 	const int step = down ? 1 : -1;
 
 	for(int i = state_get_current_selected() + step; i >= 0 && i < list->count; i += step) {
-		if(strcasestr(list->entries[i].name, state_get_input())) {
+		if(strcasestr(TRACK(list, i)->name, state_get_input())) {
 			state_set_current_selected(i);
 			return;
 		}
@@ -340,9 +340,13 @@ static void cmd_search_start(char *unused) {
 
 static void cmd_bookmark(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
+	struct track btrack = {
+		.name = NULL,
+		.href = TRACK(list, state_get_current_selected())
+	};
 
-	track_list_add(state_get_list(LIST_BOOKMARKS), &list->entries[state_get_current_selected()]);
-	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[state_get_current_selected()].name));
+	track_list_add(state_get_list(LIST_BOOKMARKS), &btrack);
+	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", TRACK(list, state_get_current_selected())->name));
 }
 
 /** \brief Initiate a command input
@@ -416,16 +420,16 @@ static void cmd_yank(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
-	yank(list->entries[current_selected].permalink_url);
-	state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, list->entries[current_selected].permalink_url));
+	yank(TRACK(list, current_selected)->permalink_url);
+	state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, TRACK(list, current_selected)->permalink_url));
 }
 
 static void cmd_details(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
-	char *title = smprintf("%s by %s", list->entries[current_selected].name, list->entries[current_selected].username);
-	state_set_tb(title, list->entries[current_selected].description);
+	char *title = smprintf("%s by %s", TRACK(list, current_selected)->name, TRACK(list, current_selected)->username);
+	state_set_tb(title, TRACK(list, current_selected)->description);
 	handle_textbox();
 	free(title);
 }
@@ -446,15 +450,15 @@ static void stop_playback(bool reset) {
 	if((~0) != playing) {
 		sound_stop();
 
-		list->entries[playing].flags &= ~FLAG_PLAYING;
+		TRACK(list, playing)->flags &= ~FLAG_PLAYING;
 		if(reset) {
-			list->entries[playing].current_position = 0;
+			TRACK(list, playing)->current_position = 0;
 		} else {
-			if(list->entries[playing].current_position) {
-				list->entries[playing].flags |= FLAG_PAUSED;
+			if(TRACK(list, playing)->current_position) {
+				TRACK(list, playing)->flags |= FLAG_PAUSED;
 			}
 
-			list->entries[playing].current_position = sound_get_current_pos();
+			TRACK(list, playing)->current_position = sound_get_current_pos();
 		}
 
 		tui_submit_action(update_list);
@@ -470,18 +474,17 @@ static void cmd_play(char *unused) {
 	stop_playback(false); // pause other playing track (if any)
 
 	char time_buffer[TIME_BUFFER_SIZE];
-	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[current_selected].duration);
+	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, current_selected)->duration);
 
 	state_set_current_playback(state_get_current_list(), current_selected);
 	size_t playing = state_get_current_playback_track();
 
-	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
-
-	list->entries[current_selected].flags = (list->entries[current_selected].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
+	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer));
+	TRACK(list, current_selected)->flags = (TRACK(list, current_selected)->flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
 	tui_submit_action(update_list);
 
-	sound_play(&list->entries[current_selected]);
+	sound_play(TRACK(list, current_selected));
 }
 
 static void cmd_pause(char *unused) { stop_playback(false); }

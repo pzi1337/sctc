@@ -80,15 +80,15 @@ void tui_update_time(int time) {
 	size_t playing = state_get_current_playback_track();
 
 	if(-1 != time) {
-		list->entries[playing].current_position = time;
+		TRACK(list, playing)->current_position = time;
 
 		state_set_current_time(time);
 		tui_submit_action(set_sbar_time);
 
 		tui_submit_action(update_list);
 	} else {
-		list->entries[playing].current_position = 0;
-		list->entries[playing].flags &= ~(FLAG_PAUSED | FLAG_PLAYING);
+		TRACK(list, playing)->current_position = 0;
+		TRACK(list, playing)->flags &= ~(FLAG_PAUSED | FLAG_PLAYING);
 
 		switch(state_get_repeat()) {
 			case rep_none:
@@ -111,16 +111,16 @@ void tui_update_time(int time) {
 			}
 		}
 
-		list->entries[playing].flags = (list->entries[playing].flags & ~FLAG_PAUSED) | FLAG_PLAYING;
+		TRACK(list, playing)->flags = (TRACK(list, playing)->flags & ~FLAG_PAUSED) | FLAG_PLAYING;
 
 		char time_buffer[TIME_BUFFER_SIZE];
-		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, list->entries[playing].duration);
+		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, playing)->duration);
 
-		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", list->entries[playing].name, list->entries[playing].username, time_buffer));
+		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer));
 
 		state_set_current_playback(state_get_current_playback_list(), playing);
 		tui_submit_action(update_list);
-		sound_play(&list->entries[playing]);
+		sound_play(TRACK(list, playing));
 	}
 }
 
@@ -156,9 +156,15 @@ int main(int argc, char **argv) {
 
 	BENCH_START(SB)
 	for(size_t i = 0; i < lists[LIST_STREAM]->count; i++) {
-		if(track_list_contains(lists[LIST_BOOKMARKS], lists[LIST_STREAM]->entries[i].permalink_url)) {
+		struct track *btrack = track_list_get(lists[LIST_BOOKMARKS], lists[LIST_STREAM]->entries[i].permalink_url);
+		if(NULL != btrack) {
 			_log("'%s' is bookmarked!", lists[LIST_STREAM]->entries[i].name);
 			lists[LIST_STREAM]->entries[i].flags |= FLAG_BOOKMARKED;
+
+			track_destroy(btrack);
+
+			btrack->name = NULL;
+			btrack->href = &lists[LIST_STREAM]->entries[i];
 		}
 
 		if(cache_track_exists(&lists[LIST_STREAM]->entries[i])) {

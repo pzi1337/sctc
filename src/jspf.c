@@ -121,8 +121,8 @@ bool jspf_write(char *file, struct track_list *list) {
 
 	yajl_gen_array_open(hand);
 	for(int i = 0; i < list->count; i++) {
-		write_jspf_track(hand, &list->entries[i]);
-	}
+		write_jspf_track(hand, TRACK(list, i));
+		}
 	yajl_gen_array_close(hand);
 
 	yajl_gen_map_close(hand);
@@ -174,7 +174,7 @@ struct track_list* jspf_read(char *file) {
 				int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
 				int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
 
-				if(val_user_id)  list->entries[i].user_id = val_user_id;
+				if(val_user_id)  list->entries[i].user_id  = val_user_id;
 				if(val_track_id) list->entries[i].track_id = val_track_id;
 
 				char *date_str = yajl_helper_get_string(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);

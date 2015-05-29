@@ -46,7 +46,11 @@ bool track_list_add(struct track_list *list, struct track *track) {
 
 static int entry_compare(const void *v1, const void *v2) {
 	struct track *e1 = (struct track*)v1;
+	if(!e1->name) e1 = e1->href;
+
 	struct track *e2 = (struct track*)v2;
+	if(!e2->name) e2 = e2->href;
+
 	return difftime(mktime(&e2->created_at), mktime(&e1->created_at));
 }
 
@@ -88,24 +92,30 @@ bool track_list_append(struct track_list *target, struct track_list *source) {
 }
 
 // TODO: speed!
-bool track_list_contains(struct track_list *list, char *permalink) {
+struct track* track_list_get(struct track_list *list, char *permalink) {
 	for(int i = 0; i < list->count; i++) {
-		if(!strcmp(list->entries[i].permalink_url, permalink)) {
-			return true;
+		if(!strcmp(TRACK(list, i)->permalink_url, permalink)) {
+			return &list->entries[i];
 		}
 	}
-	return false;
+	return NULL;
+}
+
+void track_destroy(struct track *track) {
+	if(track->name) {
+		free(track->name);
+		free(track->download_url);
+		free(track->stream_url);
+		free(track->permalink_url);
+		free(track->username);
+		free(track->description);
+	}
 }
 
 void track_list_destroy(struct track_list *list, bool free_trackdata) {
 	if(free_trackdata) {
 		for(int i = 0; i < list->count; i++) {
-			free(list->entries[i].name);
-			free(list->entries[i].download_url);
-			free(list->entries[i].stream_url);
-			free(list->entries[i].permalink_url);
-			free(list->entries[i].username);
-			free(list->entries[i].description);
+			track_destroy(&list->entries[i]);
 		}
 	}
 

@@ -45,27 +45,34 @@
 	/// this track is within the cache
 	#define FLAG_CACHED    16
 
+	#define TRACK(LST, ID) (LST->entries[ID].name ? &LST->entries[ID] : LST->entries[ID].href)
+
 	struct track {
 		char   *name;          ///< the tracks name
-		char   *stream_url;    ///< The URL used for streaming this track
+		union {
+			struct {
+				char   *stream_url;    ///< The URL used for streaming this track
 
-		/** The URL to the permanent location of this track.
-		 *
-		 *  This URL cannot be used for streaming without further actions.
-		 */
-		char   *permalink_url;
+				/** The URL to the permanent location of this track.
+				 *
+				 *  This URL cannot be used for streaming without further actions.
+				 */
+				char   *permalink_url;
 
-		char   *download_url; ///< The URL pointing to the download. Might be NULL, if the uploader does not provide a download.
-		char   *username; ///< The username
-		char   *description;
-		struct tm created_at;
-		int    duration; ///< duration in seconds
-		int    user_id;
-		int    track_id;
+				char   *download_url; ///< The URL pointing to the download. Might be NULL, if the uploader does not provide a download.
+				char   *username; ///< The username
+				char   *description;
+				struct tm created_at;
+				int    duration; ///< duration in seconds
+				int    user_id;
+				int    track_id;
 
-		/* these members are used for handling the playlist, they are not part of the data received from sc.com */
-		uint8_t flags;
-		int     current_position; // current position
+				/* these members are used for handling the playlist, they are not part of the data received from sc.com */
+				uint8_t flags;
+				int     current_position; // current position
+			};
+			struct track *href;
+		};
 	};
 
 	struct track_list {
@@ -104,12 +111,13 @@
 	 */
 	bool track_list_append(struct track_list *target, struct track_list *source);
 
-	/** \brief Check if list contains a track, identified by its permalink
+	/** \brief Check if list contains a track, identified by its permalink and return it
 	 *
 	 *  \param list       The list to search in
 	 *  \param permalink  The permalink to use for searching
+	 *  \return           The track, if found, `NULL` otherwise
 	 */
-	bool track_list_contains(struct track_list *list, char *permalink);
+	struct track* track_list_get(struct track_list *list, char *permalink);
 
 	/** \brief Free the memory occupied by a track_list.
 	 *
@@ -119,4 +127,6 @@
 	 *  \param free_trackdata  if true every single track within the list will be freed too
 	 */
 	void track_list_destroy(struct track_list *list, bool free_trackdata);
+
+	void track_destroy(struct track *track);
 #endif /* _TRACK_H */
