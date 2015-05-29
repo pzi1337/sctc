@@ -200,6 +200,25 @@ static void cmd_add(char *_list) {
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
+static void cmd_del(char *unused) {
+	if(!state_get_current_list()) {
+		state_set_status(cline_warning, "Error: Cannot delete tracks from "F_BOLD"Stream"F_RESET);
+		return;
+	}
+
+	size_t current_selected = state_get_current_selected();
+	struct track_list *list = state_get_list(state_get_current_list());
+
+	if(1 == list->count) {
+		state_set_current_list(LIST_STREAM);
+	} else if(current_selected >= list->count - 1) {
+		state_set_current_selected(list->count - 2);
+	}
+
+	track_list_del(list, current_selected);
+	tui_submit_action(update_list);
+}
+
 static void cmd_list_new(char *_name) {
 	char *name = strstrp(_name);
 
@@ -581,6 +600,7 @@ static void cmd_redraw(char *unused) {
 const struct command commands[] = {
 	{"add",           cmd_add,            "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
 	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
+	{"del",           cmd_del,            "<none/ignored>",                "Delete currently selected track from current playlist"},
 	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
 	{"download",      cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
 	{"exit",          cmd_exit,           "<none/ignored>",                "Terminate SCTC"},

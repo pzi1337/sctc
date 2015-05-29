@@ -44,6 +44,13 @@ bool track_list_add(struct track_list *list, struct track *track) {
 	return true;
 }
 
+bool track_list_del(struct track_list *list, size_t track_id) {
+	memmove(&list->entries[track_id], &list->entries[track_id + 1], (list->count - track_id) * sizeof(struct track));
+	list->count--;
+
+	return true;
+}
+
 static int entry_compare(const void *v1, const void *v2) {
 	struct track *e1 = (struct track*)v1;
 	if(!e1->name) e1 = e1->href;

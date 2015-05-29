@@ -145,5 +145,6 @@
 	 */
 	void track_list_destroy(struct track_list *list, bool free_trackdata);
 
+	bool track_list_del(struct track_list *list, size_t track_id);
 	void track_destroy(struct track *track);
 #endif /* _TRACK_H */
