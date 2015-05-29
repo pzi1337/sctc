@@ -43,9 +43,6 @@
 #define CLIENTID_GET "client_id="CLIENTID
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
-#define CACHE_LIST_FOLDER "./cache/lists/"
-#define CACHE_LIST_EXT ".jspf"
-
 struct track_list* soundcloud_get_stream() {
 	struct network_conn *nwc = NULL;
 //	if(!param_is_offline) {

@@ -28,6 +28,7 @@
 #include <confuse.h>                    // for cfg_free, cfg_getnstr, etc
 #include <ncurses.h>                    // for ERR, KEY_MAX, KEY_BACKSPACE, etc
 
+#include "command.h"
 #include "helper.h"                     // for lstrdup, lcalloc
 #include "log.h"                        // for _log
 
@@ -42,9 +43,6 @@ static int config_subscribe_count = 0;
 
 static char* cache_path;
 static int   cache_limit;
-
-// FIXME `cleanup`
-extern struct command commands[];
 
 static struct {
 	void (*func)(char*);
@@ -72,7 +70,7 @@ static int get_curses_ch(const char *str) {
 	return ERR;
 }
 
-static struct command* get_cmd_by_name(const char *input) {
+static const struct command* get_cmd_by_name(const char *input) {
 	const size_t in_len = strlen(input);
 
 	for(size_t i = 0; commands[i].name; i++) {
@@ -101,7 +99,7 @@ int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) 
 	}
 
 	// search for function to call
-	struct command *cmd = get_cmd_by_name(argv[1]);
+	const struct command *cmd = get_cmd_by_name(argv[1]);
 	if(!cmd) {
 		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\")`", argv[1], argv[0], argv[1]);
 		return 0;

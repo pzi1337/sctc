@@ -32,17 +32,13 @@
 static void handle_textbox();
 static bool handle_command(char *buffer, size_t buffer_size);
 
-/** \addtogroup cmd Command handling functions
+/** 
  *
  *  These functions represent the individual commands action.\n
  *  For instance executing a `redraw` will result in calling the function cmd_redraw().
  *
- *  \todo Every possible action by the user should be accessible via command - and therefore
- *  for every action a cmd_action function is required.
- *
- *  \todo As soon as all the cmd_action functions are implemented we want to be able to map keys -> functions.
- *
- *  @{
+ *  \todo Commands are, at this point, only usefull for the main interface (the list).
+ *        As soon as we open any other window everything is hardcoded again!
  */
 
 static int command_dispatcher(char *command) {
@@ -349,6 +345,10 @@ static void cmd_bookmark(char *unused) {
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to bookmarks", list->entries[state_get_current_selected()].name));
 }
 
+/** \brief Initiate a command input
+ *
+ *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ */
 static void cmd_command_input(char *unused) {
 	state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
@@ -369,7 +369,6 @@ static void cmd_command_input(char *unused) {
 /** \brief Display 'Help' Dialog
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
- *  \return true
  */
 static void cmd_help(char *unused) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
@@ -381,7 +380,6 @@ static void cmd_help(char *unused) {
 /** \brief Set repeat to 'none'
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
- *  \return true
  */
 static void cmd_repeat_none(char *unused) {
 	state_set_repeat(rep_none);
@@ -391,7 +389,6 @@ static void cmd_repeat_none(char *unused) {
 /** \brief Set repeat to 'one' (repeat single track)
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
- *  \return true
  */
 static void cmd_repeat_one(char *unused) {
 	state_set_repeat(rep_one);
@@ -401,7 +398,6 @@ static void cmd_repeat_one(char *unused) {
 /** \brief Set repeat to 'all' (repeat whole track_list)
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
- *  \return true
  */
 static void cmd_repeat_all(char *unused) {
 	state_set_repeat(rep_all);
@@ -434,6 +430,15 @@ static void cmd_details(char *unused) {
 	free(title);
 }
 
+/** \brief Stop playback of currently playing track
+ *
+ *  Nothing happens in case no track is currently playing.
+ *  If `reset` is set to `true` the position of the currently plaing
+ *  track is reset to 0, if set to `false` the position will not be modified.
+ *  The position can be used lateron to continue playing.
+ *
+ *  \param reset  Reset the current position of playback to 0
+ */
 static void stop_playback(bool reset) {
 	struct track_list *list = state_get_list(state_get_current_playback_list());
 	size_t playing = state_get_current_playback_track();
@@ -489,8 +494,6 @@ static void cmd_stop(char *unused)  { stop_playback(true);  }
 static void cmd_redraw(char *unused) {
 	tui_submit_action(redraw);
 }
-/** @}*/
-
 
 /** \brief Array of all commands supported by SCTC.
  *
@@ -500,7 +503,7 @@ static void cmd_redraw(char *unused) {
  *  \todo Step by step, 'everything' should be moved here.\n
  *  At some point in time we want to be able to bind keys via configfile.
  */
-struct command commands[] = {
+const struct command commands[] = {
 	{"bookmark",      cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
 	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
 	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
@@ -528,6 +531,11 @@ struct command commands[] = {
 };
 const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
 
+/** \brief Handle input for a textbox
+ *
+ *  Handles user's input for a textbox, such as `scroll up`, `scroll down`
+ *  and `close textbox`.
+ */
 static void handle_textbox() {
 	int c;
 	while( (c = getch()) ) {
@@ -557,7 +565,9 @@ static void handle_textbox() {
  *  Filtering equals to matching the first `strlen(filter)` chars against the individual commands' names.
  *  Matching is done case-insensitive.
  *
- *  \param filter  The filter to use for filtering the list of commands
+ *  \param[out] buffer  A pointer to a buffer holding the commands (is expected to be of size `command_count + 1) * sizeof(struct command)`)
+ *  \param filter       The filter to use for filtering the list of commands
+ *  \return             The number of elements matching the filter
  */
 static size_t submit_updated_suggestion_list(struct command *buffer, char *filter) {
 	size_t matching_pos = 0;
@@ -573,6 +583,14 @@ static size_t submit_updated_suggestion_list(struct command *buffer, char *filte
 	return matching_pos;
 }
 
+/** \brief Handle input for a command
+ *
+ *  Note that `buffer` is modified even if `handle_command()` returns `false`.
+ *
+ *  \param[out] buffer  Pointer to a buffer receiving the user's input
+ *  \param buffer_size  Size of buffer (in Bytes)
+ *  \return             `true` if a command is in `buffer`, false otherwise
+ */
 static bool handle_command(char *buffer, size_t buffer_size) {
 	struct command matching_commands[command_count + 1];
 	memcpy(matching_commands, commands, command_count + 1);

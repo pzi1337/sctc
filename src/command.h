@@ -32,6 +32,6 @@
 		char  *desc;
 	};
 
-	extern struct command commands[];
+	extern const struct command commands[];
 	extern const size_t command_count;
 #endif
