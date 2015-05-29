@@ -47,8 +47,25 @@
 
 	#define TRACK(LST, ID) (LST->entries[ID].name ? &LST->entries[ID] : LST->entries[ID].href)
 
+	/** \brief The basic datastructure representing a single track
+	 *
+	 *  SCTC knows two different kind of tracks:
+	 *   1. **The `normal track`**
+	 *
+	 *      The normal track behaves just like one would expect.
+	 *      All the entries are filled with (valid) values (except href).
+	 *
+	 *   2. **The `reference track`**
+	 *
+	 *      The reference track, in contrast, is very different:
+	 *      As soon as name contains NULL a track is a reference track.
+	 *      Therefore the only usable value is href, a pointer to a normal track containing
+	 *      the actual data.
+	 *      \warning For a reference track, you must not try to access any members, except from
+	 *               `name` (which is `NULL`) and `href` (a valid ptr to a normal track)
+	 */
 	struct track {
-		char   *name;          ///< the tracks name
+		char   *name; ///< the tracks name
 		union {
 			struct {
 				char   *stream_url;    ///< The URL used for streaming this track
@@ -69,9 +86,9 @@
 
 				/* these members are used for handling the playlist, they are not part of the data received from sc.com */
 				uint8_t flags;
-				int     current_position; // current position
+				int     current_position; ///< current position
 			};
-			struct track *href;
+			struct track *href; ///< Pointer to a normal track (only valid if `name == NULL`)
 		};
 	};
 

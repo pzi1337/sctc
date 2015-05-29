@@ -260,7 +260,7 @@ static void cmd_exit(char *unused) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
 	track_list_destroy(state_get_list(LIST_STREAM), true);
-	track_list_destroy(state_get_list(LIST_BOOKMARKS), true); // TODO: double free!
+	track_list_destroy(state_get_list(LIST_BOOKMARKS), true);
 	sound_finalize();
 	tls_finalize();
 	config_finalize();
