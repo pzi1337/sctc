@@ -180,6 +180,11 @@ static void cmd_add(char *_list) {
 		return;
 	}
 
+	if(1 == list_id) {
+		state_set_status(cline_warning, "Error: Cannot add tracks to "F_BOLD"Stream"F_RESET);
+		return;
+	}
+
 	struct track_list *list = state_get_list(list_id - 1);
 	if(!list) {
 		state_set_status(cline_warning, smprintf("Error: No such list "F_BOLD"%s"F_RESET, _list));
