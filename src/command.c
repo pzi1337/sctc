@@ -52,6 +52,8 @@
 #include "track.h"                      // for track, track_list, etc
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
+
+#define NONE (~0)
 #define TIME_BUFFER_SIZE 64
 
 #define MIN(x,y) (x < y ? x : y)
@@ -69,13 +71,14 @@ static bool handle_command(char *buffer, size_t buffer_size);
  */
 
 static int command_dispatcher(char *command) {
-	const size_t input_size = strlen(command);
 	for(int i = 0; commands[i].name; i++) {
 		const size_t ci_size = strlen(commands[i].name);
 
-		if(!strncmp(commands[i].name, command, MIN(ci_size, input_size))) {
-			commands[i].func(command + strlen(commands[i].name) + 1);
-			return -1;
+		if(!strncmp(commands[i].name, command, ci_size)) {
+			if('\0' == command[ci_size] || ' ' == command[ci_size]) {
+				commands[i].func(command + strlen(commands[i].name) + 1);
+				return -1;
+			}
 		}
 	}
 
@@ -168,6 +171,43 @@ static void cmd_open_user(char *_user) {
 		state_set_status(cline_warning, smprintf("Info: Cannot switch to "F_BOLD"%s"F_RESET"'s channel: No tracks found!\n", user));
 		track_list_destroy(list, true);
 	}
+}
+
+static void cmd_add(char *_list) {
+	unsigned int list_id = NONE;
+	if(1 != sscanf(_list, " %u ", &list_id)) {
+		state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not numeric, expecting ID of playlist", _list));
+		return;
+	}
+
+	struct track_list *list = state_get_list(list_id - 1);
+	if(!list) {
+		state_set_status(cline_warning, smprintf("Error: No such list "F_BOLD"%s"F_RESET, _list));
+		return;
+	}
+
+	struct track_list *clist = state_get_list(state_get_current_list());
+
+	struct track track = {
+		.name = NULL,
+		.href = TRACK(clist, state_get_current_selected())
+	};
+	track_list_add(list, &track);
+}
+
+static void cmd_list_new(char *_name) {
+	char *name = strstrp(_name);
+
+	struct track_list *list = lcalloc(1, sizeof(struct track_list));
+	if(!list) {
+		state_set_status(cline_warning, "Error: Failed to allocate memory for new list!");
+		return;
+	}
+
+	list->name  = lstrdup( strcmp("", name) ? name : "unnamed list" );
+	list->count = 0;
+
+	state_add_list(list);
 }
 
 static void cmd_write_playlist(char *_file) {
@@ -536,6 +576,7 @@ static void cmd_redraw(char *unused) {
  *  At some point in time we want to be able to bind keys via configfile.
  */
 const struct command commands[] = {
+	{"add",           cmd_add,            "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
 	{"bookmark",      cmd_bookmark,       "<none/ignored>",                "Add currently selected entry to booksmarks"},
 	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
 	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
@@ -544,6 +585,7 @@ const struct command commands[] = {
 	{"goto",          cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
 	{"help",          cmd_help,           "<none/ignored>",                "Show help"},
 	{"list",          cmd_list,           "<number of list>",              "Switch to specified playlist"},
+	{"list-new",      cmd_list_new,       "<name of list>",                "Create a new playlist with specified name"},
 	{"open",          cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
 	{"pause",         cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
 	{"play",          cmd_play,           "<none/ignored>",                "Start playback of currently selected track"},
