@@ -42,9 +42,11 @@
 
 //\cond
 #include <ctype.h>                      // for isdigit
+#include <dirent.h>
 #include <locale.h>                     // for setlocale, LC_CTYPE
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for EXIT_FAILURE
+#include <string.h>
 #include <time.h>                       // for timespec, clock_gettime
 //\endcond
 
@@ -109,6 +111,19 @@ static void tui_update_time(int time) {
 	}
 }
 
+static void list_href_to_list(struct track_list *list, struct track_list *target) {
+	for(size_t i = 0; i < target->count; i++) {
+		struct track *strack = track_list_get(list, TRACK(target, i)->permalink_url);
+
+		if(NULL != strack) {
+			track_destroy(strack);
+
+			strack->name = NULL;
+			strack->href = TRACK(target, i);
+		}
+	}
+}
+
 int main(int argc, char **argv) {
 	// initialize the modules
 	log_init("sctc.log");
@@ -125,40 +140,52 @@ int main(int argc, char **argv) {
 	state_set_status(cline_default, "");
 	state_set_title("");
 
-	struct track_list *lists[] = {
-		soundcloud_get_stream(),
-		jspf_read(BOOKMARK_FILE),
-		NULL
-	};
-	lists[LIST_BOOKMARKS]->name = "Bookmarks";
-	lists[LIST_STREAM]->name    = "Stream";
+	struct track_list *list_stream = soundcloud_get_stream();
+	list_stream->name = "Stream";
+	state_add_list(list_stream);
 
-	state_set_lists(lists);
+	struct track_list *list_bookmark = jspf_read(BOOKMARK_FILE);
+	list_bookmark->name = "Bookmarks";
+	list_href_to_list(list_bookmark, list_stream);
 
 	BENCH_START(SB)
-	for(size_t i = 0; i < lists[LIST_STREAM]->count; i++) {
-		struct track *btrack = track_list_get(lists[LIST_BOOKMARKS], lists[LIST_STREAM]->entries[i].permalink_url);
-		if(NULL != btrack) {
-			_log("'%s' is bookmarked!", lists[LIST_STREAM]->entries[i].name);
-			lists[LIST_STREAM]->entries[i].flags |= FLAG_BOOKMARKED;
+	for(size_t i = 0; i < list_stream->count; i++) {
+		struct track *btrack = track_list_get(list_bookmark, list_stream->entries[i].permalink_url);
+		if(NULL != btrack) list_stream->entries[i].flags |= FLAG_BOOKMARKED;
 
-			track_destroy(btrack);
-
-			btrack->name = NULL;
-			btrack->href = &lists[LIST_STREAM]->entries[i];
-		}
-
-		if(cache_track_exists(&lists[LIST_STREAM]->entries[i])) {
-			lists[LIST_STREAM]->entries[i].flags |= FLAG_CACHED;
+		if(cache_track_exists(&list_stream->entries[i])) {
+			list_stream->entries[i].flags |= FLAG_CACHED;
 		}
 	}
 	BENCH_STOP(SB, "Searching for bookmarks")
 
-	state_set_lists(lists);
+	state_add_list(list_bookmark);
+
+	char *cache_path = config_get_cache_path();
+	char userlist_folder[strlen(cache_path) + 1 + strlen(USERLIST_FOLDER) + 1];
+	sprintf(userlist_folder, "%s/"USERLIST_FOLDER"/", cache_path);
+
+	DIR *d = opendir(userlist_folder);
+	struct dirent *e;
+	while( (e = readdir(d)) ) {
+		if(strcmp(".", e->d_name) && strcmp("..", e->d_name)) {
+			char userlist_file[strlen(userlist_folder) + 1 + strlen(e->d_name)];
+			sprintf(userlist_file, "%s/%s", userlist_folder, e->d_name);
+
+			struct track_list *list = jspf_read(userlist_file);
+
+			e->d_name[strlen(e->d_name - 5)] = '\0';
+			list->name = strdup(e->d_name);
+
+			list_href_to_list(list, list_stream);
+			state_add_list(list);
+		}
+	}
+	closedir(d);
 
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
-	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", lists[LIST_STREAM]->count, config_get_subscribe_count()));
+	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", list_stream->count, config_get_subscribe_count()));
 
 	// and enter the main `message` loop
 	int c;
