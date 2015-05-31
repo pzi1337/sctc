@@ -19,18 +19,18 @@
 /** \file helper.c
  *  \brief Implements several basic helper functions (mixed purpose)
  */
+#include "helper.h"
 
 //\cond
 #include <errno.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdarg.h>
+#include <stdarg.h>                     // for va_end, va_list, va_start
+#include <stdbool.h>                    // for bool, false, true
+#include <stdio.h>                      // for sscanf, snprintf, vsnprintf
+#include <stdlib.h>                     // for calloc, exit, malloc, etc
+#include <string.h>                     // for strlen, strdup
+#include <unistd.h>                     // for close, dup2, execlp, fork, etc
 //\endcond
 
-#include "helper.h"
 #include "log.h"
 
 char* smprintf(char *fmt, ...) {
@@ -89,7 +89,6 @@ bool yank(char *text) {
 
 	pid_t pid = fork();
 	if(-1 == pid) {
-		_log("fork failed: %s", strerror(errno));
 		return false;
 	} else if(!pid) {
 		close(fd[1]);              // close fd_out
@@ -145,17 +144,10 @@ char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) {
 }
 
 unsigned int parse_time_to_sec(char *str) {
-	unsigned int sec;
-	unsigned int min;
-	unsigned int hour;
+	unsigned int hour, min, sec;
 
 	if(3 == sscanf(str, " %u : %u : %u ", &hour, &min, &sec)) {
-		if(sec >= 60) {
-			_log("invalid #seconds: %u (>= 60)", sec);
-			return INVALID_TIME;
-		}
-		if(min >= 60) {
-			_log("invalid #minutes: %u (>= 60)", min);
+		if(sec >= 60 || min >= 60) {
 			return INVALID_TIME;
 		}
 
@@ -164,11 +156,7 @@ unsigned int parse_time_to_sec(char *str) {
 
 	// check if we have a time consisting of min and sec (ab:cd)
 	if(2 == sscanf(str, " %u : %u ", &min, &sec)) {
-		if(sec >= 60) {
-			_log("invalid #seconds: %u (>= 60)", sec);
-			return INVALID_TIME;
-		}
-		return 60 * min + sec;
+		return sec >= 60 ? INVALID_TIME : 60 * min + sec;
 	}
 
 	// check if we have a "second only" time
