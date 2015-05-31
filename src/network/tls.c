@@ -113,7 +113,7 @@ struct network_conn* tls_connect(char *server, int port) {
 	entropy_init(&tls->entropy);
 
 	int ret;
-	if( (ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) CLIENTID, strlen(CLIENTID))) ) {
+	if( (ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) SC_API_KEY, strlen(SC_API_KEY))) ) {
 		_log("ctr_drbg_init: %d", ret);
 		return NULL;
 	}

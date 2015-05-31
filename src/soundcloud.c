@@ -40,7 +40,7 @@
 #include "state.h"
 #include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
-#define CLIENTID_GET "client_id="CLIENTID
+#define CLIENTID_GET "client_id="SC_API_KEY
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
 struct track_list* soundcloud_get_stream() {

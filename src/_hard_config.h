@@ -83,7 +83,7 @@
 	 *  \see https://developers.soundcloud.com/
 	 *  \see http://soundcloud.com/you/apps/new
 	 */
-	#define CLIENTID "848ee866ea93c21373f6a8b61772b412"
+	#define SC_API_KEY "848ee866ea93c21373f6a8b61772b412"
 
 	#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections
 
