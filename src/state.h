@@ -86,7 +86,7 @@
 	char*              state_get_tb_title();
 	char*              state_get_input();
 	struct command*    state_get_commands();
-	size_t             state_get_current_time();
+	size_t             state_get_current_playback_time();
 	size_t             state_get_tb_old_pos();
 	size_t             state_get_tb_pos();
 	size_t             state_get_old_selected();
@@ -110,10 +110,8 @@
 	 *
 	 *  This function is required to be called prior to termination of SCTC.
 	 *  Do not use any state_* after calling this function.
-	 *
-	 *  \return   true in case of success, false otherwise
 	 */
-	bool state_finalize();
+	void state_finalize();
 
 	/** \addtogroup state_set State: Setter
 	 *

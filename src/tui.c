@@ -104,7 +104,7 @@ static void* _thread_tui_function(void *unused) {
 					color_set(sbar_default, NULL);
 
 					char time_buffer[TIME_BUFFER_SIZE];
-					int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_time());
+					int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_playback_time());
 					mvprintw(0, COLS - time_len, "%s", time_buffer);
 
 					refresh();
