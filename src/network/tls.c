@@ -90,8 +90,8 @@ bool tls_init() {
 }
 
 struct network_conn* tls_connect(char *server, int port) {
-	/* allocate and initialize the wrapper-struct 'network_conn' */
-	struct network_conn *nwc = lmalloc(sizeof(struct network_conn));
+	// allocate and initialize the wrapper-struct 'network_conn'
+	struct network_conn *nwc = lcalloc(1, sizeof(struct network_conn) + sizeof(struct tls_conn));
 	if(!nwc) return NULL;
 
 	nwc->send       = tls_send;
@@ -100,37 +100,47 @@ struct network_conn* tls_connect(char *server, int port) {
 	nwc->recv_byte  = tls_recv_byte;
 	nwc->disconnect = tls_disconnect;
 
-	/* allocate the memory actually used by ssl.o */
-	struct tls_conn *tls = lcalloc(1, sizeof(struct tls_conn));
-	if(!tls) {
-		free(nwc);
-		return NULL;
-	}
+	// the data required for tls.o is directly `after` the network_conn
+	struct tls_conn *tls = (struct tls_conn*) &nwc[1];
 	nwc->mdata = tls;
 
 	tls->magic = TLS_CONN_MAGIC;
 
 	entropy_init(&tls->entropy);
 
-	int ret;
-	if( (ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) SC_API_KEY, strlen(SC_API_KEY))) ) {
+
+	// intialize the RNG
+	int ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) SC_API_KEY, strlen(SC_API_KEY));
+	if(ret) {
 		_log("ctr_drbg_init: %d", ret);
+		free(nwc);
 		return NULL;
 	}
 
-	if( (ret = net_connect(&tls->fd, server, port)) ) {
+	// do the actual connection
+	ret = net_connect(&tls->fd, server, port);
+	if(ret) {
 		_log("connection to '%s:%d' cannot be established: %d", server, port, ret);
+		free(nwc);
 		return NULL;
 	}
 
+	// initialize the SSL context
 	if( (ret = ssl_init(&tls->ssl)) ) {
 		_log("ssl_init: %d\n", ret);
+		free(nwc);
 		return NULL;
 	}
 
+	// required verification, fail if the certificate cannot be verified
+	// (is invalid/expired/...)
 	ssl_set_authmode(&tls->ssl, SSL_VERIFY_REQUIRED);
-	ssl_set_ca_chain(&tls->ssl, &cacerts, NULL, server); // TODO
 
+	// use the certificates gathered in tls_init()
+	// at this point CRL is not used
+	ssl_set_ca_chain(&tls->ssl, &cacerts, NULL, server);
+
+	// behave as client (not server)
 	ssl_set_endpoint(&tls->ssl, SSL_IS_CLIENT);
 
 	ssl_set_rng(&tls->ssl, ctr_drbg_random, &tls->ctr_drbg);
@@ -143,7 +153,6 @@ struct network_conn* tls_connect(char *server, int port) {
 	}
 
 	if( (ret = ssl_get_verify_result(&tls->ssl)) ) {
-
 		char *reason = "unknown reason";
 		if(ret & BADCERT_EXPIRED)     reason = "server certificate has expired";
 		if(ret & BADCERT_REVOKED)     reason = "server certificate has been revoked";
@@ -154,6 +163,9 @@ struct network_conn* tls_connect(char *server, int port) {
 		return NULL;
 	}
 
+	/* Compare the certifiate supplied by the server to the one we know
+	 * from one of our previous connection attempts.
+	 */
 	const x509_crt *rcert = ssl_get_peer_cert(&tls->ssl);
 
 	char expected_sha512_fingerprint_string[SHA512_LEN * 3 + 1] = { 0 };
@@ -311,8 +323,6 @@ void tls_disconnect(struct network_conn *nwc) {
 	entropy_free (&tls->entropy);
 
 	bzero(tls, sizeof(struct tls_conn));
-	free(tls);
-
 	free(nwc);
 }
 
