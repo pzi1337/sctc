@@ -38,6 +38,7 @@
 
 #define SCTC_CONFIG_FILE "sctc.conf"
 
+#define OPTION_CERT_PATH   "cert_path"
 #define OPTION_SUBSCRIBE   "subscribe"
 #define OPTION_CACHE_PATH  "cache_path"
 #define OPTION_CACHE_LIMIT "cache_limit"
@@ -45,6 +46,7 @@
 static char** config_subscribe = NULL;
 static int config_subscribe_count = 0;
 
+static char* cert_path;
 static char* cache_path;
 static int   cache_limit;
 
@@ -120,6 +122,7 @@ static int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char *
 void config_init() {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
+		CFG_SIMPLE_STR(OPTION_CERT_PATH,   &cert_path),
 		CFG_SIMPLE_STR(OPTION_CACHE_PATH,  &cache_path),
 		CFG_SIMPLE_INT(OPTION_CACHE_LIMIT, &cache_limit),
 		CFG_FUNC("map", config_map_command),
@@ -127,6 +130,7 @@ void config_init() {
 	};
 
 	/* set default values for options */
+	cert_path   = lstrdup(CERT_DEFAULT_PATH);
 	cache_path  = lstrdup(CACHE_DEFAULT_PATH); // default subdir 'cache' in bin
 	cache_limit = -1;                  // default: no limit
 
@@ -165,6 +169,10 @@ int config_get_subscribe_count() {
 
 char* config_get_subscribe(int id) {
 	return config_subscribe[id];
+}
+
+char* config_get_cert_path() {
+	return cert_path;
 }
 
 char* config_get_cache_path() {

@@ -33,6 +33,12 @@
 
 	#define MAX_LISTS 16
 
+	/** \brief The default path to the ca-certificates file
+	 *
+	 *  Should point to the system wide list of trusted certificates.
+	 */
+	#define CERT_DEFAULT_PATH "/etc/ssl/certs/ca-certificates.crt"
+
 	/** \brief The maximum number of allowed HTTP redirects */
 	#define MAX_REDIRECT_STEPS 20
 

@@ -39,6 +39,7 @@
 #include "polarssl/net.h"               // for POLARSSL_ERR_NET_WANT_READ, etc
 #include "polarssl/ssl.h"               // for ssl_read, ssl_close_notify, etc
 
+#include "../config.h"
 #include "../helper.h"                  // for lcalloc, lmalloc
 #include "../log.h"                     // for _log
 #include "network.h"                    // for network_conn
@@ -64,10 +65,12 @@ int  tls_recv_byte (struct network_conn *nwc);
 void tls_disconnect(struct network_conn *nwc);
 
 bool tls_init() {
-	_log("reading list of trusted CAs:");
+	char *cert_path = config_get_cert_path();
+
+	_log("reading list of trusted CAs from %s:", cert_path);
 	x509_crt_init(&cacerts);
 
-	int ret = x509_crt_parse_file(&cacerts, "/etc/ssl/certs/ca-certificates.crt");
+	int ret = x509_crt_parse_file(&cacerts, cert_path);
 	if(ret < 0) {
 		_log("x509_crt_parse: %d", ret);
 		return false;
