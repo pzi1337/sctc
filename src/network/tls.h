@@ -31,7 +31,10 @@
 	 *  This function is required to be called prior to the first call tls_connect().
 	 *  Global initialization, such as loading the list of trusted CAs is performed here.
 	 *
-	 *  \return true in case of success, false otherwise
+	 *  If the initialization failes - that is `false` is returned - the TLS module is
+	 *  not initialized correctly and may not be used!
+	 *
+	 *  \return `true` in case of success, `false` otherwise
 	 */
 	bool tls_init();
 
@@ -42,11 +45,8 @@
 	 *  \return        Pointer to a network_conn struct, or NULL in case of an error
 	 */
 	struct network_conn* tls_connect(char *server, int port);
-
 	
 	/** \brief Free previous global initialization of TLS.
-	 *
-	 *  \return true in case of success, false otherwise
 	 */
-	bool tls_finalize();
+	void tls_finalize();
 #endif /* _TLS_H */

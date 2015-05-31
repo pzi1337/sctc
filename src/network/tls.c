@@ -16,31 +16,32 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#include "../_hard_config.h"
 
-//\cond
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
-//\endcond
-
-#include "polarssl/oid.h"
-#include "polarssl/net.h"
-#include "polarssl/debug.h"
-#include "polarssl/ssl.h"
-#include "polarssl/entropy.h"
-#include "polarssl/ctr_drbg.h"
-#include "polarssl/error.h"
-#include "polarssl/certs.h"
-
-#include "../log.h"
-#include "../helper.h"
+#include "../_hard_config.h"            // for CERT_BRAIN_FOLDER
 #include "tls.h"
 
-#include "network.h"
+//\cond
+#include <assert.h>                     // for assert
+#include <stdarg.h>                     // for va_end, va_list, va_copy, etc
+#include <stdbool.h>                    // for bool, true, false
+#include <stddef.h>                     // for size_t
+#include <stdint.h>                     // for uint32_t
+#include <stdio.h>                      // for sprintf, fclose, fopen, etc
+#include <stdlib.h>                     // for NULL, free, exit, etc
+#include <string.h>                     // for strlen, bzero, strcmp
+//\endcond
+
+#include <polarssl/sha512.h>            // for sha512
+#include <polarssl/x509.h>              // for x509_time, x509_dn_gets, etc
+#include <polarssl/x509_crt.h>          // for x509_crt, x509_crt_free, etc
+#include "polarssl/ctr_drbg.h"          // for ctr_drbg_free, etc
+#include "polarssl/entropy.h"           // for entropy_free, entropy_init, etc
+#include "polarssl/net.h"               // for POLARSSL_ERR_NET_WANT_READ, etc
+#include "polarssl/ssl.h"               // for ssl_read, ssl_close_notify, etc
+
+#include "../helper.h"                  // for lcalloc, lmalloc
+#include "../log.h"                     // for _log
+#include "network.h"                    // for network_conn
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
 #define SHA512_LEN 64
@@ -108,12 +109,10 @@ struct network_conn* tls_connect(char *server, int port) {
 
 	entropy_init(&tls->entropy);
 
-	const char *pers = "ssl_client1";
-
 	int ret;
-	if( (ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char *)pers, strlen(pers))) ) {
+	if( (ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) CLIENTID, strlen(CLIENTID))) ) {
 		_log("ctr_drbg_init: %d", ret);
-		exit(EXIT_FAILURE);
+		return NULL;
 	}
 
 	if( (ret = net_connect(&tls->fd, server, port)) ) {
@@ -213,8 +212,8 @@ struct network_conn* tls_connect(char *server, int port) {
 	x509_dn_gets( buf, 2048, &rcert->subject );
 	_log("subject: %s", buf);
 
-	_log("valid from %04d-%02d-%02d %02d:%02d:%02d to %04d-%02d-%02d %02d:%02d:%02d", 
-		rcert->valid_from.year, rcert->valid_from.mon, rcert->valid_from.day, rcert->valid_from.hour, rcert->valid_from.min, rcert->valid_from.sec, 
+	_log("valid from %04d-%02d-%02d %02d:%02d:%02d to %04d-%02d-%02d %02d:%02d:%02d",
+		rcert->valid_from.year, rcert->valid_from.mon, rcert->valid_from.day, rcert->valid_from.hour, rcert->valid_from.min, rcert->valid_from.sec,
 		rcert->valid_to.year,   rcert->valid_to.mon,   rcert->valid_to.day,   rcert->valid_to.hour,   rcert->valid_to.min,   rcert->valid_to.sec);
 
 
@@ -314,8 +313,6 @@ void tls_disconnect(struct network_conn *nwc) {
 	free(nwc);
 }
 
-bool tls_finalize() {
+void tls_finalize() {
 	x509_crt_free(&cacerts);
-
-	return true;
 }
