@@ -185,6 +185,7 @@ bool config_finalize() {
 	}
 	free(config_subscribe);
 	free(cache_path);
+	free(cert_path);
 
 	return true;
 }
