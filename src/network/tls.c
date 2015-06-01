@@ -34,10 +34,11 @@
 #include <polarssl/sha512.h>            // for sha512
 #include <polarssl/x509.h>              // for x509_time, x509_dn_gets, etc
 #include <polarssl/x509_crt.h>          // for x509_crt, x509_crt_free, etc
-#include "polarssl/ctr_drbg.h"          // for ctr_drbg_free, etc
-#include "polarssl/entropy.h"           // for entropy_free, entropy_init, etc
-#include "polarssl/net.h"               // for POLARSSL_ERR_NET_WANT_READ, etc
-#include "polarssl/ssl.h"               // for ssl_read, ssl_close_notify, etc
+#include <polarssl/ctr_drbg.h>          // for ctr_drbg_free, etc
+#include <polarssl/entropy.h>           // for entropy_free, entropy_init, etc
+#include <polarssl/error.h>
+#include <polarssl/net.h>               // for POLARSSL_ERR_NET_WANT_READ, etc
+#include <polarssl/ssl.h>               // for ssl_read, ssl_close_notify, etc
 
 #include "../config.h"
 #include "../helper.h"                  // for lcalloc, lmalloc
@@ -120,7 +121,9 @@ struct network_conn* tls_connect(char *server, int port) {
 	// do the actual connection
 	ret = net_connect(&tls->fd, server, port);
 	if(ret) {
-		_log("connection to '%s:%d' cannot be established: %d", server, port, ret);
+		char buf[2048];
+		polarssl_strerror(ret, buf, sizeof(buf));
+		_log("connection to '%s:%d' cannot be established: %s", server, port, buf);
 		free(nwc);
 		return NULL;
 	}
@@ -148,7 +151,11 @@ struct network_conn* tls_connect(char *server, int port) {
 
 	while( ( ret = ssl_handshake( &tls->ssl ) ) != 0 ) {
 		if( ret != POLARSSL_ERR_NET_WANT_READ && ret != POLARSSL_ERR_NET_WANT_WRITE ) {
-			_log("failure in handshake: %d", ret);
+			char buf[2048];
+			polarssl_strerror(ret, buf, sizeof(buf));
+			_log("failure in handshake: %s", buf);
+			tls_disconnect(nwc);
+			return NULL;
 		}
 	}
 
