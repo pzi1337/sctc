@@ -196,6 +196,12 @@ static void cmd_add(char *_list) {
 		.name = NULL,
 		.href = TRACK(clist, state_get_current_selected())
 	};
+
+	if(2 == list_id) {
+		TRACK(clist, state_get_current_selected())->flags |= FLAG_BOOKMARKED;
+		tui_submit_action(update_list);
+	}
+
 	track_list_add(list, &track);
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
