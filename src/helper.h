@@ -27,6 +27,16 @@
 	#include <stddef.h>                     // for size_t
 	//\endcond
 
+	#define SHA512_LEN 64
+
+	/** \brief printf style function with automated allocation of buffer.
+	 *
+	 *  \param sha512_buf  Buffer receiving the SHA512 string (required size: SHA512_LEN * 3 + 1 = 193)
+	 *  \param inbuf       The buffer to be hashed
+	 *  \param inbuf_size  The number of Bytes in `inbuf` to be hashed
+	 */
+	void sha512_string(char *sha512_buf, void *inbuf, size_t inbuf_size);
+
 	/** \brief printf style function with automated allocation of buffer.
 	 *
 	 *  \param fmt  The formatstring, as known from `printf`, see `man 3 printf`

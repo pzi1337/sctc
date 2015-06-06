@@ -31,6 +31,8 @@
 #include <unistd.h>                     // for close, dup2, execlp, fork, etc
 //\endcond
 
+#include <polarssl/sha512.h>            // for sha512
+
 #include "log.h"
 
 char* smprintf(char *fmt, ...) {
@@ -167,3 +169,13 @@ unsigned int parse_time_to_sec(char *str) {
 	return INVALID_TIME;
 }
 
+void sha512_string(char *sha512_buf, void *inbuf, size_t inbuf_size) {
+
+	unsigned char sha512_fingerprint[SHA512_LEN];
+	sha512(inbuf, inbuf_size, sha512_fingerprint, false);
+
+	for(size_t i = 0; i < sizeof(sha512_fingerprint); i++) {
+		sprintf(sha512_buf + 3*i, "%02X%s", sha512_fingerprint[i], i+1 < sizeof(sha512_fingerprint) ? ":" : "");
+	}
+	sha512_buf[SHA512_LEN * 3] = '\0';
+}

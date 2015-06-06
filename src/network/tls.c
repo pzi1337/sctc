@@ -31,7 +31,6 @@
 #include <string.h>                     // for strlen, bzero, strcmp
 //\endcond
 
-#include <polarssl/sha512.h>            // for sha512
 #include <polarssl/x509.h>              // for x509_time, x509_dn_gets, etc
 #include <polarssl/x509_crt.h>          // for x509_crt, x509_crt_free, etc
 #include <polarssl/ctr_drbg.h>          // for ctr_drbg_free, etc
@@ -46,7 +45,6 @@
 #include "network.h"                    // for network_conn
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
-#define SHA512_LEN 64
 
 static x509_crt cacerts;
 
@@ -188,14 +186,8 @@ struct network_conn* tls_connect(char *server, int port) {
 		}
 	}
 
-	unsigned char sha512_fingerprint[SHA512_LEN];
-	sha512(rcert->raw.p, rcert->raw.len, sha512_fingerprint, false);
-
 	char sha512_fingerprint_string[SHA512_LEN * 3 + 1];
-	for(size_t i = 0; i < sizeof(sha512_fingerprint); i++) {
-		sprintf(sha512_fingerprint_string + 3*i, "%02X%s", sha512_fingerprint[i], i+1 < sizeof(sha512_fingerprint) ? ":" : "");
-	}
-	sha512_fingerprint_string[SHA512_LEN * 3] = '\0';
+	sha512_string(sha512_fingerprint_string, rcert->raw.p, rcert->raw.len);
 
 	if(strcmp(expected_sha512_fingerprint_string, sha512_fingerprint_string)) {
 		_log("comparison of SHA512 FAILED:");
