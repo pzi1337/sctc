@@ -16,7 +16,9 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+	#define _GNU_SOURCE
+#endif
 
 #include "_hard_config.h"
 
@@ -190,17 +192,11 @@ int main(int argc, char **argv) {
 	// and enter the main `message` loop
 	int c;
 	while( (c = getch()) ) {
-		// chars '1' to '9' are reserved
-		// for switiching to the c-th playlist
-		if(isdigit(c) && '0' != c) {
-			switch_to_list(c - '1');
-		} else {
-			// if the key is non-reserved, then try to read the
-			// corresponding function from configuration and
-			// execute it
-			command_func_ptr func = config_get_function(c);
-			if(func) func((char*)config_get_param(c));
-		}
+		// then try to read the
+		// corresponding function from configuration and
+		// execute it
+		command_func_ptr func = config_get_function(c);
+		if(func) func((char*)config_get_param(c));
 	}
 
 	// never reached, exit called in case of 'cmd_exit'
