@@ -47,7 +47,7 @@ int  plain_recv_byte (struct network_conn *nwc);
 void plain_disconnect(struct network_conn *nwc);
 
 struct network_conn* plain_connect(char *server, int port) {
-	struct network_conn *nwc = lmalloc(sizeof(struct network_conn));
+	struct network_conn *nwc = lcalloc(1, sizeof(struct network_conn) + sizeof(struct plain_conn));
 	if(!nwc) return NULL;
 
 	nwc->send       = plain_send;
@@ -56,13 +56,10 @@ struct network_conn* plain_connect(char *server, int port) {
 	nwc->recv_byte  = plain_recv_byte;
 	nwc->disconnect = plain_disconnect;
 
-	struct plain_conn *plain = lcalloc(1, sizeof(struct plain_conn));
-	if(!plain) {
-		free(nwc);
-		return NULL;
-	}
-	plain->magic = PLAIN_CONN_MAGIC;
+	struct plain_conn *plain = (struct plain_conn*) &nwc[1];
 	nwc->mdata = plain;
+
+	plain->magic = PLAIN_CONN_MAGIC;
 
 	struct addrinfo  addr_config = {
 		.ai_socktype = SOCK_STREAM,
@@ -95,8 +92,6 @@ struct network_conn* plain_connect(char *server, int port) {
 			continue; // connect failed, try next ip if available
 		}
 
-		freeaddrinfo(addr);
-
 		plain->fh = fdopen(sock, "a+");
 		break;
 	}
@@ -107,6 +102,8 @@ struct network_conn* plain_connect(char *server, int port) {
 		_log("getnameinfo: %s", gai_strerror(ret));
 		strncpy(ip_buffer, "<error>", INET6_ADDRSTRLEN - 1);
 	}
+
+	freeaddrinfo(addr);
 
 	_log("connected to %s:%d (%s) using PLAIN (NO ENCRYPTION)", server, port, ip_buffer);
 	return nwc;
@@ -179,6 +176,6 @@ void plain_disconnect(struct network_conn *nwc) {
 	assert(PLAIN_CONN_MAGIC == plain->magic);
 
 	fclose(plain->fh);
-	free(plain);
+	free(nwc);
 }
 
