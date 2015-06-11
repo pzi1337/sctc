@@ -34,6 +34,7 @@
 //\endcond
 
 #include "cache.h"                      // for cache_track_get, etc
+#include "downloader.h"
 #include "helper.h"                     // for lmalloc
 #include "http.h"                       // for http_response, etc
 #include "log.h"                        // for _log
@@ -47,7 +48,6 @@
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 
-static sem_t sem_io;
 static sem_t sem_play;
 static sem_t sem_stopped;
 static pthread_t thread_io;   // thread handling the download from sc.com
@@ -69,6 +69,8 @@ static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
 static volatile size_t        track_size  = 0;
 static volatile bool          stopped     = false;
 static volatile bool          terminate   = false;
+
+static struct download_state *state = NULL;
 
 static void (*time_callback)(int);
 
@@ -113,76 +115,16 @@ static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
 	return new_mh;
 }
 
-/** \brief main function for IO thread.
- *
- *  \param unused  Unused parameter (never read), required due to pthread interface
- *  \return NULL   Unused return value, required due to pthread interface
- */
-static void* _thread_io_function(void *unused) {
-	do {
-		sem_wait(&sem_io); // wait until IO is required (downloading a new track)
-		if(terminate) return NULL;
-		if(stopped) {
-			sem_post(&sem_stopped);
-			continue;
+static void io_callback(struct download_state *state) {
+	buffer_pos = state->bytes_recvd;
+	sem_post(&sem_play);
+	sem_post(&sem_data_available);
+
+	if(state->finished) {
+		if(cache_track_save((struct track*) track, (void*) buffer, state->bytes_recvd)) {
+			track->flags |= FLAG_CACHED;
 		}
-
-		if( ( buffer_pos = cache_track_get((struct track*) track, (void*) buffer) ) ) {
-			_log("using file from cache for '%s' by '%s'", track->name, track->username);
-			track_size = buffer_pos;
-
-			sem_post(&sem_data_available);
-			sem_post(&sem_play);
-		} else {
-			struct http_response* resp = soundcloud_connect_track((struct track*) track);
-			if(!resp) {
-				state_set_status(cline_warning, F_BOLD"Error:"F_RESET" connection failed");
-				break;
-			}
-
-			if(resp->nwc) {
-				_log("request sent: status %i, %i + %i Bytes in response", resp->http_status, resp->header_length, resp->content_length);
-
-				track_size = resp->content_length;
-
-				sem_post(&sem_play);
-
-				size_t remaining_buffer = BUFFER_SIZE;
-				_log("required length: %i Bytes, actual length: %i Bytes", resp->content_length, remaining_buffer);
-				if(resp->content_length < remaining_buffer) {
-					remaining_buffer = resp->content_length;
-				}
-
-				while( remaining_buffer && !terminate && !stopped && track ) {
-					int ret = resp->nwc->recv(resp->nwc, (char*) buffer + buffer_pos, remaining_buffer);
-					if(ret > 0) {
-						sem_post(&sem_data_available);
-						__sync_fetch_and_sub(&remaining_buffer, ret);
-						__sync_fetch_and_add(&buffer_pos,       ret);
-					}
-				}
-
-				_log("streaming done, %d Bytes streamed", buffer_pos);
-				resp->nwc->disconnect(resp->nwc);
-
-				if(resp->content_length == buffer_pos) {
-					if(cache_track_save((struct track*) track, (void*) buffer, resp->content_length)) {
-						track->flags |= FLAG_CACHED;
-					}
-				} else {
-					_log("server announced %i Bytes, only got %i Bytes", resp->content_length, buffer_pos);
-					_log("NOT saving buffer to file");
-				}
-			}
-			http_response_destroy(resp);
-		}
-
-		if(stopped) {
-			sem_post(&sem_stopped);
-		}
-	} while(!terminate);
-
-	return NULL;
+	}
 }
 
 /** \brief main function for playback thread.
@@ -231,6 +173,7 @@ static void* _thread_play_function(void *unused) {
 		bool playback_done = false;
 
 		while(!terminate && !stopped && !playback_done && track) {
+			
 			int current_buffer_pos = buffer_pos;
 			if(last_buffer_pos != current_buffer_pos) {
 				mpg123_feed(mh, (const unsigned char*)buffer + last_buffer_pos, current_buffer_pos - last_buffer_pos);
@@ -323,31 +266,24 @@ bool sound_init(void (*_time_callback)(int)) {
 		mpg123_init();
 		mh = mpg123_reinit(NULL);
 
-		if(!sem_init(&sem_io, 0, 0)) {
-			if(sem_init(&sem_play, 0, 0)) {
-				_log("sem_init failed: %s", strerror(errno));
-				free((void*) buffer);
-				sem_destroy(&sem_io);
-				return false;
-			}
-
-			if(sem_init(&sem_data_available, 0, 0)) {
-				_log("sem_init failed: %s", strerror(errno));
-				free((void*) buffer);
-				sem_destroy(&sem_io);
-				sem_destroy(&sem_play);
-				return false;
-			}
-
-			sem_init(&sem_stopped, 0, 0);
-
-			pthread_create(&thread_io,   NULL, _thread_io_function,   NULL);
-			pthread_create(&thread_play, NULL, _thread_play_function, NULL);
-
-			return true;
-		} else {
+		if(sem_init(&sem_play, 0, 0)) {
 			_log("sem_init failed: %s", strerror(errno));
+			free((void*) buffer);
+			return false;
 		}
+
+		if(sem_init(&sem_data_available, 0, 0)) {
+			_log("sem_init failed: %s", strerror(errno));
+			free((void*) buffer);
+			sem_destroy(&sem_play);
+			return false;
+		}
+
+		sem_init(&sem_stopped, 0, 0);
+
+		pthread_create(&thread_play, NULL, _thread_play_function, NULL);
+
+		return true;
 
 		free((void*) buffer);
 	}
@@ -359,10 +295,6 @@ bool sound_finalize() {
 	terminate = true;
 
 	_log("waiting for threads to terminate...");
-
-	_log("thread_io...");
-	sem_post(&sem_io);
-	pthread_join(thread_io, NULL);
 
 	_log("thread_play...");
 	sem_post(&sem_data_available);
@@ -389,7 +321,6 @@ bool sound_stop() {
 
 	_log("waiting for threads to stop playback");
 
-	sem_post(&sem_io);
 	sem_post(&sem_play);
 	sem_post(&sem_data_available);
 
@@ -399,7 +330,6 @@ bool sound_stop() {
 	track   = NULL;
 	stopped = false;
 
-	SEM_SET_TO_ZERO(sem_io)
 	SEM_SET_TO_ZERO(sem_play)
 	SEM_SET_TO_ZERO(sem_data_available)
 
@@ -427,7 +357,15 @@ bool sound_play(struct track *_track) {
 
 	seek_to_pos = _track->current_position;
 
-	sem_post(&sem_io);
+	if( ( buffer_pos = cache_track_get((struct track*) track, (void*) buffer) ) ) {
+		_log("using file from cache for '%s' by '%s'", track->name, track->username);
+		track_size = buffer_pos;
+
+		sem_post(&sem_data_available);
+		sem_post(&sem_play);
+	} else {
+		state = downloader_queue_buffer(track, buffer, BUFFER_SIZE, io_callback);
+	}
 
 	return true;
 }

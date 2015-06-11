@@ -11,7 +11,7 @@ LDFLAGS=`pkg-config --libs ao yajl ncursesw libconfuse libmpg123` -lpolarssl -lp
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-all: soundcloud.o cache.o command.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o
+all: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o
 	gcc $+ $(LDFLAGS) -o ../bin/sctc
 
 clean:

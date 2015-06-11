@@ -57,6 +57,7 @@
 #include "cache.h"                      // for cache_track_exists
 #include "command.h"                    // for command_func_ptr
 #include "config.h"                     // for config_get_subscribe_count, etc
+#include "downloader.h"
 #include "helper.h"                     // for smprintf, snprint_ftime
 #include "jspf.h"                       // for jspf_read
 #include "log.h"                        // for _log, log_init
@@ -136,6 +137,7 @@ int main(int argc, char **argv) {
 	config_init();
 	tls_init();
 	tui_init();
+	downloader_init();
 	sound_init(tui_update_time);
 
 	// start drawing on screen
