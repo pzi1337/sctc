@@ -5,6 +5,7 @@
 
 #include "helper.h"
 #include "url.h"
+#include "plain.h"
 
 #define BUFFER_SIZE 1024 * 512
 
@@ -16,6 +17,7 @@ int main(int argc, char **argv) {
 
 	if(!test_helper())     failed_tcs++;
 	if(!test_url())        failed_tcs++;
+	if(!test_plain())      failed_tcs++;
 
 	if(failed_tcs) {
 		fprintf(stderr, "\n\nRESULT: FOUND ERRORS IN %lu MODULES\n", failed_tcs);

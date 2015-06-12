@@ -12,7 +12,7 @@ LDFLAGS=`pkg-config --libs ao yajl ncursesw libconfuse libmpg123` -lpolarssl -lp
 _%.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
 
-all: _main.o _helper.o _url.o
+all: _main.o _helper.o _url.o _plain.o
 	# do a clean build of SCTC
 	make -C ../src/ clean all
 	gcc $(LDFLAGS) ../src/cache.o  ../src/command.o ../src/downloader.o ../src/config.o  ../src/helper.o  ../src/http.o  ../src/jspf.o  ../src/log.o  ../src/soundcloud.o  ../src/sound.o  ../src/state.o  ../src/track.o  ../src/tui.o  ../src/url.o  ../src/yajl_helper.o ../src/network/*.o $^ -o run_tests
