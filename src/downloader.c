@@ -30,7 +30,9 @@
 #include "soundcloud.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <pthread.h>
 #include <semaphore.h>
 
@@ -60,8 +62,7 @@ static struct download *head;
 static struct download *tail;
 
 static void* _download_thread(void *unused) {
-	_log("download-thread ready, waiting for URLs");
-	while(true) {
+	while(!terminate) {
 		sem_wait(&have_url);
 		if(terminate) return NULL;
 
@@ -74,58 +75,45 @@ static void* _download_thread(void *unused) {
 		}
 		sem_post(&sem_url_queue);
 
-		//struct url *u = url_parse_string(my->track->stream_url);
+		FILE *fh = NULL;
+		if(my->target_file) fh = fopen(my->file, "w");
 
-		//if(url_connect(u)) {
-			FILE *fh = NULL;
-			if(my->target_file) fh = fopen(my->file, "w");
+		if(!my->target_file || fh) {
+			char buffer[CHUNK_SIZE];
+			struct http_response *resp = soundcloud_connect_track(my->track);
+			struct network_conn *nwc = resp->nwc;
 
-	//		if(fh) {
-				char buffer[CHUNK_SIZE];
-				//struct network_conn *nwc = u->nwc;
-				struct http_response *resp = soundcloud_connect_track(my->track);
-				struct network_conn *nwc = resp->nwc;
-/*
-				if(resp->nwc) {
-					nwc->disconnect(nwc);
-					nwc = resp->nwc;
-				}
-*/
+			size_t remaining = resp->content_length;
+			_log("have content length %u", remaining);
 
-				size_t remaining = resp->content_length;
-				_log("have content length %u", remaining);
-
-				while( remaining ) {
-					size_t request_size = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
-					if(my->target_file) {
-						int ret = nwc->recv(nwc, buffer, request_size);
-						if(ret > 0) {
-							remaining -= ret;
-							fwrite(buffer, 1, request_size, fh);
-							__sync_add_and_fetch(&my->state->bytes_recvd, ret);
-						}
-					} else {
-						int ret = nwc->recv(nwc, &((char*)my->buffer)[my->state->bytes_recvd], request_size);
-						if(ret > 0) {
-							remaining -= ret;
-							__sync_add_and_fetch(&my->state->bytes_recvd, ret);
-							if(my->callback) my->callback(my->state);
-						}
+			while( remaining ) {
+				size_t request_size = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
+				if(my->target_file) {
+					int ret = nwc->recv(nwc, buffer, request_size);
+					if(ret > 0) {
+						remaining -= ret;
+						fwrite(buffer, 1, request_size, fh);
+						__sync_add_and_fetch(&my->state->bytes_recvd, ret);
+					}
+				} else {
+					int ret = nwc->recv(nwc, &((char*)my->buffer)[my->state->bytes_recvd], request_size);
+					if(ret > 0) {
+						remaining -= ret;
+						__sync_add_and_fetch(&my->state->bytes_recvd, ret);
+						if(my->callback) my->callback(my->state);
 					}
 				}
-				_log("dl done");
+			}
 
-				nwc->disconnect(nwc);
-				http_response_destroy(resp);
+			nwc->disconnect(nwc);
+			http_response_destroy(resp);
 
-				if(my->target_file) fclose(fh);
-				__sync_bool_compare_and_swap(&my->state->finished, false, true);
-	//		} else {
-	//			u->nwc->disconnect(u->nwc);
-	//		}
-	//	}
-
-	//	url_destroy(u);
+			if(my->target_file) fclose(fh);
+			__sync_bool_compare_and_swap(&my->state->finished, false, true);
+			if(my->callback) my->callback(my->state);
+		} else {
+			_log("failed to open `%s`: `%s`", my->file, strerror(errno));
+		}
 		free(my);
 	}
 

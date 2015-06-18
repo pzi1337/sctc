@@ -30,6 +30,7 @@
 	};
 
 	bool downloader_init();
-	bool downloader_queue_file(char *url, char *file);
+	//bool downloader_queue_file(char *url, char *file);
 	struct download_state* downloader_queue_buffer(struct track *track, void *buffer, size_t buffer_size, void (*callback)(struct download_state *));
+	void downloader_finalize();
 #endif
