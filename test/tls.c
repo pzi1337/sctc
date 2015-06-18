@@ -29,7 +29,7 @@ bool test_tls() {
 	}
 
 	{
-		// valid server & port, ssl with valid cert (required CAcert.org to be trusted)
+		// valid server & port, ssl with valid cert (requires CAcert.org to be trusted)
 		struct network_conn *nwc = tls_connect("narbo.de", 443);
 		TEST_RES(nwc);
 		nwc->disconnect(nwc);

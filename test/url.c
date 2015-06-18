@@ -37,6 +37,6 @@ bool test_url() {
 	test_url_parse("http://chris:test@narbo.de:1337/kekse", "http",  "chris", "test", "narbo.de", 1337, "/kekse");
 	test_url_parse("http://chris@narbo.de:1337/kekse",      "http",  "chris", NULL,   "narbo.de", 1337, "/kekse");
 	test_url_parse("http://chris:test@narbo.de/kekse",      "http",  "chris", "test", "narbo.de",   80, "/kekse");
-	
+
 	return is_ok;
 }

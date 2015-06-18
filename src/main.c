@@ -88,6 +88,7 @@ static void tui_update_time(int time) {
 
 		tui_submit_action(update_list);
 	} else {
+		_log("playback of current track done, switching to next one...");
 		TRACK(list, playing)->current_position = 0;
 		TRACK(list, playing)->flags &= ~(FLAG_PAUSED | FLAG_PLAYING);
 

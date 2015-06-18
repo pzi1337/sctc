@@ -25,7 +25,9 @@
  *  \see config.c
  */
 
-#define _GNU_SOURCE
+#ifndef _GNU_SOURCE
+	#define _GNU_SOURCE
+#endif
 
 #include "_hard_config.h"
 #include "command.h"
