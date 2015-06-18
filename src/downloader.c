@@ -22,19 +22,21 @@
 #define MAX_PARALLEL_DOWNLOADS 4
 #define CHUNK_SIZE 4096
 
-#include "network/network.h"
-#include "http.h"
-#include "helper.h"
-#include "url.h"
-#include "log.h"
-#include "soundcloud.h"
+//\cond
+#include <assert.h>                     // for assert
+#include <errno.h>                      // for errno
+#include <pthread.h>                    // for pthread_t, pthread_create, etc
+#include <semaphore.h>                  // for sem_post, sem_wait, etc
+#include <stdio.h>                      // for fclose, fopen, fwrite, FILE
+#include <stdlib.h>                     // for NULL, free
+#include <string.h>                     // for strerror
+//\endcond
 
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <string.h>
-#include <pthread.h>
-#include <semaphore.h>
+#include "helper.h"                     // for lcalloc, lmalloc
+#include "http.h"                       // for http_response, etc
+#include "log.h"                        // for _log
+#include "network/network.h"            // for network_conn
+#include "soundcloud.h"                 // for soundcloud_connect_track
 
 static pthread_t threads[MAX_PARALLEL_DOWNLOADS];
 static sem_t have_url;
@@ -75,6 +77,8 @@ static void* _download_thread(void *unused) {
 		}
 		sem_post(&sem_url_queue);
 
+		__sync_bool_compare_and_swap(&my->state->started, false, true);
+
 		FILE *fh = NULL;
 		if(my->target_file) fh = fopen(my->file, "w");
 
@@ -82,6 +86,8 @@ static void* _download_thread(void *unused) {
 			char buffer[CHUNK_SIZE];
 			struct http_response *resp = soundcloud_connect_track(my->track);
 			struct network_conn *nwc = resp->nwc;
+
+			__sync_bool_compare_and_swap(&my->state->bytes_total, 0, resp->content_length);
 
 			size_t remaining = resp->content_length;
 			_log("have content length %u", remaining);
