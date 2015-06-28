@@ -48,9 +48,7 @@
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 
-static sem_t sem_play;
 static sem_t sem_stopped;
-static pthread_t thread_io;   // thread handling the download from sc.com
 static pthread_t thread_play; // thread decoding and playing downloaded data
 
 static sem_t sem_data_available;
@@ -117,10 +115,11 @@ static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
 
 static void io_callback(struct download_state *state) {
 	buffer_pos = state->bytes_recvd;
-	sem_post(&sem_play);
+	track_size = state->bytes_total;
 	sem_post(&sem_data_available);
 
 	if(state->finished) {
+		_log("download of `%s` is finished, saving track to cache", track->name);
 		if(cache_track_save((struct track*) track, (void*) buffer, state->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
 		}
@@ -143,23 +142,9 @@ static void* _thread_play_function(void *unused) {
 	double time_per_frame = 0;
 
 	do {
-		_log("waiting for playback");
-		sem_wait(&sem_play); // wait until data can be decoded and played
-		if(terminate) {
-			ao_free_options(ao_opt);
-			if(dev) {
-				ao_close(dev);
-			}
-			return NULL;
-		}
-
-		_log("waiting for data");
+		_log("waiting for data to play");
 		sem_wait(&sem_data_available);
-
 		_log("starting playback");
-		int channels, encoding;
-		long rate;
-		ao_sample_format format;
 
 		off_t frame_offset;
 		unsigned char *audio = NULL;
@@ -182,7 +167,11 @@ static void* _thread_play_function(void *unused) {
 
 			int err = mpg123_decode_frame(mh, &frame_offset, &audio, &done);
 			switch(err) {
-				case MPG123_NEW_FORMAT:
+				case MPG123_NEW_FORMAT: {
+					ao_sample_format format;
+					int channels, encoding;
+					long rate;
+
 					mpg123_getformat(mh, &rate, &channels, &encoding);
 					format.bits = mpg123_encsize(encoding) * 8; // 8 bit per Byte
 					format.rate = rate;
@@ -202,6 +191,7 @@ static void* _thread_play_function(void *unused) {
 						_log("ao_open_live: %s", ao_strerror(errno));
 					}
 					break;
+				}
 
 				case MPG123_OK:
 					ao_play(dev, (char*)audio, done);
@@ -220,13 +210,13 @@ static void* _thread_play_function(void *unused) {
 				case MPG123_NEED_MORE:
 					if(last_buffer_pos >= track_size) {
 						playback_done = true;
+						time_callback(-1);
 					} else {
 						if(started) {
 							_log("your network is too slow: buffer empty!");
 						}
 						sem_wait(&sem_data_available); // wait for data
 					}
-
 					break;
 
 				default:
@@ -245,12 +235,12 @@ static void* _thread_play_function(void *unused) {
 
 		if(stopped) {
 			sem_post(&sem_stopped);
-		} else if(playback_done) {
-			time_callback(-1);
 		}
 	} while(!terminate);
 	ao_free_options(ao_opt);
-	ao_close(dev);
+	if(dev) {
+		ao_close(dev);
+	}
 
 	return NULL;
 }
@@ -266,16 +256,9 @@ bool sound_init(void (*_time_callback)(int)) {
 		mpg123_init();
 		mh = mpg123_reinit(NULL);
 
-		if(sem_init(&sem_play, 0, 0)) {
-			_log("sem_init failed: %s", strerror(errno));
-			free((void*) buffer);
-			return false;
-		}
-
 		if(sem_init(&sem_data_available, 0, 0)) {
 			_log("sem_init failed: %s", strerror(errno));
 			free((void*) buffer);
-			sem_destroy(&sem_play);
 			return false;
 		}
 
@@ -298,7 +281,6 @@ bool sound_finalize() {
 
 	_log("thread_play...");
 	sem_post(&sem_data_available);
-	sem_post(&sem_play);
 	pthread_join(thread_play, NULL);
 
 	// cleanup libmpg123
@@ -321,16 +303,17 @@ bool sound_stop() {
 
 	_log("waiting for threads to stop playback");
 
-	sem_post(&sem_play);
-	sem_post(&sem_data_available);
+	// if stop() is called by the thread doing the playback,
+	// for instance caused by the `time_callback`, then we may not block
+	if(pthread_self() != thread_play) {
+		sem_post(&sem_data_available);
 
-	sem_wait(&sem_stopped);
-	sem_wait(&sem_stopped);
+		sem_wait(&sem_stopped);
+	}
 
 	track   = NULL;
 	stopped = false;
 
-	SEM_SET_TO_ZERO(sem_play)
 	SEM_SET_TO_ZERO(sem_data_available)
 
 	/* reinitialize the mh to drop any 'old' data */
@@ -350,6 +333,11 @@ void sound_seek(unsigned int pos) {
 }
 
 bool sound_play(struct track *_track) {
+
+	if(track) {
+		sound_stop();
+	}
+
 	track       = _track;
 	current_pos = 0;
 	buffer_pos  = 0;
@@ -362,7 +350,6 @@ bool sound_play(struct track *_track) {
 		track_size = buffer_pos;
 
 		sem_post(&sem_data_available);
-		sem_post(&sem_play);
 	} else {
 		state = downloader_queue_buffer(track, buffer, BUFFER_SIZE, io_callback);
 	}
