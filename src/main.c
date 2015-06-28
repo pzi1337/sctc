@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 
 			struct track_list *list = jspf_read(userlist_file);
 
-			e->d_name[strlen(e->d_name - 5)] = '\0';
+			e->d_name[strlen(e->d_name) - 5] = '\0';
 			list->name = strdup(e->d_name);
 
 			list_href_to_list(list, list_stream);
