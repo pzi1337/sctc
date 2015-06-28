@@ -60,14 +60,4 @@
 	 *  \param fmt      The format used format the line, see man 3 printf for usage.
 	 */
 	void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...);
-
-	/** Finalize logging.
-	 *
-	 *  Closes any opened descriptors and frees any remaining memory allocated during usage.
-	 *  Any calls to _log() after call to log_close() do not have any effect.
-	 *
-	 *  *Typically this function is only called prior to termination.*
-	 */
-	void log_close();
-
 #endif /* _LOG_H */

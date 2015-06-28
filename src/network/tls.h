@@ -45,8 +45,4 @@
 	 *  \return        Pointer to a network_conn struct, or NULL in case of an error
 	 */
 	struct network_conn* tls_connect(char *server, int port);
-	
-	/** \brief Free previous global initialization of TLS.
-	 */
-	void tls_finalize();
 #endif /* _TLS_H */

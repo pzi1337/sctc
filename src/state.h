@@ -106,13 +106,6 @@
 	 */
 	bool state_init();
 
-	/** \brief Global finalization of the internal state of SCTC.
-	 *
-	 *  This function is required to be called prior to termination of SCTC.
-	 *  Do not use any state_* after calling this function.
-	 */
-	void state_finalize();
-
 	/** \addtogroup state_set State: Setter
 	 *
 	 *  @{

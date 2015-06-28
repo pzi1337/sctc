@@ -291,7 +291,7 @@ static void cmd_goto(char *hint) {
  *  \param id  The id of the playlist to switch to
  *  \return    `true` on success, otherwise false
  */
-void switch_to_list(unsigned int id) {
+static void switch_to_list(unsigned int id) {
 	struct track_list *list = state_get_list(id);
 
 	if(!list) {
@@ -371,13 +371,7 @@ static void cmd_exit(char *unused) {
 
 	track_list_destroy(state_get_list(LIST_STREAM), true);
 	track_list_destroy(state_get_list(LIST_BOOKMARKS), true);
-	sound_finalize();
-	tls_finalize();
-	config_finalize();
-	tui_finalize();
-	state_finalize();
 
-	log_close();
 	exit(EXIT_SUCCESS);
 }
 

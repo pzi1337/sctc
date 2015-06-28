@@ -72,6 +72,8 @@ static struct download_state *state = NULL;
 
 static void (*time_callback)(int);
 
+static void sound_finalize();
+
 static char* ao_strerror(int err) {
 	switch(err) {
 		case AO_ENODRIVER:   return "no driver with given id exists";
@@ -266,15 +268,17 @@ bool sound_init(void (*_time_callback)(int)) {
 
 		pthread_create(&thread_play, NULL, _thread_play_function, NULL);
 
-		return true;
+		if(atexit(sound_finalize)) {
+			_log("atexit: %s", strerror(errno));
+		}
 
-		free((void*) buffer);
+		return true;
 	}
 
 	return false;
 }
 
-bool sound_finalize() {
+static void sound_finalize() {
 	terminate = true;
 
 	_log("waiting for threads to terminate...");
@@ -292,8 +296,6 @@ bool sound_finalize() {
 	ao_shutdown();
 
 	free((void*) buffer);
-
-	return true;
 }
 
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}

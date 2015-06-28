@@ -29,13 +29,16 @@
 
 //\cond
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 //\endcond
 
 #include "helper.h"
 #include "log.h"
 
 void (*callbacks[callback_event_size])(void) = {NULL};
+static void state_finalize();
 
 #define CALL_CALLBACK(EVT) { if(callbacks[EVT]) {callbacks[EVT]();} }
 
@@ -223,9 +226,18 @@ void state_register_callback(enum callback_event evt, void (*cb)(void)) {
 bool state_init() {
 	_input = lcalloc(128, sizeof(char));
 
+	if(atexit(state_finalize)) {
+		_log("atexit: %s", strerror(errno));
+	}
+
 	return _input;
 }
 
-void state_finalize() {
+/** \brief Global finalization of the internal state of SCTC.
+ *
+ *  This function is required to be called prior to termination of SCTC.
+ *  Do not use any state_* after calling this function.
+ */
+static void state_finalize() {
 	free(_input);
 }

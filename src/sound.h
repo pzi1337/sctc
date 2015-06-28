@@ -49,9 +49,6 @@
 
 	unsigned int sound_get_current_pos();
 
-	bool sound_finalize();
-
-
 	/** \brief Stop playback of current track
 	 *
 	 *  \return true in case of success, false otherwise

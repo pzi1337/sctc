@@ -23,10 +23,13 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <semaphore.h>
 //\endcond
+
+static void log_close();
 
 static FILE* log_fh = NULL;
 static sem_t log_sem;
@@ -49,6 +52,10 @@ bool log_init(char *file) {
 		fclose(log_fh);
 		log_fh = NULL;
 		return false;
+	}
+
+	if(atexit(log_close)) {
+		_log("atexit: %s", strerror(errno));
 	}
 
 	return true;
@@ -81,8 +88,14 @@ void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) {
 	sem_post(&log_sem);
 }
 
-/* close files after logging */
-void log_close() {
+/** Finalize logging.
+ *
+ *  Closes any opened descriptors and frees any remaining memory allocated during usage.
+ *  Any calls to _log() after call to log_close() do not have any effect.
+ *
+ *  *Typically this function is only called prior to termination.*
+ */
+static void log_close() {
 	assert(log_fh);
 	fclose(log_fh);
 	log_fh = NULL;

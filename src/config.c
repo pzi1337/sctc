@@ -24,6 +24,7 @@
 
 //\cond
 #include <assert.h>                     // for assert
+#include <errno.h>
 #include <stddef.h>                     // for size_t
 #include <stdlib.h>                     // for free, NULL
 #include <string.h>                     // for strcmp, strlen, strncmp
@@ -49,6 +50,8 @@ static int config_subscribe_count = 0;
 static char* cert_path;
 static char* cache_path;
 static int   cache_limit;
+
+static void config_finalize();
 
 static struct {
 	void (*func)(char*);
@@ -151,6 +154,10 @@ void config_init() {
 		_log("| * %s", config_subscribe[i]);
 	}
 	_log("| cache: `%s`, limit: %i", cache_path, cache_limit);
+
+	if(atexit(config_finalize)) {
+		_log("atexit: %s", strerror(errno));
+	}
 }
 
 command_func_ptr config_get_function(int key) {
@@ -179,13 +186,11 @@ char* config_get_cache_path() {
 	return cache_path;
 }
 
-bool config_finalize() {
+static void config_finalize() {
 	for(int i = 0; i < config_subscribe_count; i++) {
 		free(config_subscribe[i]);
 	}
 	free(config_subscribe);
 	free(cache_path);
 	free(cert_path);
-
-	return true;
 }

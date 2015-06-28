@@ -22,6 +22,7 @@
 
 //\cond
 #include <assert.h>                     // for assert
+#include <errno.h>
 #include <stdarg.h>                     // for va_end, va_list, va_copy, etc
 #include <stdbool.h>                    // for bool, true, false
 #include <stddef.h>                     // for size_t
@@ -45,6 +46,8 @@
 #include "network.h"                    // for network_conn
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
+
+static void tls_finalize();
 
 static x509_crt cacerts;
 
@@ -83,6 +86,10 @@ bool tls_init() {
 		_log("| %3i. %s", pos, buf);
 
 		pos++;
+	}
+
+	if(atexit(tls_finalize)) {
+		_log("atexit: %s", strerror(errno));
 	}
 
 	return true;
@@ -325,6 +332,8 @@ void tls_disconnect(struct network_conn *nwc) {
 	free(nwc);
 }
 
-void tls_finalize() {
+/** \brief Free previous global initialization of TLS.
+ */
+static void tls_finalize() {
 	x509_crt_free(&cacerts);
 }

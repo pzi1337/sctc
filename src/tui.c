@@ -64,6 +64,8 @@ static void tui_draw_title_line();
 static void tui_draw_tab_bar();
 static void tui_draw_status_line();
 
+static void tui_finalize();
+
 #define wcsps(S) mbstowcs(NULL, S, 0)
 
 static pthread_t thread_tui;
@@ -618,10 +620,14 @@ bool tui_init() {
 
 	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
 
+	if(atexit(tui_finalize)) {
+		_log("atexit: %s", strerror(errno));
+	}
+
 	return true;
 }
 
-void tui_finalize() {
+static void tui_finalize() {
 	action = none;
 	terminate = true;
 	sem_post(&sem_have_action);
