@@ -127,5 +127,6 @@ void track_list_destroy(struct track_list *list, bool free_trackdata) {
 	}
 
 	free(list->entries);
+	free(list->name);
 	free(list);
 }

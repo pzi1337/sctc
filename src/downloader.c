@@ -38,6 +38,8 @@
 #include "network/network.h"            // for network_conn
 #include "soundcloud.h"                 // for soundcloud_connect_track
 
+static void downloader_finalize();
+
 static pthread_t threads[MAX_PARALLEL_DOWNLOADS];
 static sem_t have_url;
 static sem_t sem_url_queue;
@@ -186,10 +188,14 @@ bool downloader_init() {
 		pthread_create(&threads[i], NULL, _download_thread, NULL);
 	}
 
+	if(atexit(downloader_finalize)) {
+		_log("atexit: %s", strerror(errno));
+	}
+
 	return true;
 }
 
-void downloader_finalize() {
+static void downloader_finalize() {
 	terminate = true;
 
 	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++)

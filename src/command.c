@@ -369,8 +369,12 @@ static void cmd_exit(char *unused) {
 		jspf_write(target_file, list);
 	}
 
-	track_list_destroy(state_get_list(LIST_STREAM), true);
-	track_list_destroy(state_get_list(LIST_BOOKMARKS), true);
+	for(size_t i = 0; i < MAX_LISTS; i++) {
+		struct track_list *list = state_get_list(i);
+		if(list) {
+			track_list_destroy(list, true);
+		}
+	}
 
 	exit(EXIT_SUCCESS);
 }

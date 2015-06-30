@@ -146,11 +146,11 @@ int main(int argc, char **argv) {
 	state_set_title("");
 
 	struct track_list *list_stream = soundcloud_get_stream();
-	list_stream->name = "Stream";
+	list_stream->name = strdup("Stream");
 	state_add_list(list_stream);
 
 	struct track_list *list_bookmark = jspf_read(BOOKMARK_FILE);
-	list_bookmark->name = "Bookmarks";
+	list_bookmark->name = strdup("Bookmarks");
 	list_href_to_list(list_bookmark, list_stream);
 
 	BENCH_START(SB)

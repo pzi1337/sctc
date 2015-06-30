@@ -125,6 +125,9 @@ static void io_callback(struct download_state *state) {
 		if(cache_track_save((struct track*) track, (void*) buffer, state->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
 		}
+
+		free(state);
+		state = NULL;
 	}
 }
 
