@@ -53,7 +53,7 @@ struct track_list* soundcloud_get_stream() {
 
 	char status_msg[1024];
 	for(int i = 0; i < config_get_subscribe_count(); i++) {
-		snprintf(status_msg, sizeof(status_msg), "Info: Retrieving %i/%i lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i));
+		snprintf(status_msg, sizeof(status_msg), "Info: Retrieving %i/%zu lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i));
 		state_set_status(cline_default, status_msg);
 
 		lists[i] = soundcloud_get_entries(nwc, config_get_subscribe(i));
