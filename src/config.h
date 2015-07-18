@@ -19,14 +19,25 @@
 #ifndef _CONFIG_H
 	#define _CONFIG_H
 
-	//\cond
-	#include <stdbool.h>
-	//\endcond
+	#include "command.h"                    // for command_func_ptr
 
-	#include "command.h"
-
+	/** \brief Initialize the configuration.
+	 *
+	 *  Initialize the internal data structures and read the configuration from SCTC_CONFIG_FILE.
+	 *  Calling any other config_* function prior to calling `config_init()` yields undefined behaviour
+	 *  and is an error.
+	 *
+	 *  *Typically this function is called only once directly after starting up the execution*
+	 */
 	void config_init();
-	int config_get_subscribe_count();
+
+	/** \brief Returns the number of subscriptions.
+	 *
+	 *  \return  The number of subscriptions
+	 */
+	size_t config_get_subscribe_count();
+
+
 	char* config_get_subscribe(int id);
 	command_func_ptr config_get_function(int key);
 	const char* config_get_param(int key);

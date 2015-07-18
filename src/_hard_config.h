@@ -42,6 +42,13 @@
 	/** \brief The maximum number of allowed HTTP redirects */
 	#define MAX_REDIRECT_STEPS 20
 
+	/** \brief The name of the (default) configfile
+	 *
+	 *  Keep in mind: this is a default value, which can be modified by the user.
+	 *  Do not use its constant value directly.
+	 */
+	#define SCTC_CONFIG_FILE "sctc.conf"
+
 	/** \brief The default cache path
 	 *
 	 *  Keep in mind: this is a default value, which can be modified by the user.

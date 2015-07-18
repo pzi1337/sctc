@@ -37,15 +37,13 @@
 #include "helper.h"                     // for lstrdup, lcalloc
 #include "log.h"                        // for _log
 
-#define SCTC_CONFIG_FILE "sctc.conf"
-
 #define OPTION_CERT_PATH   "cert_path"
 #define OPTION_SUBSCRIBE   "subscribe"
 #define OPTION_CACHE_PATH  "cache_path"
 #define OPTION_CACHE_LIMIT "cache_limit"
 
 static char** config_subscribe = NULL;
-static int config_subscribe_count = 0;
+static size_t config_subscribe_count = 0;
 
 static char* cert_path;
 static char* cache_path;
@@ -58,11 +56,19 @@ static struct {
 	const char *param;
 } key_command_mapping[KEY_MAX] = { {NULL} };
 
+/** \brief Returns the ncurses keycode for a stringified key
+ *
+ *  \param str  The stringified key to `decode`
+ *  \return     The ncurses keycode or ERR on unknown key / invalid string
+ */
 static int get_curses_ch(const char *str) {
+	// an empty string is always invalid
 	if(!str[0]) {
 		return ERR;
 	}
 
+	// a string of length 1 contains always a single character,
+	// which already is a ncurses keycode.
 	if(!str[1]) {
 		return str[0];
 	}
@@ -75,6 +81,8 @@ static int get_curses_ch(const char *str) {
 	if(!strcmp("KEY_BACKSPACE", str)) return KEY_BACKSPACE;
 	if(!strcmp("KEY_PPAGE",     str)) return KEY_PPAGE;
 	if(!strcmp("KEY_NPAGE",     str)) return KEY_NPAGE;
+	if(!strcmp("KEY_SLEFT",     str)) return KEY_SLEFT;
+	if(!strcmp("KEY_SRIGHT",    str)) return KEY_SRIGHT;
 
 	return ERR;
 }
@@ -160,6 +168,15 @@ void config_init() {
 	}
 }
 
+static void config_finalize() {
+	for(int i = 0; i < config_subscribe_count; i++) {
+		free(config_subscribe[i]);
+	}
+	free(config_subscribe);
+	free(cache_path);
+	free(cert_path);
+}
+
 command_func_ptr config_get_function(int key) {
 	assert(key < KEY_MAX);
 	return key_command_mapping[key].func;
@@ -170,27 +187,7 @@ const char* config_get_param(int key) {
 	return key_command_mapping[key].param;
 }
 
-int config_get_subscribe_count() {
-	return config_subscribe_count;
-}
-
-char* config_get_subscribe(int id) {
-	return config_subscribe[id];
-}
-
-char* config_get_cert_path() {
-	return cert_path;
-}
-
-char* config_get_cache_path() {
-	return cache_path;
-}
-
-static void config_finalize() {
-	for(int i = 0; i < config_subscribe_count; i++) {
-		free(config_subscribe[i]);
-	}
-	free(config_subscribe);
-	free(cache_path);
-	free(cert_path);
-}
+size_t config_get_subscribe_count() { return config_subscribe_count; }
+char*  config_get_subscribe(int id) { return config_subscribe[id]; }
+char*  config_get_cert_path()       { return cert_path; }
+char*  config_get_cache_path()      { return cache_path; }
