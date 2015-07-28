@@ -82,6 +82,8 @@
 	 */
 	#define CACHE_LIST_EXT ".jspf"
 
+	#define DOWNLOAD_MAX_SIZE ( 256 * 1024 * 1024 )
+
 	/** \brief The soundcloud.com API key
 	 *
 	 *  This key is required to access api.soundcloud.com

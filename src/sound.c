@@ -48,15 +48,19 @@
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 
+struct io_handle {
+	size_t                 position;   //< the current position
+	struct download_state *download_state;     //< contains the maximum (currently possible) position
+};
+
 static sem_t sem_stopped;
 static pthread_t thread_play; // thread decoding and playing downloaded data
 
 static sem_t sem_data_available;
 
 static mpg123_handle *mh = NULL;
+struct io_handle *m_iohandle = NULL;
 
-static volatile int           buffer_pos  = 0;
-static volatile char         *buffer      = NULL;
 static volatile struct track *track       = NULL;
 static volatile unsigned int  current_pos = 0;
 
@@ -64,7 +68,6 @@ static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
 
 /** The amount of data for the whole track.
     As soon as we reach this position during playback the end of track has been reached */
-static volatile size_t        track_size  = 0;
 static volatile bool          stopped     = false;
 static volatile bool          terminate   = false;
 
@@ -85,12 +88,57 @@ static char* ao_strerror(int err) {
 	}
 }
 
+static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
+	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
+	struct download_state *dlstat = iohandle->download_state;
+
+	size_t bytes_available = 0;
+	if(dlstat->bytes_recvd > iohandle->position) {
+		bytes_available = dlstat->bytes_recvd - iohandle->position;
+	}
+	size_t bytes_copied = count < bytes_available ? count : bytes_available;
+
+	memcpy(mpg123buffer, &dlstat->buffer[iohandle->position], bytes_copied);
+	iohandle->position += bytes_copied;
+
+	return bytes_copied;
+}
+
+static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
+	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
+	struct download_state *dlstat = iohandle->download_state;
+
+	size_t abs_offset = 0;
+	switch(whence) {
+		case SEEK_SET: abs_offset = offset;                       break;
+		case SEEK_CUR: abs_offset = iohandle->position  + offset; break;
+		case SEEK_END: abs_offset = dlstat->bytes_total + offset; break;
+		default: {
+			_log("invalid value for whence: %i", whence);
+			return (off_t) -1;
+		}
+	}
+
+	if(abs_offset >= dlstat->bytes_recvd) {
+		return (off_t) -1;
+	}
+
+	iohandle->position = abs_offset;
+	return abs_offset;
+}
+
+static void _io_cleanup(void *iohandle) {
+	free(iohandle);
+	_log("cleanup called");
+}
+
 /** \brief Reinitialize libmpg123
  *
  *  \param mh  The old handle to close (may be NULL)
  *  \return    A pointer to the new handle (or NULL in case of failure)
  */
-static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
+static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_state *download_state) {
+	// close the old mh if available
 	if(mh) {
 		mpg123_close(mh);
 		mpg123_delete(mh);
@@ -102,13 +150,26 @@ static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
 		return NULL;
 	}
 
-	if(MPG123_OK != mpg123_open_feed(new_mh)) {
-		_log("mpg123_open_feed: %s", mpg123_strerror(new_mh));
+	if(MPG123_OK != mpg123_replace_reader_handle(new_mh, _io_read, _io_seek, _io_cleanup)) {
+		_log("mpg123_replace_reader_handle: %s", mpg123_strerror(new_mh));
+		return NULL;
+	}
+
+	struct io_handle *iohandle = lmalloc( sizeof(struct io_handle) );
+	iohandle->position       = 0;
+	iohandle->download_state = download_state;
+
+	m_iohandle = iohandle;
+
+	if(MPG123_OK != mpg123_open_handle(new_mh, iohandle)) {
+		_log("mpg123_open_handle: %s", mpg123_strerror(new_mh));
+		free(iohandle);
 		return NULL;
 	}
 
 	if(MPG123_OK != mpg123_param(new_mh, MPG123_FLAGS, MPG123_QUIET, 0.0)) {
 		_log("mpg123_param: %s", mpg123_strerror(new_mh));
+		free(iohandle);
 		return NULL;
 	}
 
@@ -116,18 +177,17 @@ static mpg123_handle* mpg123_reinit(mpg123_handle *mh) {
 }
 
 static void io_callback(struct download_state *state) {
-	buffer_pos = state->bytes_recvd;
-	track_size = state->bytes_total;
 	sem_post(&sem_data_available);
 
 	if(state->finished) {
 		_log("download of `%s` is finished, saving track to cache", track->name);
-		if(cache_track_save((struct track*) track, (void*) buffer, state->bytes_recvd)) {
+		if(cache_track_save((struct track*) track, (void*) state->buffer, state->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
 		}
 
-		free(state);
-		state = NULL;
+		//free(state->buffer);
+		//free(state);
+		//state = NULL;
 	}
 }
 
@@ -149,27 +209,22 @@ static void* _thread_play_function(void *unused) {
 	do {
 		_log("waiting for data to play");
 		sem_wait(&sem_data_available);
-		_log("starting playback");
+		if(!terminate) {
+			_log("starting playback");
+			mh = mpg123_init_playback(mh, state);
+			_log("mpg123_init_playback returned %p", (void*)mh);
+		}
 
-		off_t frame_offset;
-		unsigned char *audio = NULL;
 		size_t done;
-
-		int last_buffer_pos = 0;
-		bool started = false;
 
 		unsigned int last_reported_pos = ~0;
 
 		bool playback_done = false;
 
-		while(!terminate && !stopped && !playback_done && track) {
-			
-			int current_buffer_pos = buffer_pos;
-			if(last_buffer_pos != current_buffer_pos) {
-				mpg123_feed(mh, (const unsigned char*)buffer + last_buffer_pos, current_buffer_pos - last_buffer_pos);
-				last_buffer_pos = current_buffer_pos;
-			}
+		off_t frame_offset;
+		unsigned char *audio = NULL;
 
+		while(!terminate && !stopped && !playback_done && track) {
 			int err = mpg123_decode_frame(mh, &frame_offset, &audio, &done);
 			switch(err) {
 				case MPG123_NEW_FORMAT: {
@@ -208,20 +263,6 @@ static void* _thread_play_function(void *unused) {
 						last_reported_pos = current_pos;
 						time_callback(current_pos);
 					}
-
-					started = true;
-					break;
-
-				case MPG123_NEED_MORE:
-					if(last_buffer_pos >= track_size) {
-						playback_done = true;
-						time_callback(-1);
-					} else {
-						if(started) {
-							_log("your network is too slow: buffer empty!");
-						}
-						sem_wait(&sem_data_available); // wait for data
-					}
 					break;
 
 				default:
@@ -230,8 +271,18 @@ static void* _thread_play_function(void *unused) {
 
 			// do seeking to specified position if required
 			if(SEEKPOS_NONE != seek_to_pos) {
+				_log("requested seek to %i", seek_to_pos);
 				off_t target_frame_off = mpg123_timeframe(mh, seek_to_pos);
-				mpg123_seek_frame(mh, target_frame_off, SEEK_SET);
+
+				off_t *offsets;
+				size_t offsets_size;
+				off_t  step_per_idx;
+				if(MPG123_OK == mpg123_index(mh, &offsets, &step_per_idx, &offsets_size)) {
+					size_t idx = target_frame_off / step_per_idx;
+					if(idx < offsets_size) {
+						_log("going to bytepos %zu", offsets[idx]);
+					}
+				}
 
 				// reset seek_to_pos to avoid seeking multiple times
 				seek_to_pos = SEEKPOS_NONE;
@@ -253,32 +304,25 @@ static void* _thread_play_function(void *unused) {
 bool sound_init(void (*_time_callback)(int)) {
 	time_callback = _time_callback;
 
-	buffer = lmalloc(BUFFER_SIZE);
-	if(buffer) {
-		_log("initializing libao...");
-		ao_initialize();
+	_log("initializing libao...");
+	ao_initialize();
 
-		mpg123_init();
-		mh = mpg123_reinit(NULL);
+	mpg123_init();
 
-		if(sem_init(&sem_data_available, 0, 0)) {
-			_log("sem_init failed: %s", strerror(errno));
-			free((void*) buffer);
-			return false;
-		}
-
-		sem_init(&sem_stopped, 0, 0);
-
-		pthread_create(&thread_play, NULL, _thread_play_function, NULL);
-
-		if(atexit(sound_finalize)) {
-			_log("atexit: %s", strerror(errno));
-		}
-
-		return true;
+	if(sem_init(&sem_data_available, 0, 0)) {
+		_log("sem_init failed: %s", strerror(errno));
+		return false;
 	}
 
-	return false;
+	sem_init(&sem_stopped, 0, 0);
+
+	pthread_create(&thread_play, NULL, _thread_play_function, NULL);
+
+	if(atexit(sound_finalize)) {
+		_log("atexit: %s", strerror(errno));
+	}
+
+	return true;
 }
 
 static void sound_finalize() {
@@ -297,8 +341,6 @@ static void sound_finalize() {
 
 	// cleanup libao
 	ao_shutdown();
-
-	free((void*) buffer);
 }
 
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
@@ -321,9 +363,6 @@ bool sound_stop() {
 
 	SEM_SET_TO_ZERO(sem_data_available)
 
-	/* reinitialize the mh to drop any 'old' data */
-	mh = mpg123_reinit(mh);
-
 	_log("stopping done");
 
 	return true;
@@ -345,20 +384,20 @@ bool sound_play(struct track *_track) {
 
 	track       = _track;
 	current_pos = 0;
-	buffer_pos  = 0;
-	track_size  = 0;
 
 	seek_to_pos = _track->current_position;
-
-	if( ( buffer_pos = cache_track_get((struct track*) track, (void*) buffer) ) ) {
+/*
+	size_t cache_track_size;
+	if( ( cache_track_size = cache_track_get((struct track*) track, (void*) buffer) ) ) {
 		_log("using file from cache for '%s' by '%s'", track->name, track->username);
-		track_size = buffer_pos;
+		track_size = cache_track_size;
 
 		sem_post(&sem_data_available);
 	} else {
-		state = downloader_queue_buffer(track, buffer, BUFFER_SIZE, io_callback);
+		state = downloader_queue_buffer(track, io_callback);
 	}
-
+*/
+	state = downloader_queue_buffer(track, io_callback);
 	return true;
 }
 

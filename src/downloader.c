@@ -89,6 +89,16 @@ static void* _download_thread(void *unused) {
 			struct http_response *resp = soundcloud_connect_track(my->track);
 			struct network_conn *nwc = resp->nwc;
 
+			// allocate buffer
+			if(resp->content_length <= DOWNLOAD_MAX_SIZE) {
+				my->buffer        = lmalloc(resp->content_length);
+				my->state->buffer = my->buffer;
+				my->buffer_size   = resp->content_length;
+			} else {
+				_log("download too large, aborting!");
+				// TODO
+			}
+
 			__sync_bool_compare_and_swap(&my->state->bytes_total, 0, resp->content_length);
 
 			size_t remaining = resp->content_length;
@@ -157,7 +167,7 @@ bool downloader_queue_file(char *url, char *file) {
 }
 */
 
-struct download_state* downloader_queue_buffer(struct track *track, void *buffer, size_t buffer_size, void (*callback)(struct download_state *)) {
+struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state *)) {
 	struct download *new_dl = lmalloc(sizeof(struct download));
 	if(!new_dl) return NULL;
 
@@ -170,8 +180,8 @@ struct download_state* downloader_queue_buffer(struct track *track, void *buffer
 	new_dl->state       = dl_stat;
 	new_dl->track       = track;
 	new_dl->target_file = false;
-	new_dl->buffer      = buffer;
-	new_dl->buffer_size = buffer_size;
+	new_dl->buffer      = NULL;
+	new_dl->buffer_size = 0;
 	new_dl->next        = NULL;
 	new_dl->callback    = callback;
 

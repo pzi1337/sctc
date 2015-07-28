@@ -25,6 +25,7 @@
 	#include "track.h"
 
 	struct download_state {
+		char  *buffer;
 		size_t bytes_recvd; ///< the number of Bytes already recvd (already in buffer)
 		size_t bytes_total; ///< the total number of Bytes (total size, as announced by server)
 		bool   started;     ///< `true` if downloading started, `false` if download still stuck in queue
@@ -33,5 +34,5 @@
 
 	bool downloader_init();
 	//bool downloader_queue_file(char *url, char *file);
-	struct download_state* downloader_queue_buffer(struct track *track, void *buffer, size_t buffer_size, void (*callback)(struct download_state *));
+	struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state *));
 #endif
