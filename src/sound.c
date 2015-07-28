@@ -19,7 +19,6 @@
 
 #include "_hard_config.h"
 #include "sound.h"
-#include "audio/ao.h"
 
 #include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
 
@@ -36,6 +35,7 @@
 #include <sys/types.h>
 //\endcond
 
+#include "audio/audio.h"
 #include "cache.h"                      // for cache_track_get, etc
 #include "config.h"
 #include "downloader.h"
