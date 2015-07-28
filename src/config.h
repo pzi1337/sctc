@@ -43,6 +43,7 @@
 	const char* config_get_param(int key);
 	char* config_get_cache_path();
 	char* config_get_cert_path();
+	float config_get_equalizer(int band);
 
 #endif /* _CONFIG_H */
 

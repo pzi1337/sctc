@@ -34,6 +34,7 @@
 //\endcond
 
 #include "cache.h"                      // for cache_track_get, etc
+#include "config.h"
 #include "downloader.h"
 #include "helper.h"                     // for lmalloc
 #include "http.h"                       // for http_response, etc
@@ -171,6 +172,11 @@ static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_st
 		_log("mpg123_param: %s", mpg123_strerror(new_mh));
 		free(iohandle);
 		return NULL;
+	}
+
+	// set the new values for the equalizer obtained from configuration
+	for(int i = 0; i < 32; i++) {
+		mpg123_eq(new_mh, MPG123_LR, i, config_get_equalizer(i));
 	}
 
 	return new_mh;

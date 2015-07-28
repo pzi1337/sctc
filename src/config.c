@@ -38,12 +38,17 @@
 #include "log.h"                        // for _log
 
 #define OPTION_CERT_PATH   "cert_path"
+#define OPTION_EQUALIZER   "equalizer"
 #define OPTION_SUBSCRIBE   "subscribe"
 #define OPTION_CACHE_PATH  "cache_path"
 #define OPTION_CACHE_LIMIT "cache_limit"
 
+#define EQUALIZER_SIZE 32
+
 static char** config_subscribe = NULL;
 static size_t config_subscribe_count = 0;
+
+static float config_equalizer[EQUALIZER_SIZE] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 static char* cert_path;
 static char* cache_path;
@@ -133,6 +138,7 @@ static int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char *
 void config_init() {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
+		CFG_FLOAT_LIST(OPTION_EQUALIZER, "{}", CFGF_NONE),
 		CFG_SIMPLE_STR(OPTION_CERT_PATH,   &cert_path),
 		CFG_SIMPLE_STR(OPTION_CACHE_PATH,  &cache_path),
 		CFG_SIMPLE_INT(OPTION_CACHE_LIMIT, &cache_limit),
@@ -152,6 +158,15 @@ void config_init() {
 	config_subscribe       = lcalloc(config_subscribe_count, sizeof(char*));
 	for(int i = 0; i < config_subscribe_count; i++) {
 		config_subscribe[i] = lstrdup(cfg_getnstr(cfg, OPTION_SUBSCRIBE, i));
+	}
+
+	unsigned int config_equalizer_count = cfg_size(cfg, OPTION_EQUALIZER);
+	if(EQUALIZER_SIZE == config_equalizer_count) {
+		for(unsigned int i = 0; i < config_equalizer_count; i++) {
+			config_equalizer[i] = cfg_getnfloat(cfg, OPTION_EQUALIZER, i);
+		}
+	} else {
+		_log("invalid values for equalizer!");
 	}
 
 	cfg_free(cfg);
@@ -187,7 +202,8 @@ const char* config_get_param(int key) {
 	return key_command_mapping[key].param;
 }
 
-size_t config_get_subscribe_count() { return config_subscribe_count; }
-char*  config_get_subscribe(int id) { return config_subscribe[id]; }
-char*  config_get_cert_path()       { return cert_path; }
-char*  config_get_cache_path()      { return cache_path; }
+size_t config_get_subscribe_count()   { return config_subscribe_count; }
+char*  config_get_subscribe(int id)   { return config_subscribe[id]; }
+char*  config_get_cert_path()         { return cert_path; }
+char*  config_get_cache_path()        { return cache_path; }
+float  config_get_equalizer(int band) { return config_equalizer[band]; }
