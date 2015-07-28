@@ -16,19 +16,18 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#include "ao.h"
-//#include "../_hard_config.h"
-
 #include <ao/ao.h>                      // for ao_close, etc
 
 //\cond
+#include <assert.h>
+#include <dlfcn.h>
 #include <errno.h>                      // for errno
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for atexit
 #include <string.h>                     // for strerror
 //\endcond
 
-#include "../log.h"                     // for _log
+#include "../log.h"
 
 static void finalize();
 
@@ -46,19 +45,21 @@ static char* ao_strerror(int err) {
 	}
 }
 
-void sound_ao_play(void *buffer, size_t size) {
+void audio_play(void *buffer, size_t size) {
 	ao_play(dev, (char*)buffer, size);
 }
 
-bool sound_ao_set_format(unsigned int bits, unsigned int rate, unsigned int channels) {
-
-	ao_sample_format format = {.bits = bits, .rate = rate, .channels = channels, .byte_format = AO_FMT_NATIVE, .matrix = 0};
+bool audio_set_format(unsigned int bits, unsigned int rate, unsigned int channels) {
 
 	if(dev) {
 		ao_close(dev);
 	}
 
+	assert(-1 != ao_default_driver_id());
+
+	ao_sample_format format = {.bits = bits, .rate = rate, .channels = channels, .byte_format = AO_FMT_NATIVE, .matrix = 0};
 	ao_info *info = ao_driver_info(ao_default_driver_id());
+
 	_log("libao: opening default output '%s' with: rate: %i, %i channels, %i bits per sample", info->name, format.rate, format.channels, format.bits);
 
 	dev = ao_open_live(ao_default_driver_id(), &format, options);
@@ -69,17 +70,29 @@ bool sound_ao_set_format(unsigned int bits, unsigned int rate, unsigned int chan
 	return true;
 }
 
-bool sound_ao_init() {
+bool audio_init() {
 	_log("initializing libao...");
 	ao_initialize();
+
+	_log("libao: available drivers:");
+	int driver_count;
+	ao_info **drivers = ao_driver_info_list(&driver_count);
+	for(int i = 0; i < driver_count; i++) {
+		_log("libao: - %s", drivers[i]->name);
+	}
 
 	if(atexit(finalize)) {
 		_log("atexit: %s", strerror(errno));
 		return false;
 	}
 
-	ao_append_option(&options, "quiet", NULL);
-	ao_append_global_option("quiet", "true");
+	_log("default device: %i", ao_default_driver_id());
+	_log("ALSA device: %i", ao_driver_id("alsa"));
+
+//	ao_append_option(&options, "quiet", NULL);
+	ao_append_option(&options, "verbose", NULL);
+//	ao_append_global_option("quiet", "true");
+	ao_append_global_option("verbose", "true");
 
 	return true;
 }

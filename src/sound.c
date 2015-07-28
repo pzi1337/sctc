@@ -24,6 +24,7 @@
 #include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
 
 //\cond
+#include <dlfcn.h>
 #include <errno.h>                      // for errno
 #include <unistd.h>
 #include <pthread.h>                    // for pthread_create, etc
@@ -47,7 +48,13 @@
 #include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
 
+static char *aos[] = {"audio/ao.so", NULL};
+
 #define SEEKPOS_NONE ((unsigned int) ~0)
+
+static audio_init_t       audio_init       = NULL;
+static audio_set_format_t audio_set_format = NULL;
+static audio_play_t       audio_play       = NULL;
 
 struct io_handle {
 	size_t                 position;   //< the current position
@@ -220,12 +227,12 @@ static void* _thread_play_function(void *unused) {
 					long rate;
 
 					mpg123_getformat(mh, &rate, &channels, &encoding);
-					sound_ao_set_format(mpg123_encsize(encoding) * 8, rate, channels);
+					audio_set_format(mpg123_encsize(encoding) * 8, rate, channels);
 					break;
 				}
 
 				case MPG123_OK:
-					sound_ao_play(audio, done);
+					audio_play(audio, done);
 
 					current_pos = (unsigned int) (time_per_frame * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
@@ -268,10 +275,43 @@ static void* _thread_play_function(void *unused) {
 	return NULL;
 }
 
+static bool load_ao_lib(char *lib) {
+	void *dl_ao = dlopen("audio/ao.so", RTLD_NOW | RTLD_GLOBAL);
+	if(!dl_ao) {
+		_log("Not using ao.so: %s", dlerror());
+		return false;
+	}
+
+	// ofc this is ugly, but things will not work otherwise
+	audio_init       = (audio_init_t)       (intptr_t) dlsym(dl_ao, "audio_init");
+	audio_play       = (audio_play_t)       (intptr_t) dlsym(dl_ao, "audio_play");
+	audio_set_format = (audio_set_format_t) (intptr_t) dlsym(dl_ao, "audio_set_format");
+
+	if(!audio_init || !audio_play || !audio_set_format) {
+		audio_init       = NULL;
+		audio_play       = NULL;
+		audio_set_format = NULL;
+		return false;
+	}
+
+	return true;
+}
+
 bool sound_init(void (*_time_callback)(int)) {
+	// find the correct soundsystem to use
+	for(unsigned int i = 0; aos[i]; i++) {
+		if(load_ao_lib(aos[i]))
+			break;
+	}
+
+	if(!audio_init) {
+		_log("failed to load any soundsystem");
+		return false;
+	}
+
 	time_callback = _time_callback;
 
-	sound_ao_init();
+	audio_init();
 
 	mpg123_init();
 

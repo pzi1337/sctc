@@ -6,17 +6,21 @@ LDOPT=-pie -z relro -z now
 CC=gcc
 CFLAGS=`pkg-config --cflags ao yajl ncursesw libconfuse libmpg123` -std=gnu11 -Wall -fPIC -pedantic $(CCOPT)
 #-Wextra
-LDFLAGS=`pkg-config --libs ao yajl ncursesw libconfuse libmpg123` -lpolarssl -lpthread $(LDOPT)
+LDFLAGS=`pkg-config --libs yajl ncursesw libconfuse libmpg123` -lpolarssl -ldl -lpthread $(LDOPT)
 
 %.o: %.c
 	@echo "CC\t"$@
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-all: sctc
-
-sctc: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o audio/ao.o
+%.so: %.o
 	@echo "LD\t"$@
-	@$(CC) $+ $(LDFLAGS) -o ../bin/sctc
+	@$(CC) $(LDFLAGS) `pkg-config --libs ao` -rdynamic -shared $< -o ../bin/$@
+
+all: sctc audio/ao.so
+
+sctc: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o
+	@echo "LD\t"$@
+	@$(CC) $+ $(LDFLAGS) -rdynamic -o ../bin/sctc
 
 clean:
-	@rm -rf *.o network/*.o
+	@rm -rf *.o network/*.o audio/*.o
