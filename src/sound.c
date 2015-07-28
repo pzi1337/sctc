@@ -19,18 +19,20 @@
 
 #include "_hard_config.h"
 #include "sound.h"
+#include "audio/ao.h"
 
-#include <ao/ao.h>                      // for ao_sample_format, ao_close, etc
 #include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
 
 //\cond
 #include <errno.h>                      // for errno
+#include <unistd.h>
 #include <pthread.h>                    // for pthread_create, etc
 #include <semaphore.h>                  // for sem_post, sem_wait, etc
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for free
 #include <string.h>                     // for strerror, strdup
 #include <sys/stat.h>                   // for off_t
+#include <sys/types.h>
 //\endcond
 
 #include "cache.h"                      // for cache_track_get, etc
@@ -44,8 +46,6 @@
 #include "track.h"                      // for track, FLAG_CACHED
 #include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
-
-#define BUFFER_SIZE 256 * 1024 * 1024
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 
@@ -77,17 +77,6 @@ static struct download_state *state = NULL;
 static void (*time_callback)(int);
 
 static void sound_finalize();
-
-static char* ao_strerror(int err) {
-	switch(err) {
-		case AO_ENODRIVER:   return "no driver with given id exists";
-		case AO_ENOTLIVE:    return "not live";
-		case AO_EBADOPTION:  return "bad option";
-		case AO_EOPENDEVICE: return "failed to open device";
-		case AO_EFAIL:       return "error unknown";
-		default:             return "<unknown ao error>";
-	}
-}
 
 static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
@@ -203,13 +192,6 @@ static void io_callback(struct download_state *state) {
 *  \return NULL   Unused return value, required due to pthread interface
 */
 static void* _thread_play_function(void *unused) {
-	ao_device *dev = NULL;
-
-	/** \todo 'quiet' is not quiet at all... */
-	ao_option *ao_opt = NULL;
-	ao_append_option(&ao_opt, "quiet", NULL);
-	ao_append_global_option("quiet", "true");
-
 	double time_per_frame = 0;
 
 	do {
@@ -234,33 +216,16 @@ static void* _thread_play_function(void *unused) {
 			int err = mpg123_decode_frame(mh, &frame_offset, &audio, &done);
 			switch(err) {
 				case MPG123_NEW_FORMAT: {
-					ao_sample_format format;
 					int channels, encoding;
 					long rate;
 
 					mpg123_getformat(mh, &rate, &channels, &encoding);
-					format.bits = mpg123_encsize(encoding) * 8; // 8 bit per Byte
-					format.rate = rate;
-					format.channels = channels;
-					format.byte_format = AO_FMT_NATIVE;
-					format.matrix = 0;
-
-					time_per_frame = mpg123_tpf(mh);
-
-					ao_info *info = ao_driver_info(ao_default_driver_id());
-					_log("libao: opening default output '%s' with: rate: %i, %i channels, %i bits per sample | %fs per frame", info->name, format.rate, format.channels, format.bits, time_per_frame);
-					if(dev) {
-						ao_close(dev);
-					}
-					dev = ao_open_live(ao_default_driver_id(), &format, ao_opt);
-					if(!dev) {
-						_log("ao_open_live: %s", ao_strerror(errno));
-					}
+					sound_ao_set_format(mpg123_encsize(encoding) * 8, rate, channels);
 					break;
 				}
 
 				case MPG123_OK:
-					ao_play(dev, (char*)audio, done);
+					sound_ao_play(audio, done);
 
 					current_pos = (unsigned int) (time_per_frame * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
@@ -299,10 +264,6 @@ static void* _thread_play_function(void *unused) {
 			sem_post(&sem_stopped);
 		}
 	} while(!terminate);
-	ao_free_options(ao_opt);
-	if(dev) {
-		ao_close(dev);
-	}
 
 	return NULL;
 }
@@ -310,8 +271,7 @@ static void* _thread_play_function(void *unused) {
 bool sound_init(void (*_time_callback)(int)) {
 	time_callback = _time_callback;
 
-	_log("initializing libao...");
-	ao_initialize();
+	sound_ao_init();
 
 	mpg123_init();
 
@@ -344,9 +304,6 @@ static void sound_finalize() {
 	mpg123_close(mh);
 	mpg123_delete(mh);
 	mpg123_exit();
-
-	// cleanup libao
-	ao_shutdown();
 }
 
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
