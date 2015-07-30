@@ -276,9 +276,9 @@ static void* _thread_play_function(void *unused) {
 }
 
 static bool load_ao_lib(char *lib) {
-	void *dl_ao = dlopen("audio/ao.so", RTLD_NOW | RTLD_GLOBAL);
+	void *dl_ao = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
 	if(!dl_ao) {
-		_log("Not using ao.so: %s", dlerror());
+		_log("Not using %s: %s", lib, dlerror());
 		return false;
 	}
 
