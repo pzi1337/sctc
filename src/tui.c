@@ -16,6 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
+#include "_hard_config.h"
 #include "tui.h"
 
 //\cond
@@ -59,7 +60,6 @@ static void tui_update_suggestion_list();
 static void tui_update_textbox();
 
 /* functions handling (re)drawing of (parts of) screen */
-static void tui_redraw();
 static void tui_draw_title_line();
 static void tui_draw_tab_bar();
 static void tui_draw_status_line();
@@ -97,7 +97,17 @@ static void* _thread_tui_function(void *unused) {
 
 			_log("doing the redraw, sem_wait returned %i, LINES = %d", ret, LINES);
 
-			tui_redraw();
+			tui_draw_title_line();  // redraw the title line
+			tui_draw_tab_bar();     // redraw the tab bar
+
+			tui_track_list_print();
+
+			if(state_get_tb_title()) {
+				tui_update_textbox();
+			}
+
+			tui_draw_status_line(); // redraw the status line
+
 		} else {
 			switch(action) {
 				case none: break; // FIXME
@@ -155,20 +165,6 @@ static void* _thread_tui_function(void *unused) {
 	return NULL;
 }
 
-/* redraw the whole screen, adjust the contents to the current terminal size */
-static void tui_redraw() {
-	tui_draw_title_line();  // redraw the title line
-	tui_draw_tab_bar();     // redraw the tab bar
-
-	tui_track_list_print();
-
-	if(state_get_tb_title()) {
-		tui_update_textbox();
-	}
-
-	tui_draw_status_line(); // redraw the status line
-}
-
 static void tui_draw_title_line() {
 	color_set(sbar_default, NULL);
 
@@ -197,18 +193,18 @@ static void tui_update_suggestion_list() {
 		refresh();
 	} else {
 		if(!suggestion_window) {
-			suggestion_window = newwin(10, COLS, LINES - 12, 0);
+			suggestion_window = newwin(SUGGESTION_LIST_HEIGHT, COLS, LINES - SUGGESTION_LIST_HEIGHT - 1, 0);
 			wrefresh(suggestion_window);
 		}
 
 		size_t start = 0;
 		size_t sugg_selected = state_get_sugg_selected();
 		if(NOTHING_SELECTED != sugg_selected) {
-			start = sugg_selected - sugg_selected % 10;
+			start = sugg_selected - sugg_selected % SUGGESTION_LIST_HEIGHT;
 		}
 
 		size_t line;
-		for(line = 0; line < 10 && commands[start + line].name; line++) {
+		for(line = 0; line < SUGGESTION_LIST_HEIGHT && commands[start + line].name; line++) {
 			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
 			mvwprintw (suggestion_window, line, 0, "%0*c", COLS, ' ');
 			mvwprintw (suggestion_window, line, 1, "%s", commands[start + line].name);
@@ -221,7 +217,7 @@ static void tui_update_suggestion_list() {
 		}
 
 		wcolor_set(suggestion_window, cmdlist_default, NULL);
-		for(; line < 10; line++) {
+		for(; line < SUGGESTION_LIST_HEIGHT; line++) {
 			mvwprintw(suggestion_window, line, 0, "%0*c", COLS, ' ');
 		}
 
@@ -391,14 +387,20 @@ static void tui_track_list_print() {
 	int y = 2;
 	for(int i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
 		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
-			tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
+			if( y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window) {
+				tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
+			}
 		}
 		y++;
 	}
 
 	for(; y < LINES - 2; y++) {
-		move(y, 0);
-		clrtoeol();
+		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
+			if( y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window) {
+				move(y, 0);
+				clrtoeol();
+			}
+		}
 	}
 
 	refresh();

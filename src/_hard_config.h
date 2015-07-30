@@ -31,6 +31,8 @@
 	#define USERLIST_FOLDER "custom_lists"
 	#define USERLIST_EXT ".jspf"
 
+	#define SUGGESTION_LIST_HEIGHT 15
+
 	#define MAX_LISTS 16
 
 	/** \brief The default path to the ca-certificates file
