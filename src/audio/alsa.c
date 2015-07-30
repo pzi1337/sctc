@@ -29,6 +29,9 @@
 
 #include "../log.h"
 
+#define ALSA_DEFAULT_CARD "default"
+#define ALSA_MASTER_MIXER "Master"
+
 static void finalize();
 
 static snd_pcm_t *pcm;
@@ -74,7 +77,7 @@ bool audio_set_format(unsigned int encoding, unsigned int rate, unsigned int cha
 bool audio_init() {
 	_log("initializing libalsa...");
 	int err;
-	if(( err = snd_pcm_open(&pcm, "default", SND_PCM_STREAM_PLAYBACK, 0) )) {
+	if(( err = snd_pcm_open(&pcm, ALSA_DEFAULT_CARD, SND_PCM_STREAM_PLAYBACK, 0) )) {
 		_log("libalsa: snd_pcm_open failed: %s", snd_strerror(err));
 		return false;
 	}
@@ -84,5 +87,41 @@ bool audio_init() {
 
 static void finalize() {
 	// TODO
+}
+
+#define ALSA_ERROR_CHECK(FUN) {int err = FUN; if(err) {_log("libalsa: "#FUN" failed: %s", snd_strerror(err)); return -1;} }
+int audio_change_volume(off_t delta) {
+	snd_mixer_t *mixer;
+
+	ALSA_ERROR_CHECK( snd_mixer_open(&mixer, 0) );
+	ALSA_ERROR_CHECK( snd_mixer_attach(mixer, ALSA_DEFAULT_CARD) );
+	ALSA_ERROR_CHECK( snd_mixer_selem_register(mixer, NULL, NULL) );
+	ALSA_ERROR_CHECK( snd_mixer_load(mixer) );
+
+	snd_mixer_selem_id_t *sid;
+	snd_mixer_selem_id_alloca(&sid);
+	snd_mixer_selem_id_set_index(sid, 0);
+	snd_mixer_selem_id_set_name(sid, ALSA_MASTER_MIXER);
+
+	snd_mixer_elem_t* elem = snd_mixer_find_selem(mixer, sid);
+
+	long min;
+	long max;
+	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume_range(elem, &min, &max) );
+	long range = max - min;
+
+	long cur;
+	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
+	long cur_perc = ( 100 * (cur - min) ) / range;
+
+	long target_perc = cur_perc + delta;
+	if(target_perc > 100) target_perc = 100;
+	if(target_perc <   0) target_perc =   0;
+
+	ALSA_ERROR_CHECK( snd_mixer_selem_set_playback_volume_all(elem, min + (target_perc * range) / 100) );
+
+	// return the current volume (after modification)
+	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
+	return ( 100 * (cur - min) ) / range;;
 }
 

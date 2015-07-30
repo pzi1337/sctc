@@ -21,6 +21,7 @@
 
 	//\cond
 	#include <stdbool.h>                    // for bool
+	#include <sys/types.h>
 	//\endcond
 	#include "track.h"
 
@@ -46,6 +47,8 @@
 	bool sound_play(struct track *track);
 
 	void sound_seek(unsigned int pos);
+
+	int sound_change_volume(off_t delta);
 
 	unsigned int sound_get_current_pos();
 

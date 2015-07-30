@@ -5,6 +5,7 @@
 	#include <stddef.h>
 
 	typedef bool (*audio_set_format_t)(unsigned int encoding, unsigned int rate, unsigned int channels);
+	typedef int  (*audio_change_volume_t)(off_t delta);
 	typedef void (*audio_play_t)(void *buffer, size_t size);
 	typedef bool (*audio_init_t)();
 #endif

@@ -587,6 +587,14 @@ static void cmd_play(char *unused) {
 static void cmd_pause(char *unused) { stop_playback(false); }
 static void cmd_stop(char *unused)  { stop_playback(true);  }
 
+static void cmd_volume(char *hint) {
+	char *delta_str = strstrp(hint);
+	int delta;
+	if(1 == sscanf(delta_str, " %i ", &delta)) {
+		_log("volume now: %i, delta: %i", sound_change_volume(delta), delta);
+	}
+}
+
 /** \brief Issue a redraw of the whole screen
  *
  *  \return true
@@ -627,7 +635,8 @@ const struct command commands[] = {
 	{"search-prev",   cmd_search_prev,    "<none/ignored>",                "Continue search upwards"},
 	{"seek",          cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
 	{"stop",          cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
-	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)",  },
+	{"vol",           cmd_volume,         "<delta (in percent)>",          "modify playback volume by given percentage"},
+	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},
 	{"yank",          cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
 	{NULL, NULL, NULL}
 };
