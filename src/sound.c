@@ -199,8 +199,6 @@ static void io_callback(struct download_state *state) {
 *  \return NULL   Unused return value, required due to pthread interface
 */
 static void* _thread_play_function(void *unused) {
-	double time_per_frame = 0;
-
 	do {
 		_log("waiting for data to play");
 		sem_wait(&sem_data_available);
@@ -210,12 +208,11 @@ static void* _thread_play_function(void *unused) {
 			_log("mpg123_init_playback returned %p", (void*)mh);
 		}
 
-		size_t done;
-
 		unsigned int last_reported_pos = ~0;
 
 		bool playback_done = false;
 
+		size_t done;
 		off_t frame_offset;
 		unsigned char *audio = NULL;
 
@@ -234,7 +231,7 @@ static void* _thread_play_function(void *unused) {
 				case MPG123_OK:
 					audio_play(audio, done);
 
-					current_pos = (unsigned int) (time_per_frame * mpg123_tellframe(mh));
+					current_pos = (unsigned int) (mpg123_tpf(mh) * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
 					// meant to reduce the number of redraws possibly issued by time_callback
 					if(current_pos != last_reported_pos) {
