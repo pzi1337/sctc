@@ -48,7 +48,7 @@
 #include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
 
-static char *aos[] = {"audio/ao.so", NULL};
+static char *aos[] = {"audio/alsa.so", "audio/ao.so", NULL};
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
 
@@ -57,8 +57,8 @@ static audio_set_format_t audio_set_format = NULL;
 static audio_play_t       audio_play       = NULL;
 
 struct io_handle {
-	size_t                 position;   //< the current position
-	struct download_state *download_state;     //< contains the maximum (currently possible) position
+	size_t                 position;       //< the current position
+	struct download_state *download_state; //< contains the maximum (currently possible) position
 };
 
 static sem_t sem_stopped;
@@ -76,8 +76,8 @@ static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
 
 /** The amount of data for the whole track.
     As soon as we reach this position during playback the end of track has been reached */
-static volatile bool          stopped     = false;
-static volatile bool          terminate   = false;
+static volatile bool stopped   = false;
+static volatile bool terminate = false;
 
 static struct download_state *state = NULL;
 

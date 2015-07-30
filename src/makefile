@@ -12,11 +12,29 @@ LDFLAGS=`pkg-config --libs yajl ncursesw libconfuse libmpg123` -lpolarssl -ldl -
 	@echo "CC\t"$@
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-%.so: %.o
-	@echo "LD\t"$@
-	@$(CC) $(LDFLAGS) `pkg-config --libs ao` -rdynamic -shared $< -o ../bin/$@
+all: sctc audio/alsa.so audio/ao.so
 
-all: sctc audio/ao.so
+##########################
+# the ALSA output plugin #
+##########################
+LDFLAGS_ALSA_SO=`pkg-config --libs alsa` -rdynamic -shared
+audio/alsa.so: audio/alsa.o
+	@echo "LD\t"$@
+	@$(CC) $(LDOPT) $(LDFLAGS_ALSA_SO) $< -o ../bin/$@
+
+
+###################################
+# the AO output plugin *fallback* #
+###################################
+LDFLAGS_AO_SO=`pkg-config --libs ao` -rdynamic -shared
+audio/ao.so: audio/alsa.o
+	@echo "LD\t"$@
+	@$(CC) $(LDOPT) $(LDFLAGS_AO_SO) $< -o ../bin/$@
+
+
+####################
+# the main program #
+####################
 
 sctc: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o
 	@echo "LD\t"$@
