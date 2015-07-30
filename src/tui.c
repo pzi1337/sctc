@@ -387,9 +387,12 @@ static void tui_track_list_print() {
 		return;
 	}
 
+	// if a textbox is shown, then do not write over it
 	int y = 2;
 	for(int i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
-		tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
+		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
+			tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
+		}
 		y++;
 	}
 
