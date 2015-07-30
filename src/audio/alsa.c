@@ -49,7 +49,6 @@ void audio_play(void *buffer, size_t size) {
 	}
 }
 
-
 static snd_pcm_format_t mpg123_to_alsa_encoding(unsigned int mpg123_encoding) {
 	switch(mpg123_encoding) {
 		case MPG123_ENC_SIGNED_8:    return SND_PCM_FORMAT_S8;
@@ -79,6 +78,11 @@ bool audio_init() {
 	int err;
 	if(( err = snd_pcm_open(&pcm, ALSA_DEFAULT_CARD, SND_PCM_STREAM_PLAYBACK, 0) )) {
 		_log("libalsa: snd_pcm_open failed: %s", snd_strerror(err));
+		return false;
+	}
+
+	if(atexit(finalize)) {
+		_log("atexit: %s", strerror(errno));
 		return false;
 	}
 

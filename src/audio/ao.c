@@ -20,7 +20,6 @@
 
 //\cond
 #include <assert.h>
-#include <dlfcn.h>
 #include <errno.h>                      // for errno
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for atexit
@@ -86,23 +85,19 @@ bool audio_init() {
 		return false;
 	}
 
-	_log("default device: %i", ao_default_driver_id());
-	_log("ALSA device: %i", ao_driver_id("alsa"));
-
-//	ao_append_option(&options, "quiet", NULL);
-	ao_append_option(&options, "verbose", NULL);
-//	ao_append_global_option("quiet", "true");
-	ao_append_global_option("verbose", "true");
+	ao_append_option(&options, "quiet", NULL);
+	ao_append_global_option("quiet", "true");
 
 	return true;
 }
 
 static void finalize() {
-	ao_free_options(options);
-
 	if(dev) {
 		ao_close(dev);
 	}
+
+	ao_free_options(options);
+
 	// cleanup libao
 	ao_shutdown();
 }

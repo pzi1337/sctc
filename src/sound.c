@@ -23,7 +23,6 @@
 #include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
 
 //\cond
-#include <dlfcn.h>
 #include <errno.h>                      // for errno
 #include <unistd.h>
 #include <pthread.h>                    // for pthread_create, etc
@@ -35,7 +34,7 @@
 #include <sys/types.h>
 //\endcond
 
-#include "audio/audio.h"
+#include "audio/ao_module.h"
 #include "cache.h"                      // for cache_track_get, etc
 #include "config.h"
 #include "downloader.h"
@@ -48,7 +47,6 @@
 #include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
 
-static void *dl_ao = NULL;
 static char *aos[] = {"audio/alsa.so", "audio/ao.so", NULL};
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
@@ -275,34 +273,10 @@ static void* _thread_play_function(void *unused) {
 	return NULL;
 }
 
-static bool load_ao_lib(char *lib) {
-	dl_ao = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
-	if(!dl_ao) {
-		_log("Not using %s: %s", lib, dlerror());
-		return false;
-	}
-
-	// ofc this is ugly, but things will not work otherwise
-	audio_init          = (audio_init_t)          (intptr_t) dlsym(dl_ao, "audio_init");
-	audio_play          = (audio_play_t)          (intptr_t) dlsym(dl_ao, "audio_play");
-	audio_change_volume = (audio_change_volume_t) (intptr_t) dlsym(dl_ao, "audio_change_volume");
-	audio_set_format    = (audio_set_format_t)    (intptr_t) dlsym(dl_ao, "audio_set_format");
-
-	if(!audio_init || !audio_play || !audio_set_format) {
-		audio_init          = NULL;
-		audio_play          = NULL;
-		audio_change_volume = NULL;
-		audio_set_format    = NULL;
-		return false;
-	}
-
-	return true;
-}
-
 bool sound_init(void (*_time_callback)(int)) {
 	// find the correct soundsystem to use
 	for(unsigned int i = 0; aos[i]; i++) {
-		if(load_ao_lib(aos[i]))
+		if(ao_module_load(aos[i], &audio_init, &audio_play, &audio_set_format, &audio_change_volume))
 			break;
 	}
 
@@ -354,6 +328,8 @@ static void sound_finalize() {
 	mpg123_close(mh);
 	mpg123_delete(mh);
 	mpg123_exit();
+
+	ao_module_unload();
 }
 
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
@@ -377,8 +353,6 @@ bool sound_stop() {
 	SEM_SET_TO_ZERO(sem_data_available)
 
 	_log("stopping done");
-
-	dlclose(dl_ao);
 
 	return true;
 }

@@ -36,7 +36,7 @@ audio/ao.so: audio/alsa.o
 # the main program #
 ####################
 
-sctc: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o network/tls.o network/plain.o
+sctc: soundcloud.o cache.o command.o downloader.o state.o sound.o main.o helper.o log.o config.o http.o jspf.o track.o tui.o url.o yajl_helper.o audio/ao_module.o network/tls.o network/plain.o
 	@echo "LD\t"$@
 	@$(CC) $+ $(LDFLAGS) -rdynamic -o ../bin/sctc
 
