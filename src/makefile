@@ -4,7 +4,7 @@ CCOPT=-O0 -g -fstack-protector-strong --param=ssp-buffer-size=4
 LDOPT=-pie -z relro -z now
 
 CC=gcc
-CFLAGS=`pkg-config --cflags ao yajl ncursesw libconfuse libmpg123` -std=gnu11 -Wall -fPIC -pedantic $(CCOPT)
+CFLAGS=`pkg-config --cflags yajl ncursesw libconfuse libmpg123` -std=gnu11 -Wall -fPIC -pedantic $(CCOPT)
 #-Wextra
 LDFLAGS=`pkg-config --libs yajl ncursesw libconfuse libmpg123` -lpolarssl -ldl -lpthread $(LDOPT)
 

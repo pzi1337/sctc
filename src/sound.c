@@ -48,6 +48,7 @@
 #include "tui.h"                        // for F_BOLD, F_RESET, etc
 #include "state.h"
 
+static void *dl_ao = NULL;
 static char *aos[] = {"audio/alsa.so", "audio/ao.so", NULL};
 
 #define SEEKPOS_NONE ((unsigned int) ~0)
@@ -275,7 +276,7 @@ static void* _thread_play_function(void *unused) {
 }
 
 static bool load_ao_lib(char *lib) {
-	void *dl_ao = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
+	dl_ao = dlopen(lib, RTLD_NOW | RTLD_GLOBAL);
 	if(!dl_ao) {
 		_log("Not using %s: %s", lib, dlerror());
 		return false;
@@ -376,6 +377,8 @@ bool sound_stop() {
 	SEM_SET_TO_ZERO(sem_data_available)
 
 	_log("stopping done");
+
+	dlclose(dl_ao);
 
 	return true;
 }

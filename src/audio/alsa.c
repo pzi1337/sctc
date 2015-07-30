@@ -86,7 +86,7 @@ bool audio_init() {
 }
 
 static void finalize() {
-	// TODO
+	snd_pcm_close(pcm);
 }
 
 #define ALSA_ERROR_CHECK(FUN) {int err = FUN; if(err) {_log("libalsa: "#FUN" failed: %s", snd_strerror(err)); return -1;} }
