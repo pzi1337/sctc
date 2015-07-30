@@ -406,6 +406,17 @@ static void tui_track_list_print() {
 	refresh();
 }
 
+static size_t next_control_char(char *string) {
+	size_t idx;
+	for(idx = 0; string[idx]; idx++) {
+		if(F_BOLD[0]  == string[idx]
+		|| F_RESET[0] == string[idx]) {
+			return idx;
+		}
+	}
+	return idx;
+}
+
 static void tui_print(char *fmt, ...) {
 	va_list va;
 	va_start(va, fmt);
@@ -413,23 +424,27 @@ static void tui_print(char *fmt, ...) {
 	char buffer[512];
 	vsnprintf(buffer, sizeof(buffer), fmt, va);
 
-	unsigned int i;
-	for(i = 0; buffer[i]; i++) {
-		switch(buffer[i]) {
-			case '\1':
-				attron(A_BOLD);
-				break;
-			case '\2':
-				attroff(A_BOLD);
-				break;
-
-			default:
-				addch(buffer[i]);
-				break;
-		}
-	}
-
 	va_end(va);
+
+	char* buf = buffer;
+
+	size_t cc_pos = next_control_char(buf);
+	do {
+		char cc = buf[cc_pos];
+		buf[cc_pos] = '\0';
+		printw("%s", buf);
+
+		if(F_BOLD[0] == cc) {
+			attron(A_BOLD);
+		} else if(F_RESET[0] == cc) {
+			attroff(A_BOLD);
+		}
+
+		buf = buf + cc_pos + 1;
+		cc_pos = next_control_char(buf);
+	} while(buf[cc_pos]);
+
+	printw("%s", buf);
 }
 
 // TODO !!!
