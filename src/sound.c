@@ -227,7 +227,7 @@ static void* _thread_play_function(void *unused) {
 					long rate;
 
 					mpg123_getformat(mh, &rate, &channels, &encoding);
-					audio_set_format(mpg123_encsize(encoding) * 8, rate, channels);
+					audio_set_format(encoding, rate, channels);
 					break;
 				}
 

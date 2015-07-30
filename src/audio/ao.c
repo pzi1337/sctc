@@ -49,7 +49,7 @@ void audio_play(void *buffer, size_t size) {
 	ao_play(dev, (char*)buffer, size);
 }
 
-bool audio_set_format(unsigned int bits, unsigned int rate, unsigned int channels) {
+bool audio_set_format(unsigned int encoding, unsigned int rate, unsigned int channels) {
 
 	if(dev) {
 		ao_close(dev);
@@ -57,7 +57,7 @@ bool audio_set_format(unsigned int bits, unsigned int rate, unsigned int channel
 
 	assert(-1 != ao_default_driver_id());
 
-	ao_sample_format format = {.bits = bits, .rate = rate, .channels = channels, .byte_format = AO_FMT_NATIVE, .matrix = 0};
+	ao_sample_format format = {.bits = mpg123_encsize(encoding) * 8, .rate = rate, .channels = channels, .byte_format = AO_FMT_NATIVE, .matrix = 0};
 	ao_info *info = ao_driver_info(ao_default_driver_id());
 
 	_log("libao: opening default output '%s' with: rate: %i, %i channels, %i bits per sample", info->name, format.rate, format.channels, format.bits);
