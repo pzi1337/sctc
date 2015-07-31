@@ -525,6 +525,20 @@ static void cmd_details(char *unused) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
+	size_t url_count = TRACK(list, current_selected)->url_count;
+	char **urls = TRACK(list, current_selected)->urls;
+
+	if(!urls) { // TODO
+		url_count = string_find_urls(TRACK(list, current_selected)->description, &urls);
+		TRACK(list, current_selected)->url_count = url_count;
+		TRACK(list, current_selected)->urls = urls;
+
+		char *old_desc = TRACK(list, current_selected)->description;
+		char *new_desc = string_prepare_urls_for_display(old_desc, url_count);
+		free(old_desc);
+		TRACK(list, current_selected)->description = new_desc;
+	}
+
 	char *title = smprintf("%s by %s", TRACK(list, current_selected)->name, TRACK(list, current_selected)->username);
 	state_set_tb(title, TRACK(list, current_selected)->description);
 	handle_textbox();
@@ -651,6 +665,29 @@ static void handle_textbox() {
 	int c;
 	while( (c = getch()) ) {
 		switch(c) {
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case '0': {
+				struct track_list *list = state_get_list(state_get_current_list());
+				size_t current_selected = state_get_current_selected();
+
+				size_t url_count = TRACK(list, current_selected)->url_count;
+				char **urls = TRACK(list, current_selected)->urls;
+
+				if(c - '0' < url_count) {
+					_log("running xdg-open %s", urls[c - '0']);
+					fork_and_run("xdg-open", urls[c - '0']);
+				}
+				break;
+			}
+
 			case 'd':
 			case 'q':
 				state_set_tb_pos(0);

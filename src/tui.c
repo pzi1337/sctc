@@ -52,7 +52,7 @@
 
 static void tui_track_print_line(struct track* entry, bool selected, int line);
 
-static void tui_print(char *fmt, ...);
+static void tui_print(WINDOW *win, char *fmt, ...);
 static void tui_track_list_print();
 static size_t tui_track_focus();
 static void tui_update_suggestion_list();
@@ -129,7 +129,7 @@ static void* _thread_tui_function(void *unused) {
 
 					color_set(cline_default, NULL);
 					move(y, x);
-					tui_print("%s", state_get_input());
+					tui_print(stdscr, "%s", state_get_input());
 
 					color_set(inp_cursor, NULL);
 					printw(" ");
@@ -169,7 +169,7 @@ static void tui_draw_title_line() {
 	color_set(sbar_default, NULL);
 
 	move(0, 0);
-	tui_print("%s%0*c", state_get_title_text(), COLS - strlen(state_get_title_text()), ' ');
+	tui_print(stdscr, "%s%0*c", state_get_title_text(), COLS - strlen(state_get_title_text()), ' ');
 	refresh();
 }
 
@@ -177,7 +177,7 @@ static void tui_draw_status_line() {
 	color_set(state_get_status_color(), NULL);
 
 	move(LINES - 1, 0);
-	tui_print("%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ');
+	tui_print(stdscr, "%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ');
 	refresh();
 }
 
@@ -185,6 +185,9 @@ static void tui_update_suggestion_list() {
 	struct command* commands = state_get_commands();
 
 	if(!commands) {
+		// remove suggestion_window if commands are not set
+		// expects an existing suggestion_window
+
 		assert(suggestion_window);
 		delwin(suggestion_window);
 		suggestion_window = NULL;
@@ -192,6 +195,8 @@ static void tui_update_suggestion_list() {
 		touchwin(stdscr);
 		refresh();
 	} else {
+		// update the entries within the suggestion window
+		// create a new window if none existing
 		if(!suggestion_window) {
 			suggestion_window = newwin(SUGGESTION_LIST_HEIGHT, COLS, LINES - SUGGESTION_LIST_HEIGHT - 1, 0);
 			wrefresh(suggestion_window);
@@ -409,15 +414,16 @@ static void tui_track_list_print() {
 static size_t next_control_char(char *string) {
 	size_t idx;
 	for(idx = 0; string[idx]; idx++) {
-		if(F_BOLD[0]  == string[idx]
-		|| F_RESET[0] == string[idx]) {
+		if(F_BOLD[0]      == string[idx]
+		|| F_UNDERLINE[0] == string[idx]
+		|| F_RESET[0]     == string[idx]) {
 			return idx;
 		}
 	}
 	return idx;
 }
 
-static void tui_print(char *fmt, ...) {
+static void tui_print(WINDOW *win, char *fmt, ...) {
 	va_list va;
 	va_start(va, fmt);
 
@@ -429,35 +435,40 @@ static void tui_print(char *fmt, ...) {
 	char* buf = buffer;
 
 	size_t cc_pos = next_control_char(buf);
-	do {
+	while('\0' != buf[cc_pos]) {
 		char cc = buf[cc_pos];
+
 		buf[cc_pos] = '\0';
-		printw("%s", buf);
+		wprintw(win, "%s", buf);
 
 		if(F_BOLD[0] == cc) {
-			attron(A_BOLD);
+			wattron(win, A_BOLD);
+		} else if(F_UNDERLINE[0] == cc) {
+			wattron(win, A_UNDERLINE);
 		} else if(F_RESET[0] == cc) {
-			attroff(A_BOLD);
+			wattroff(win, A_BOLD);
+			wattroff(win, A_UNDERLINE);
 		}
 
-		buf = buf + cc_pos + 1;
+		buf = &buf[cc_pos + 1];
 		cc_pos = next_control_char(buf);
-	} while(buf[cc_pos]);
+	}
 
-	printw("%s", buf);
+	wprintw(win, "%s", buf);
 }
 
-// TODO !!!
-static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
+static WINDOW* tui_draw_text(char *text, const int max_width) {
 	text = strdup(text);
-
 	strcrep(text, '\r', ' ');
+
+	size_t pad_height = 1;
+	WINDOW *pad = newpad(pad_height, max_width);
 
 	size_t y = 0;
 	char *tok = strtok(text, "\n");
 	while(tok) {
+		// split the current line, if it is too long
 		while(wcsps(tok) > max_width) {
-
 			// search for any space to avoid breaking within words
 			int line_len = max_width;
 			for(int i = 0; i < max_width / 8; i++) {
@@ -467,22 +478,24 @@ static size_t tui_draw_text(WINDOW *win, char *text, const int max_width) {
 				}
 			}
 
-			if(win) {
-				mvwprintw(win, y, 2, "%.*s", line_len, tok);
-			}
+			wmove(pad, y, 2);
+			tui_print(pad, "%.*s", line_len, tok);
+			wresize(pad, ++pad_height, max_width);
+
 			y++;
 			tok += line_len;
 		}
 
-		if(win) {
-			mvwprintw(win, y, 2, "%s%0*c", tok, max_width - wcsps(tok), ' ');
-		}
+		wmove(pad, y, 2);
+		tui_print(pad, "%s%0*c", tok, max_width - wcsps(tok), ' ');
+		wresize(pad, ++pad_height, max_width);
+
 		y++;
 		tok = strtok(NULL, "\n");
 	}
 
 	free(text);
-	return y;
+	return pad;
 }
 
 static void tui_update_textbox() {
@@ -491,21 +504,17 @@ static void tui_update_textbox() {
 
 	/* create new textbox if there is none, but a title was supplied */
 	if(!textbox_window.win && state_get_tb_title()) {
-		const size_t pad_height = tui_draw_text(NULL, state_get_tb_text(), width - 4);
-
-		textbox_window.win = newwin(LINES - 8, width, 4, 4);
+		textbox_window.win = newwin(height, width, 4, 4);
 		box(textbox_window.win, 0, 0);
 
 		wattron(textbox_window.win, A_BOLD);
 		mvwprintw(textbox_window.win, 0, 2, " %s ", state_get_tb_title());
 		wattroff(textbox_window.win, A_BOLD);
 
-		textbox_window.pad = newpad(pad_height + LINES, width - 4);
+		textbox_window.pad = tui_draw_text(state_get_tb_text(), width - 10);
 
-		int start_line = 0;
-		tui_draw_text(textbox_window.pad, state_get_tb_text(), width - 10);
 		wrefresh(textbox_window.win);
-		prefresh(textbox_window.pad, start_line, 0, 5, 5, start_line + LINES - 8 - 1, width - 1);
+		prefresh(textbox_window.pad, 0, 0, 5, 5, LINES - 8 - 1, width - 1);
 
 	} else if(textbox_window.win && !state_get_tb_title()) {
 		delwin(textbox_window.pad);

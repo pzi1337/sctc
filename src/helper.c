@@ -22,6 +22,7 @@
 #include "helper.h"
 
 //\cond
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>                     // for va_end, va_list, va_start
 #include <stdbool.h>                    // for bool, false, true
@@ -34,6 +35,7 @@
 #include <polarssl/sha512.h>            // for sha512
 
 #include "log.h"
+#include "tui.h"
 
 char* smprintf(char *fmt, ...) {
 	va_list ap;
@@ -109,6 +111,17 @@ bool yank(char *text) {
 	return true;
 }
 
+bool fork_and_run(char *cmd, char *param) {
+	pid_t pid = fork();
+	if(-1 == pid) {
+		return false;
+	} else if(!pid) {
+		execlp(cmd, cmd, param, (char*)NULL);
+		exit(EXIT_FAILURE);
+	}
+	return true;
+}
+
 void* _lmalloc(char *srcfile, int srcline, const char *srcfunc, size_t size) {
 	void *ptr = malloc(size);
 	if(!ptr) {
@@ -178,4 +191,93 @@ void sha512_string(char *sha512_buf, void *inbuf, size_t inbuf_size) {
 		sprintf(sha512_buf + 3*i, "%02X%s", sha512_fingerprint[i], i+1 < sizeof(sha512_fingerprint) ? ":" : "");
 	}
 	sha512_buf[SHA512_LEN * 3] = '\0';
+}
+
+static char* string_find_next_url(char *string, char **url_end) {
+
+	// search for `http(s)://`
+	char *start = strstr(string, "http");
+	if(!start) {
+		return NULL;
+	}
+
+	size_t pos = 4;
+	if('s' == start[pos]) pos++;
+
+	if(strncmp(&start[pos], "://", 3)) {
+		return NULL;
+	}
+
+	char *end = start;
+	while(*end && ' ' != *end && '\t' != *end && '\r' != *end && '\n' != *end) {
+		end++;
+	}
+	*url_end = end;
+
+	return start;
+}
+
+size_t string_find_urls(char *string, char ***urls_out) {
+	char **urls = NULL;
+	size_t urls_size = 0;
+
+	size_t urls_pos  = 0;
+
+	char *string_remaining = string;
+	char *url_start = NULL;
+	char *url_end   = NULL;
+	while( (url_start = string_find_next_url(string_remaining, &url_end)) ) {
+		char old_url_end = *url_end;
+		*url_end = '\0';
+
+		if(urls_pos >= urls_size) {
+			urls_size += 16;
+			urls = lrealloc(urls, urls_size * sizeof(char*));
+		}
+
+		urls[urls_pos] = strdup(url_start);
+		urls_pos++;
+
+		*url_end = old_url_end;
+
+		string_remaining = url_end;
+	}
+
+	*urls_out = urls;
+	return urls_pos;
+}
+
+char* string_prepare_urls_for_display(char *string, size_t url_count) {
+
+	size_t prep_size = strlen(string) + (2 + 16) * url_count;
+	size_t prep_used = 0;
+	char  *prep      = lcalloc(prep_size, sizeof(char));
+
+	size_t urls_found = 0;
+
+	char *string_remaining = string;
+	char *url_start = NULL;
+	char *url_end   = NULL;
+	while( (url_start = string_find_next_url(string_remaining, &url_end)) ) {
+
+		*url_start = '\0';
+		assert(prep_size >= prep_used);
+		prep_used += snprintf(&prep[prep_used], prep_size - prep_used, "%s", string_remaining);
+		*url_start = 'h';
+
+		char old_url_end = *url_end;
+		*url_end = '\0';
+
+		assert(prep_size >= prep_used);
+		prep_used += snprintf(&prep[prep_used], prep_size - prep_used, F_UNDERLINE"%s [%zu]"F_RESET, url_start, urls_found);
+		*url_end = old_url_end;
+
+		urls_found++;
+		string_remaining = url_end;
+	}
+	assert(prep_size >= prep_used);
+	snprintf(&prep[prep_used], prep_size - prep_used, "%s", string_remaining);
+
+	assert(url_count == urls_found && "Failed to refind all URLs previously found!");
+	return prep;
 }

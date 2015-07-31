@@ -66,6 +66,9 @@
 	void strcrep(char *str, char s, char r);
 
 	char* strstrp(char *str);
+	bool fork_and_run(char *cmd, char *param);
+	size_t string_find_urls(char *string, char ***urls_out);
+	char* string_prepare_urls_for_display(char *string, size_t url_count);
 
 	/** \brief Yank the provided text
 	 *

@@ -83,6 +83,8 @@
 				int    duration; ///< duration in seconds
 				int    user_id;
 				int    track_id;
+				char **urls;
+				size_t url_count;
 
 				/* these members are used for handling the playlist, they are not part of the data received from sc.com */
 				uint8_t flags;

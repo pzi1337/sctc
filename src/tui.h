@@ -75,8 +75,9 @@
 		input_modify_text,   ///< set the currently visible input
 	};
 
-	#define F_BOLD  "\1"
-	#define F_RESET "\2"
+	#define F_BOLD       "\1"
+	#define F_UNDERLINE  "\2"
+	#define F_RESET      "\3"
 
 	void tui_submit_action(enum tui_action_kind kind);
 
