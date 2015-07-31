@@ -375,18 +375,27 @@ bool sound_play(struct track *_track) {
 	current_pos = 0;
 
 	seek_to_pos = _track->current_position;
-/*
+
+void* cache_track_get(struct track *track, size_t *track_size);
 	size_t cache_track_size;
-	if( ( cache_track_size = cache_track_get((struct track*) track, (void*) buffer) ) ) {
+	void  *cache_track_buffer;
+	if( ( cache_track_buffer = cache_track_get((struct track*) track, &cache_track_size) ) ) {
 		_log("using file from cache for '%s' by '%s'", track->name, track->username);
-		track_size = cache_track_size;
+
+		struct download_state *cache_state = lmalloc(sizeof(struct download_state));
+		cache_state->started     = true;
+		cache_state->finished    = true;
+		cache_state->bytes_recvd = cache_track_size;
+		cache_state->bytes_total = cache_track_size;
+		cache_state->buffer      = cache_track_buffer;
+
+		state = cache_state;
 
 		sem_post(&sem_data_available);
 	} else {
 		state = downloader_queue_buffer(track, io_callback);
 	}
-*/
-	state = downloader_queue_buffer(track, io_callback);
+
 	return true;
 }
 

@@ -36,6 +36,7 @@
 //\endcond
 
 #include "config.h"
+#include "helper.h"
 #include "log.h"                        // for _log
 #include "track.h"                      // for track
 
@@ -54,7 +55,7 @@ bool cache_track_exists(struct track *track) {
 	return false;
 }
 
-size_t cache_track_get(struct track *track, void *buffer) {
+void* cache_track_get(struct track *track, size_t *track_size) {
 	char *cache_path = config_get_cache_path();
 	const size_t buffer_size = strlen(cache_path) + 1 + strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
 	char cache_file[buffer_size];
@@ -68,16 +69,18 @@ size_t cache_track_get(struct track *track, void *buffer) {
 		struct stat cache_stat;
 		fstat(fileno(fh), &cache_stat);
 
-		size_t bytes_read = fread(buffer, 1, cache_stat.st_size, fh);
-		if(bytes_read != cache_stat.st_size) {
-			_log("expected %iBytes, but got %iBytes, reason: %s", cache_stat.st_size, bytes_read, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
+		void *audio_buffer = lmalloc(cache_stat.st_size);
+		*track_size = fread(audio_buffer, 1, cache_stat.st_size, fh);
+		if(*track_size != cache_stat.st_size) {
+			_log("expected %iBytes, but got %iBytes, reason: %s", cache_stat.st_size, *track_size, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
 		}
 
 		fclose(fh);
-		return bytes_read;
+
+		return audio_buffer;
 	}
 
-	return 0;
+	return NULL;
 }
 
 bool cache_track_save(struct track *track, void *buffer, size_t size) {

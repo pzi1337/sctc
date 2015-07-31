@@ -35,10 +35,10 @@
 	/** \brief Load a track from the cache into buffer
 	 *
 	 *  \param track   The track to load
-	 *  \param buffer  The buffer receiving the data
-	 *  \return The number of bytes written to buffer (0 if track is not within the cache)
+	 *  \param buffer  Pointer to a size_t receiving the size (in bytes) of the returned buffer
+	 *  \return        Pointer to a buffer containing the track, or `NULL` if the track is not within the cache.
 	 */
-	size_t cache_track_get(struct track *track, void *buffer);
+	void* cache_track_get(struct track *track, size_t *track_size);
 
 	/** \brief Save data for a specific track to cache
 	 *
