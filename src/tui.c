@@ -288,8 +288,11 @@ static void tui_draw_tab_bar() {
 		if(i == state_get_current_list()) attroff(A_BOLD);
 	}
 
-	move(1, COLS - 3);
+	move(1, COLS - 12);
 	color_set(tbar_default, NULL);
+	printw("\u266A %u%%", state_get_volume());
+
+	move(1, COLS - 3);
 	switch(state_get_repeat()) {
 		case rep_none:                        break;
 		case rep_one: addstr("\u21BA1");      break;

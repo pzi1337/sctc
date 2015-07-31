@@ -36,6 +36,16 @@
 	 */
 	typedef int  (*audio_change_volume_t)(off_t delta);
 
+	/** \brief The type of the function used to get the current volume.
+	 *
+	 *  The corresponding function is expected to be exported as *audio_get_volume* in the final module.
+	 *
+	 *  \remark This function is *optional*.
+	 *
+	 *  \returns      The absolute volume (in percent).
+	 */
+	typedef unsigned int (*audio_get_volume_t)();
+
 	/** \brief The type of the function used to send raw audio data to the unterlying sound system.
 	 *
 	 *  The corresponding function is expected to be exported as *audio_play* in the final module.
@@ -62,8 +72,7 @@
 	 */
 	typedef bool (*audio_init_t)();
 
-	
-	bool ao_module_load(char *lib, audio_init_t *audio_init, audio_play_t *audio_play, audio_set_format_t *audio_set_format, audio_change_volume_t *audio_change_volume);
+	bool ao_module_load(char *lib, audio_init_t *audio_init, audio_play_t *audio_play, audio_set_format_t *audio_set_format, audio_get_volume_t *audio_get_volume, audio_change_volume_t *audio_change_volume);
 
 	void ao_module_unload();
 #endif

@@ -42,6 +42,11 @@ static void state_finalize();
 
 #define CALL_CALLBACK(EVT) { if(callbacks[EVT]) {callbacks[EVT]();} }
 
+static unsigned int _volume;
+
+unsigned int state_get_volume() { return _volume; }
+void state_set_volume(unsigned int volume) { _volume = volume; CALL_CALLBACK(cbe_tabs_modified); }
+
 static enum repeat  _repeat     = rep_none; ///< the repeat state, one out of (none, one, all)
 static char        *_title_text = NULL;
 static char        *_input = NULL;

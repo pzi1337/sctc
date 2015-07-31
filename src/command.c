@@ -597,7 +597,10 @@ static void cmd_volume(char *hint) {
 	char *delta_str = strstrp(hint);
 	int delta;
 	if(1 == sscanf(delta_str, " %i ", &delta)) {
-		_log("volume now: %i, delta: %i", sound_change_volume(delta), delta);
+		unsigned int vol = sound_change_volume(delta);
+		_log("volume now: %i, delta: %i", vol, delta);
+
+		state_set_volume(vol);
 	}
 }
 

@@ -53,6 +53,7 @@ static char *aos[] = {"audio/alsa.so", "audio/ao.so", NULL};
 
 static audio_init_t          audio_init          = NULL;
 static audio_set_format_t    audio_set_format    = NULL;
+static audio_get_volume_t    audio_get_volume    = NULL;
 static audio_change_volume_t audio_change_volume = NULL;
 static audio_play_t          audio_play          = NULL;
 
@@ -276,7 +277,7 @@ static void* _thread_play_function(void *unused) {
 bool sound_init(void (*_time_callback)(int)) {
 	// find the correct soundsystem to use
 	for(unsigned int i = 0; aos[i]; i++) {
-		if(ao_module_load(aos[i], &audio_init, &audio_play, &audio_set_format, &audio_change_volume))
+		if(ao_module_load(aos[i], &audio_init, &audio_play, &audio_set_format, &audio_get_volume, &audio_change_volume))
 			break;
 	}
 
@@ -288,6 +289,8 @@ bool sound_init(void (*_time_callback)(int)) {
 	time_callback = _time_callback;
 
 	audio_init();
+	if(audio_get_volume)
+		state_set_volume(audio_get_volume());
 
 	mpg123_init();
 

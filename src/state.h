@@ -37,6 +37,9 @@
 		callback_event_size
 	};
 
+	unsigned int state_get_volume();
+	void state_set_volume(unsigned int volume);
+
 	enum repeat {rep_none, rep_one, rep_all};
 
 	void state_add_list(struct track_list *_list);

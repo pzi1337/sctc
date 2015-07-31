@@ -25,16 +25,29 @@
 #include <stddef.h>                     // for NULL, size_t
 #include <stdlib.h>                     // for atexit
 #include <string.h>                     // for strerror
+#include <pthread.h>
 //\endcond
 
 #include "../log.h"
+#include "../state.h"
 
 #define ALSA_DEFAULT_CARD "default"
 #define ALSA_MASTER_MIXER "Master"
 
 static void finalize();
+static void* _thread_volwatcher_function(void *unused);
 
-static snd_pcm_t *pcm;
+int audio_get_volume();
+
+#define ALSA_ERROR_CHECK(FUN) {int err = FUN; if(err) {_log("libalsa: "#FUN" failed: %s", snd_strerror(err)); return -1;} }
+
+static bool terminate = false;
+static pthread_t thread_volwatcher;
+static snd_pcm_t        *pcm;
+static snd_mixer_t      *mixer;
+static snd_mixer_elem_t *elem;
+static long              min;
+static long              range;
 
 void audio_play(void *buffer, size_t size) {
 
@@ -81,6 +94,24 @@ bool audio_init() {
 		return false;
 	}
 
+	ALSA_ERROR_CHECK( snd_mixer_open(&mixer, 0) );
+	ALSA_ERROR_CHECK( snd_mixer_attach(mixer, ALSA_DEFAULT_CARD) );
+	ALSA_ERROR_CHECK( snd_mixer_selem_register(mixer, NULL, NULL) );
+	ALSA_ERROR_CHECK( snd_mixer_load(mixer) );
+
+	snd_mixer_selem_id_t *sid;
+	snd_mixer_selem_id_alloca(&sid);
+	snd_mixer_selem_id_set_index(sid, 0);
+	snd_mixer_selem_id_set_name(sid, ALSA_MASTER_MIXER);
+
+	elem = snd_mixer_find_selem(mixer, sid);
+
+	long max;
+	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume_range(elem, &min, &max) );
+	range = max - min;
+
+	pthread_create(&thread_volwatcher, NULL, _thread_volwatcher_function, NULL);
+
 	if(atexit(finalize)) {
 		_log("atexit: %s", strerror(errno));
 		return false;
@@ -93,30 +124,37 @@ static void finalize() {
 	snd_pcm_close(pcm);
 }
 
-#define ALSA_ERROR_CHECK(FUN) {int err = FUN; if(err) {_log("libalsa: "#FUN" failed: %s", snd_strerror(err)); return -1;} }
-int audio_change_volume(off_t delta) {
-	snd_mixer_t *mixer;
+static void* _thread_volwatcher_function(void *unused) {
+	while(!terminate) {
+		int pdc = snd_mixer_poll_descriptors_count(mixer);
+		if(0 < pdc) {
+			struct pollfd pfds[pdc];
+			pdc = snd_mixer_poll_descriptors(mixer, pfds, pdc);
+			if(0 >= pdc) {
+				_log("libalsa: failed to get pfds");
+			} else {
+				int ret = poll(pfds, pdc, -1);
+				if(0 > ret) {
+					_log("poll returned: %i - %s", ret, strerror(errno));
+				} else {
+					snd_mixer_handle_events(mixer);
+					state_set_volume(audio_get_volume());
+				}
+			}
+		}
+	}
 
-	ALSA_ERROR_CHECK( snd_mixer_open(&mixer, 0) );
-	ALSA_ERROR_CHECK( snd_mixer_attach(mixer, ALSA_DEFAULT_CARD) );
-	ALSA_ERROR_CHECK( snd_mixer_selem_register(mixer, NULL, NULL) );
-	ALSA_ERROR_CHECK( snd_mixer_load(mixer) );
+	return NULL;
+}
 
-	snd_mixer_selem_id_t *sid;
-	snd_mixer_selem_id_alloca(&sid);
-	snd_mixer_selem_id_set_index(sid, 0);
-	snd_mixer_selem_id_set_name(sid, ALSA_MASTER_MIXER);
-
-	snd_mixer_elem_t* elem = snd_mixer_find_selem(mixer, sid);
-
-	long min;
-	long max;
-	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume_range(elem, &min, &max) );
-	long range = max - min;
-
+int audio_get_volume() {
 	long cur;
 	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
-	long cur_perc = ( 100 * (cur - min) ) / range;
+	return  ( 100 * (cur - min) ) / range;
+}
+
+int audio_change_volume(off_t delta) {
+	long cur_perc = audio_get_volume();
 
 	long target_perc = cur_perc + delta;
 	if(target_perc > 100) target_perc = 100;
@@ -125,6 +163,7 @@ int audio_change_volume(off_t delta) {
 	ALSA_ERROR_CHECK( snd_mixer_selem_set_playback_volume_all(elem, min + (target_perc * range) / 100) );
 
 	// return the current volume (after modification)
+	long cur;
 	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
 	return ( 100 * (cur - min) ) / range;;
 }
