@@ -485,9 +485,9 @@ static void cmd_help(char *unused) {
  *  \param rep  The type of repeat to use (one in {none,one,all})
  */
 static void cmd_repeat(char *rep) {
-	rep = strstrp(rep);
+	if(rep) rep = strstrp(rep);
 
-	if(!strcmp("", rep)) {
+	if(!rep || !strcmp("", rep)) {
 		switch(state_get_repeat()) {
 			case rep_none: cmd_repeat("one");  break;
 			case rep_one:  cmd_repeat("all");  break;
