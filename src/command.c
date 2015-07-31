@@ -478,38 +478,30 @@ static void cmd_help(char *unused) {
 	handle_textbox();
 }
 
-/** \brief Set repeat to 'none'
+/** \brief Set repeat to 'rep'
  *
- *  \param unused  Unused parameter, required due to interface of cmd_* functions
- */
-static void cmd_repeat_none(char *unused) {
-	state_set_repeat(rep_none);
-	state_set_status(cline_default, "Info: Switched repeat to 'none'");
-}
-
-/** \brief Set repeat to 'one' (repeat single track)
+ *  
  *
- *  \param unused  Unused parameter, required due to interface of cmd_* functions
+ *  \param rep  The type of repeat to use (one in {none,one,all})
  */
-static void cmd_repeat_one(char *unused) {
-	state_set_repeat(rep_one);
-	state_set_status(cline_default, "Info: Switched repeat to 'one'");
-}
+static void cmd_repeat(char *rep) {
+	rep = strstrp(rep);
 
-/** \brief Set repeat to 'all' (repeat whole track_list)
- *
- *  \param unused  Unused parameter, required due to interface of cmd_* functions
- */
-static void cmd_repeat_all(char *unused) {
-	state_set_repeat(rep_all);
-	state_set_status(cline_default, "Info: Switched repeat to 'all'");
-}
-
-static void cmd_repeat_toggle(char *unused) {
-	switch(state_get_repeat()) {
-		case rep_none: cmd_repeat_one (NULL); break;
-		case rep_one:  cmd_repeat_all (NULL); break;
-		case rep_all:  cmd_repeat_none(NULL); break;
+	if(!strcmp("", rep)) {
+		switch(state_get_repeat()) {
+			case rep_none: cmd_repeat("one");  break;
+			case rep_one:  cmd_repeat("all");  break;
+			case rep_all:  cmd_repeat("none"); break;
+		}
+	} else {
+		if     (!strcmp("none", rep)) state_set_repeat(rep_none);
+		else if(!strcmp("one",  rep)) state_set_repeat(rep_one);
+		else if(!strcmp("all",  rep)) state_set_repeat(rep_all);
+		else {
+			state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not in {none,one,all}", rep));
+			return;
+		}
+		state_set_status(cline_default, smprintf("Info: Switched repeat to '%s'", rep));
 	}
 }
 
@@ -640,10 +632,7 @@ const struct command commands[] = {
 	{"pause",         cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
 	{"play",          cmd_play,           "<none/ignored>",                "Start playback of currently selected track"},
 	{"redraw",        cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
-	{"repeat-none",   cmd_repeat_none,    "<none/ignored>",                "Set repeat to 'none'"},
-	{"repeat-one",    cmd_repeat_one,     "<none/ignored>",                "Set repeat to 'one'"},
-	{"repeat-all",    cmd_repeat_all,     "<none/ignored>",                "Set repeat to 'all'"},
-	{"repeat-toggle", cmd_repeat_toggle,  "<none/ignored>",                "Toggle repeat (none -> one -> all -> none)"},
+	{"repeat",        cmd_repeat,         "{,none,one,all}",               "Set/Toggle repeat"},
 	{"search-start",  cmd_search_start,   "<none/ignored>",                "Start searching (open input field)"},
 	{"search-next",   cmd_search_next,    "<none/ignored>",                "Continue search downwards"},
 	{"search-prev",   cmd_search_prev,    "<none/ignored>",                "Continue search upwards"},
@@ -665,29 +654,6 @@ static void handle_textbox() {
 	int c;
 	while( (c = getch()) ) {
 		switch(c) {
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-			case '0': {
-				struct track_list *list = state_get_list(state_get_current_list());
-				size_t current_selected = state_get_current_selected();
-
-				size_t url_count = TRACK(list, current_selected)->url_count;
-				char **urls = TRACK(list, current_selected)->urls;
-
-				if(c - '0' < url_count) {
-					_log("running xdg-open %s", urls[c - '0']);
-					fork_and_run("xdg-open", urls[c - '0']);
-				}
-				break;
-			}
-
 			case 'd':
 			case 'q':
 				state_set_tb_pos(0);
@@ -703,6 +669,20 @@ static void handle_textbox() {
 			case KEY_DOWN:  state_set_tb_pos_rel(+1);            break;
 			case KEY_PPAGE: state_set_tb_pos_rel(- (LINES - 2)); break;
 			case KEY_NPAGE: state_set_tb_pos_rel(+ (LINES - 2)); break;
+
+			default:
+				if('0' <= c && c <= '9') {
+					unsigned int idx = c - '0';
+					struct track_list *list = state_get_list(state_get_current_list());
+					size_t current_selected = state_get_current_selected();
+
+					size_t url_count = TRACK(list, current_selected)->url_count;
+					char **urls = TRACK(list, current_selected)->urls;
+
+					if(idx < url_count) {
+						fork_and_run("xdg-open", urls[idx]);
+					}
+				}
 		}
 	}
 }
