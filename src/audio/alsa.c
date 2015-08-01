@@ -49,17 +49,39 @@ static snd_mixer_elem_t *elem;
 static long              min;
 static long              range;
 
-void audio_play(void *buffer, size_t size) {
+static bool alsa_recover(int err) {
+
+	if(-ESTRPIPE == err) {
+		// try to resume the hardware
+		while( (err = snd_pcm_resume(pcm)) == -EAGAIN ) {
+			sleep(1);
+		}
+
+		// if resuming failed this way, then recover using snd_pcm_prepare
+		err = -EPIPE;
+	}
+
+	if(-EPIPE == err) {
+		// recover from underrun (or from failed `snd_pcm_resume`)
+		if( (err = snd_pcm_prepare(pcm)) < 0 ) {
+			_log("libalsa: snd_pcm_prepare failed: %s", snd_strerror(err));
+			return false;
+		}
+	}
+
+	return true;
+}
+
+size_t audio_play(void *buffer, size_t size) {
 
 	snd_pcm_uframes_t frames = snd_pcm_bytes_to_frames(pcm, size);
 
-	int err;
-	if(frames != (err = snd_pcm_writei(pcm, buffer, frames))) {
-		_log("libalsa: %s", snd_strerror(err));
-		if(snd_pcm_prepare(pcm) >= 0) {
-			snd_pcm_writei(pcm, buffer, frames);
-		}
+	snd_pcm_sframes_t frames_played = snd_pcm_writei(pcm, buffer, frames);;
+	if(frames_played < 0) {
+		alsa_recover(frames_played);
 	}
+
+	return frames_played < 0 ? 0 : snd_pcm_frames_to_bytes(pcm, frames_played);
 }
 
 static snd_pcm_format_t mpg123_to_alsa_encoding(unsigned int mpg123_encoding) {

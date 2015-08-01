@@ -55,8 +55,9 @@
 	 *
 	 *  \param buffer  The buffer containing the data.
 	 *  \param size    The number of bytes ready in `buffer`.
+	 *  \returns       The number of bytes played (may be less than `size`)
 	 */
-	typedef void (*audio_play_t)(void *buffer, size_t size);
+	typedef size_t (*audio_play_t)(void *buffer, size_t size);
 
 	/** \brief The type of the function used to initialize the AO module.
 	 *

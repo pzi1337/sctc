@@ -44,8 +44,9 @@ static char* ao_strerror(int err) {
 	}
 }
 
-void audio_play(void *buffer, size_t size) {
+size_t audio_play(void *buffer, size_t size) {
 	ao_play(dev, (char*)buffer, size);
+	return size;
 }
 
 bool audio_set_format(unsigned int encoding, unsigned int rate, unsigned int channels) {
