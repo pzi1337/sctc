@@ -27,7 +27,7 @@ audio/alsa.so: audio/alsa.o
 # the AO output plugin *fallback* #
 ###################################
 LDFLAGS_AO_SO=`pkg-config --libs ao` -rdynamic -shared
-audio/ao.so: audio/alsa.o
+audio/ao.so: audio/ao.o
 	@echo "LD\t"$@
 	@$(CC) $(LDOPT) $(LDFLAGS_AO_SO) $< -o ../bin/$@
 
