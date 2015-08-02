@@ -86,7 +86,8 @@ static void* _download_thread(void *unused) {
 
 		if(!my->target_file || fh) {
 			char buffer[CHUNK_SIZE];
-			struct http_response *resp = soundcloud_connect_track(my->track);
+			struct http_response *resp_last = soundcloud_connect_track(my->track, "bytes=-4096");
+			struct http_response *resp      = soundcloud_connect_track(my->track, NULL);
 			struct network_conn *nwc = resp->nwc;
 
 			// allocate buffer
@@ -101,9 +102,20 @@ static void* _download_thread(void *unused) {
 
 			__sync_bool_compare_and_swap(&my->state->bytes_total, 0, resp->content_length);
 
-			size_t remaining = resp->content_length;
-			_log("have content length %u", remaining);
 
+
+			// read the last 4096 bytes at first (... do not ask.)
+			size_t remaining = resp_last->content_length;
+			while( remaining ){
+				int ret = nwc->recv(nwc, &((char*)my->buffer)[resp->content_length - remaining], remaining);
+				if(ret > 0) {
+					remaining -= ret;
+				}
+			}
+			_log("fetching of last 4096 bytes finished");
+
+			remaining = resp->content_length;
+			_log("have content length %u", remaining);
 			while( remaining ) {
 				size_t request_size = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
 				if(my->target_file) {

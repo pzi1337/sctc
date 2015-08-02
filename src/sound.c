@@ -67,7 +67,7 @@ static pthread_t thread_play; // thread decoding and playing downloaded data
 
 static sem_t sem_data_available;
 
-static mpg123_handle *mh = NULL;
+static mpg123_handle *mh     = NULL;
 struct io_handle *m_iohandle = NULL;
 
 static volatile struct track *track       = NULL;
@@ -90,14 +90,27 @@ static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
 	struct download_state *dlstat = iohandle->download_state;
 
-	size_t bytes_available = 0;
-	if(dlstat->bytes_recvd > iohandle->position) {
-		bytes_available = dlstat->bytes_recvd - iohandle->position;
-	}
-	size_t bytes_copied = count < bytes_available ? count : bytes_available;
+	size_t bytes_copied = 0;
+	if(iohandle->position >= dlstat->bytes_total - 4096) {
+		size_t bytes_available = dlstat->bytes_total - iohandle->position;
+		bytes_copied = count < bytes_available ? count : bytes_available;
 
-	memcpy(mpg123buffer, &dlstat->buffer[iohandle->position], bytes_copied);
-	iohandle->position += bytes_copied;
+		memcpy(mpg123buffer, &dlstat->buffer[iohandle->position], bytes_copied);
+		iohandle->position += bytes_copied;
+	} else {
+		size_t bytes_available = 0;
+		if(dlstat->bytes_recvd > iohandle->position) {
+			bytes_available = dlstat->bytes_recvd - iohandle->position;
+		}
+		bytes_copied = count < bytes_available ? count : bytes_available;
+
+		memcpy(mpg123buffer, &dlstat->buffer[iohandle->position], bytes_copied);
+		iohandle->position += bytes_copied;
+	}
+
+	if(bytes_copied < count) {
+		_log("WARNING: %zu bytes at position %zu requested, but can only deliver %zu bytes", count, iohandle->position, bytes_copied);
+	}
 
 	return bytes_copied;
 }
@@ -117,7 +130,8 @@ static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
 		}
 	}
 
-	if(abs_offset >= dlstat->bytes_recvd) {
+	if(abs_offset > dlstat->bytes_total) {
+		_log("cannot seek to %zu, only have at max. %zu bytes", abs_offset, dlstat->bytes_recvd);
 		return (off_t) -1;
 	}
 
@@ -203,11 +217,12 @@ static void* _thread_play_function(void *unused) {
 	do {
 		_log("waiting for data to play");
 		sem_wait(&sem_data_available);
-		if(!terminate) {
-			_log("starting playback");
-			mh = mpg123_init_playback(mh, state);
-			_log("mpg123_init_playback returned %p", (void*)mh);
+
+		if(terminate) {
+			return NULL;
 		}
+
+		mh = mpg123_init_playback(mh, state);
 
 		unsigned int last_reported_pos = ~0;
 
@@ -248,9 +263,16 @@ static void* _thread_play_function(void *unused) {
 
 			// do seeking to specified position if required
 			if(SEEKPOS_NONE != seek_to_pos) {
-				_log("requested seek to %i", seek_to_pos);
 				off_t target_frame_off = mpg123_timeframe(mh, seek_to_pos);
-
+				if(0 > target_frame_off) {
+					_log("cannot get offset for time %us: %s", seek_to_pos, mpg123_strerror(mh));
+				} else {
+					_log("requested seek to %us, frame at %zi", seek_to_pos, target_frame_off);
+					if(0 > mpg123_seek_frame(mh, target_frame_off, SEEK_SET)) {
+						_log("mpg123_seek_frame: %s", mpg123_strerror(mh));
+					}
+				}
+/*
 				off_t *offsets;
 				size_t offsets_size;
 				off_t  step_per_idx;
@@ -258,9 +280,13 @@ static void* _thread_play_function(void *unused) {
 					size_t idx = target_frame_off / step_per_idx;
 					if(idx < offsets_size) {
 						_log("going to bytepos %zu", offsets[idx]);
+					} else {
+						_log("not going anywhere, idx = %zu out of bounds = %zu", idx, offsets_size);
 					}
+				} else {
+					_log("mpg123_index failed: %s", mpg123_strerror(mh));
 				}
-
+*/
 				// reset seek_to_pos to avoid seeking multiple times
 				seek_to_pos = SEEKPOS_NONE;
 			}
@@ -379,7 +405,6 @@ bool sound_play(struct track *_track) {
 
 	seek_to_pos = _track->current_position;
 
-void* cache_track_get(struct track *track, size_t *track_size);
 	size_t cache_track_size;
 	void  *cache_track_buffer;
 	if( ( cache_track_buffer = cache_track_get((struct track*) track, &cache_track_size) ) ) {

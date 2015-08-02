@@ -25,6 +25,6 @@
 
 	struct track_list* soundcloud_get_stream();
 	struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user);
-	struct http_response* soundcloud_connect_track(struct track *track);
+	struct http_response* soundcloud_connect_track(struct track *track, char *range);
 
 #endif /* _SOUNDCLOUD_H */

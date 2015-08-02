@@ -44,10 +44,15 @@
 		} \
 	}
 
-struct http_response* http_request_get_only_header(struct network_conn *nwc, char *url, char *host, size_t follow_redirect_steps) {
+struct http_response* http_request_get_only_header(struct network_conn *nwc, char *url, char *host, char *range, size_t follow_redirect_steps) {
 
 	nwc->send_fmt(nwc, "GET %s HTTP/1.1\r\n", url);
-	nwc->send_fmt(nwc, "Host: %s\r\n\r\n", host);
+	nwc->send_fmt(nwc, "Host: %s\r\n", host);
+
+	if(range) {
+		nwc->send_fmt(nwc, "Range: %s\r\n", range);
+	}
+	nwc->send_fmt(nwc, "\r\n");
 
 	struct http_response *resp = lcalloc(1, sizeof(struct http_response));
 	char *buffer               = lcalloc(DEFAULT_BUFFER_SIZE, sizeof(char));
@@ -99,7 +104,7 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 
 			if(u) {
 				url_connect(u);
-				resp = http_request_get_only_header(u->nwc, u->request, u->host, follow_redirect_steps - 1);
+				resp = http_request_get_only_header(u->nwc, u->request, u->host, range, follow_redirect_steps - 1);
 				resp->nwc = u->nwc;
 				url_destroy(u);
 			} else {
@@ -113,7 +118,7 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 
 struct http_response* http_request_get(struct network_conn *nwc, char *url, char *host) {
 
-	struct http_response* resp = http_request_get_only_header(nwc, url, host, MAX_REDIRECT_STEPS);
+	struct http_response* resp = http_request_get_only_header(nwc, url, host, NULL, MAX_REDIRECT_STEPS);
 	//_log("content_length: %d", resp->content_length);
 	//_log("http_status: %d", resp->http_status);
 

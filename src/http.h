@@ -51,7 +51,7 @@
 	 *  \param follow_redirect_steps  The number of redirects allowed (0 = disable rediects).
 	 *  \return                       A pointer to an http_response, or NULL in case of error.
 	 */
-	struct http_response* http_request_get_only_header(struct network_conn *nwc, char *url, char *host, size_t follow_redirect_steps);
+	struct http_response* http_request_get_only_header(struct network_conn *nwc, char *url, char *host, char *range, size_t follow_redirect_steps);
 
 	/** \brief Send an HTTP request and read the header along with the body.
 	 *

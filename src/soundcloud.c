@@ -190,7 +190,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 	return result;
 }
 
-struct http_response* soundcloud_connect_track(struct track *track) {
+struct http_response* soundcloud_connect_track(struct track *track, char *range) {
 	char request[strlen(track->stream_url) + 1 + strlen(CLIENTID_GET) + 1];
 	sprintf(request, "%s?"CLIENTID_GET, track->stream_url);
 
@@ -206,7 +206,7 @@ struct http_response* soundcloud_connect_track(struct track *track) {
 		return NULL;
 	}
 
-	struct http_response *resp = http_request_get_only_header(u->nwc, u->request, u->host, MAX_REDIRECT_STEPS);
+	struct http_response *resp = http_request_get_only_header(u->nwc, u->request, u->host, range, MAX_REDIRECT_STEPS);
 
 	url_destroy(u);
 
