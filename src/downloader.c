@@ -116,7 +116,7 @@ static void* _download_thread(void *unused) {
 
 			remaining = resp->content_length;
 			_log("have content length %u", remaining);
-			while( remaining ) {
+			while( remaining && !terminate ) {
 				size_t request_size = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
 				if(my->target_file) {
 					int ret = nwc->recv(nwc, buffer, request_size);
