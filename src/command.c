@@ -335,7 +335,7 @@ static void cmd_seek(char *time) {
 			if('+' == *seekto) {
 				new_abs += delta;
 			} else {
-				new_abs -= delta;
+				new_abs = delta < new_abs ? (new_abs - delta) : 0;
 			}
 		}
 	} else {
