@@ -102,12 +102,10 @@ static void* _download_thread(void *unused) {
 
 			__sync_bool_compare_and_swap(&my->state->bytes_total, 0, resp->content_length);
 
-
-
 			// read the last 4096 bytes at first (... do not ask.)
 			size_t remaining = resp_last->content_length;
 			while( remaining ){
-				int ret = nwc->recv(nwc, &((char*)my->buffer)[resp->content_length - remaining], remaining);
+				int ret = resp_last->nwc->recv(resp_last->nwc, &((char*)my->buffer)[resp->content_length - remaining], remaining);
 				if(ret > 0) {
 					remaining -= ret;
 				}
