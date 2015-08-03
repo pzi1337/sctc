@@ -45,6 +45,8 @@
 	/// this track is within the cache
 	#define FLAG_CACHED    16
 
+	#define URL_COUNT_UNINITIALIZED ( (size_t) -1 )
+
 	#define TRACK(LST, ID) (LST->entries[ID].name ? &LST->entries[ID] : LST->entries[ID].href)
 
 	/** \brief The basic datastructure representing a single track

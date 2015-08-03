@@ -192,6 +192,7 @@ struct track_list* jspf_read(char *file) {
 			list->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "identifier",    NULL);
 			list->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "annotation",    NULL);
 			list->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration",      NULL);
+			list->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
 			
 			// TODO \todo download_url not part of cached data
 			// list->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);

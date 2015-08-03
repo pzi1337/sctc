@@ -145,6 +145,8 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 
 					next_part->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration", NULL) / 1000;
 
+					next_part->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
+
 					char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
 					if(date_str) {
 						char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &next_part->entries[i].created_at);

@@ -520,7 +520,7 @@ static void cmd_details(char *unused) {
 	size_t url_count = TRACK(list, current_selected)->url_count;
 	char **urls = TRACK(list, current_selected)->urls;
 
-	if(!urls) { // TODO
+	if(URL_COUNT_UNINITIALIZED == url_count) {
 		url_count = string_find_urls(TRACK(list, current_selected)->description, &urls);
 		TRACK(list, current_selected)->url_count = url_count;
 		TRACK(list, current_selected)->urls = urls;
