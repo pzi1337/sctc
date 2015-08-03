@@ -249,7 +249,7 @@ size_t string_find_urls(char *string, char ***urls_out) {
 
 char* string_prepare_urls_for_display(char *string, size_t url_count) {
 
-	size_t prep_size = strlen(string) + (2 + 16) * url_count;
+	size_t prep_size = strlen(string) + (2 + 16) * url_count + 1;
 	size_t prep_used = 0;
 	char  *prep      = lcalloc(prep_size, sizeof(char));
 
