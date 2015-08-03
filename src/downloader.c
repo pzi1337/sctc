@@ -65,19 +65,39 @@ struct download {
 static struct download *head;
 static struct download *tail;
 
+static struct download *download_dequeue() {
+	sem_wait(&sem_url_queue);
+	struct download *dl = head;
+	head = dl->next;
+
+	if(dl == tail) {
+		tail = NULL;
+	}
+	sem_post(&sem_url_queue);
+
+	return dl;
+}
+
+static void download_enqueue(struct download *dl) {
+	sem_wait(&sem_url_queue);
+
+	if(tail) {
+		tail->next = dl;
+	} else {
+		head = dl;
+	}
+	tail = dl;
+	sem_post(&sem_url_queue);
+
+	sem_post(&have_url);
+}
+
 static void* _download_thread(void *unused) {
 	while(!terminate) {
 		sem_wait(&have_url);
 		if(terminate) return NULL;
 
-		sem_wait(&sem_url_queue);
-		struct download *my = head;
-		head = my->next;
-
-		if(my == tail) {
-			tail = NULL;
-		}
-		sem_post(&sem_url_queue);
+		struct download *my = download_dequeue();
 
 		__sync_bool_compare_and_swap(&my->state->started, false, true);
 
@@ -148,21 +168,6 @@ static void* _download_thread(void *unused) {
 	return NULL;
 }
 
-static bool queue_add(struct download *new_dl) {
-	sem_wait(&sem_url_queue);
-	if(tail) {
-		tail->next = new_dl;
-	} else {
-		head = new_dl;
-	}
-	tail = new_dl;
-	sem_post(&sem_url_queue);
-
-	sem_post(&have_url);
-
-	return true;
-}
-
 /*
 bool downloader_queue_file(char *url, char *file) {
 	struct download *new_dl = lmalloc(sizeof(struct download));
@@ -195,7 +200,7 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 	new_dl->next        = NULL;
 	new_dl->callback    = callback;
 
-	queue_add(new_dl);
+	download_enqueue(new_dl);
 
 	return dl_stat;
 }
