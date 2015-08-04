@@ -42,7 +42,7 @@
 	 *  \param fmt  The formatstring, as known from `printf`, see `man 3 printf`
 	 *  \return     Pointer to allocated memory (needs to be `free`'d) or `NULL` if malloc failed
 	 */
-	char* smprintf(char *fmt, ...);
+	char* smprintf(char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 
 	/** \brief Write a formated version of time_secs to buffer.
 	 *

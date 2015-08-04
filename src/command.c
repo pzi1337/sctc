@@ -82,7 +82,7 @@ static int command_dispatcher(char *command) {
 	char *endptr;
 	long val = strtol(command, &endptr, 10);
 	if('\0' == *endptr) {
-		state_set_status(0, smprintf("Info: Jumping to %i", val));
+		state_set_status(0, smprintf("Info: Jumping to %li", val));
 		return val;
 	}
 

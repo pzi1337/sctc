@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
 
 	// send new list to tui-thread
 	state_set_current_list(LIST_STREAM);
-	state_set_status(cline_default, smprintf("Info: "F_BOLD"%i elements"F_RESET" in %i subscriptions from soundcloud.com", list_stream->count, config_get_subscribe_count()));
+	state_set_status(cline_default, smprintf("Info: "F_BOLD"%zu elements"F_RESET" in %zu subscriptions from soundcloud.com", list_stream->count, config_get_subscribe_count()));
 
 	// and enter the main `message` loop
 	int c;
