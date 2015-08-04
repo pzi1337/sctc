@@ -331,7 +331,7 @@ static void cmd_seek(char *time) {
 		// relative offset to current position
 		unsigned int delta = parse_time_to_sec(seekto + 1);
 		if(INVALID_TIME != delta) {
-			new_abs = sound_get_current_pos();
+			new_abs = state_get_current_playback_time();
 			if('+' == *seekto) {
 				new_abs += delta;
 			} else {
@@ -480,8 +480,6 @@ static void cmd_help(char *unused) {
 
 /** \brief Set repeat to 'rep'
  *
- *  
- *
  *  \param rep  The type of repeat to use (one in {none,one,all})
  */
 static void cmd_repeat(char *rep) {
@@ -561,7 +559,7 @@ static void stop_playback(bool reset) {
 				TRACK(list, playing)->flags |= FLAG_PAUSED;
 			}
 
-			TRACK(list, playing)->current_position = sound_get_current_pos();
+			TRACK(list, playing)->current_position = state_get_current_playback_time();
 		}
 
 		tui_submit_action(update_list);

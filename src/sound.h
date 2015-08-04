@@ -50,8 +50,6 @@
 
 	int sound_change_volume(off_t delta);
 
-	unsigned int sound_get_current_pos();
-
 	/** \brief Stop playback of current track
 	 *
 	 *  \return true in case of success, false otherwise

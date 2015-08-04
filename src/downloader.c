@@ -47,7 +47,6 @@ static sem_t sem_url_queue;
 static volatile bool terminate = false;
 
 struct download {
-	struct track *track;
 	struct download_state *state;
 	void (*callback)(struct download_state *);
 	bool target_file;
@@ -106,8 +105,8 @@ static void* _download_thread(void *unused) {
 
 		if(!my->target_file || fh) {
 			char buffer[CHUNK_SIZE];
-			struct http_response *resp_last = soundcloud_connect_track(my->track, "bytes=-4096");
-			struct http_response *resp      = soundcloud_connect_track(my->track, NULL);
+			struct http_response *resp_last = soundcloud_connect_track(my->state->track, "bytes=-4096");
+			struct http_response *resp      = soundcloud_connect_track(my->state->track, NULL);
 			struct network_conn *nwc = resp->nwc;
 
 			// allocate buffer
@@ -182,7 +181,7 @@ bool downloader_queue_file(char *url, char *file) {
 }
 */
 
-struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state *)) {
+struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state*)) {
 	struct download *new_dl = lmalloc(sizeof(struct download));
 	if(!new_dl) return NULL;
 
@@ -192,8 +191,9 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 		return NULL;
 	}
 
+	dl_stat->track      = track;
+
 	new_dl->state       = dl_stat;
-	new_dl->track       = track;
 	new_dl->target_file = false;
 	new_dl->buffer      = NULL;
 	new_dl->buffer_size = 0;

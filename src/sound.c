@@ -20,32 +20,27 @@
 #include "_hard_config.h"
 #include "sound.h"
 
-#include <mpg123.h>                     // for mpg123_close, mpg123_delete, etc
-
 //\cond
 #include <errno.h>                      // for errno
-#include <unistd.h>
 #include <pthread.h>                    // for pthread_create, etc
 #include <semaphore.h>                  // for sem_post, sem_wait, etc
 #include <stddef.h>                     // for NULL, size_t
-#include <stdlib.h>                     // for free
-#include <string.h>                     // for strerror, strdup
-#include <sys/stat.h>                   // for off_t
-#include <sys/types.h>
+#include <stdlib.h>                     // for free, atexit
+#include <string.h>                     // for memcpy, strerror
+#include <sys/types.h>                  // for off_t, ssize_t
+#include <unistd.h>                     // for SEEK_SET, SEEK_CUR, etc
 //\endcond
 
-#include "audio/ao_module.h"
+#include <mpg123.h>                     // for mpg123_strerror, etc
+
+#include "audio/ao_module.h"            // for ao_module_load, etc
 #include "cache.h"                      // for cache_track_get, etc
-#include "config.h"
-#include "downloader.h"
+#include "config.h"                     // for config_get_equalizer
+#include "downloader.h"                 // for download_state, etc
 #include "helper.h"                     // for lmalloc
-#include "http.h"                       // for http_response, etc
 #include "log.h"                        // for _log
-#include "network/network.h"            // for network_conn
-#include "soundcloud.h"                 // for soundcloud_connect_track
-#include "track.h"                      // for track, FLAG_CACHED
-#include "tui.h"                        // for F_BOLD, F_RESET, etc
-#include "state.h"
+#include "state.h"                      // for state_set_volume
+#include "track.h"                      // for track, etc
 
 static char *aos[] = {"audio/alsa.so", "audio/ao.so", NULL};
 
@@ -67,18 +62,9 @@ static pthread_t thread_play; // thread decoding and playing downloaded data
 
 static sem_t sem_data_available;
 
-static mpg123_handle *mh     = NULL;
-struct io_handle *m_iohandle = NULL;
-
-static volatile struct track *track       = NULL;
-static volatile unsigned int  current_pos = 0;
-
-static volatile unsigned int  seek_to_pos = SEEKPOS_NONE;
-
-/** The amount of data for the whole track.
-    As soon as we reach this position during playback the end of track has been reached */
-static volatile bool stopped   = false;
-static volatile bool terminate = false;
+static volatile unsigned int seek_to_pos = SEEKPOS_NONE;
+static volatile bool         stopped     = false;
+static volatile bool         terminate   = false;
 
 static struct download_state *state = NULL;
 
@@ -131,7 +117,7 @@ static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
 	}
 
 	if(abs_offset > dlstat->bytes_total) {
-		_log("cannot seek to %zu, only have at max. %zu bytes", abs_offset, dlstat->bytes_recvd);
+		_log("cannot seek to %zu, only have at max. %zu bytes", abs_offset, dlstat->bytes_total);
 		return (off_t) -1;
 	}
 
@@ -171,8 +157,6 @@ static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_st
 	iohandle->position       = 0;
 	iohandle->download_state = download_state;
 
-	m_iohandle = iohandle;
-
 	if(MPG123_OK != mpg123_open_handle(new_mh, iohandle)) {
 		_log("mpg123_open_handle: %s", mpg123_strerror(new_mh));
 		free(iohandle);
@@ -196,15 +180,13 @@ static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_st
 static void io_callback(struct download_state *state) {
 	sem_post(&sem_data_available);
 
+	struct track *track = state->track;
+
 	if(state->finished) {
 		_log("download of `%s` is finished, saving track to cache", track->name);
-		if(cache_track_save((struct track*) track, (void*) state->buffer, state->bytes_recvd)) {
+		if(cache_track_save(track, (void*) state->buffer, state->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
 		}
-
-		//free(state->buffer);
-		//free(state);
-		//state = NULL;
 	}
 }
 
@@ -214,6 +196,7 @@ static void io_callback(struct download_state *state) {
 *  \return NULL   Unused return value, required due to pthread interface
 */
 static void* _thread_play_function(void *unused) {
+	mpg123_handle *mh = NULL;
 	do {
 		_log("waiting for data to play");
 		sem_wait(&sem_data_available);
@@ -232,7 +215,7 @@ static void* _thread_play_function(void *unused) {
 		off_t frame_offset;
 		unsigned char *audio = NULL;
 
-		while(!terminate && !stopped && !playback_done && track) {
+		while(!terminate && !stopped && !playback_done) {
 			int err = mpg123_decode_frame(mh, &frame_offset, &audio, &done);
 			switch(err) {
 				case MPG123_NEW_FORMAT: {
@@ -247,14 +230,15 @@ static void* _thread_play_function(void *unused) {
 				case MPG123_OK:
 					audio_play(audio, done);
 
-					current_pos = (unsigned int) (mpg123_tpf(mh) * mpg123_tellframe(mh));
+					unsigned int current_pos = (unsigned int) (mpg123_tpf(mh) * mpg123_tellframe(mh));
 					// only report position of playback if it has changed
 					// meant to reduce the number of redraws possibly issued by time_callback
 					if(current_pos != last_reported_pos) {
 						last_reported_pos = current_pos;
-						time_callback(current_pos);
-					}
 
+						time_callback(current_pos);
+						state_set_current_time(current_pos);
+					}
 					break;
 
 				default:
@@ -272,21 +256,7 @@ static void* _thread_play_function(void *unused) {
 						_log("mpg123_seek_frame: %s", mpg123_strerror(mh));
 					}
 				}
-/*
-				off_t *offsets;
-				size_t offsets_size;
-				off_t  step_per_idx;
-				if(MPG123_OK == mpg123_index(mh, &offsets, &step_per_idx, &offsets_size)) {
-					size_t idx = target_frame_off / step_per_idx;
-					if(idx < offsets_size) {
-						_log("going to bytepos %zu", offsets[idx]);
-					} else {
-						_log("not going anywhere, idx = %zu out of bounds = %zu", idx, offsets_size);
-					}
-				} else {
-					_log("mpg123_index failed: %s", mpg123_strerror(mh));
-				}
-*/
+
 				// reset seek_to_pos to avoid seeking multiple times
 				seek_to_pos = SEEKPOS_NONE;
 			}
@@ -296,6 +266,9 @@ static void* _thread_play_function(void *unused) {
 			sem_post(&sem_stopped);
 		}
 	} while(!terminate);
+
+	mpg123_close(mh);
+	mpg123_delete(mh);
 
 	return NULL;
 }
@@ -354,8 +327,6 @@ static void sound_finalize() {
 	pthread_join(thread_play, NULL);
 
 	// cleanup libmpg123
-	mpg123_close(mh);
-	mpg123_delete(mh);
 	mpg123_exit();
 
 	ao_module_unload();
@@ -364,6 +335,9 @@ static void sound_finalize() {
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
 
 bool sound_stop() {
+
+	SEM_SET_TO_ZERO(sem_data_available)
+
 	stopped = true;
 
 	_log("waiting for threads to stop playback");
@@ -376,41 +350,37 @@ bool sound_stop() {
 		sem_wait(&sem_stopped);
 	}
 
-	track   = NULL;
-	stopped = false;
+	// TODO: free state here?
+	state = NULL;
 
-	SEM_SET_TO_ZERO(sem_data_available)
+	stopped = false;
 
 	_log("stopping done");
 
 	return true;
 }
 
-unsigned int sound_get_current_pos() {
-	return current_pos;
-}
-
 void sound_seek(unsigned int pos) {
 	seek_to_pos = pos;
 }
 
-bool sound_play(struct track *_track) {
+bool sound_play(struct track *track) {
 
-	if(track) {
-		sound_stop();
-	}
+	if(state) sound_stop();
 
-	track       = _track;
-	current_pos = 0;
-
-	seek_to_pos = _track->current_position;
+	seek_to_pos = track->current_position ? track->current_position : SEEKPOS_NONE;
 
 	size_t cache_track_size;
 	void  *cache_track_buffer;
-	if( ( cache_track_buffer = cache_track_get((struct track*) track, &cache_track_size) ) ) {
+	if( ( cache_track_buffer = cache_track_get(track, &cache_track_size) ) ) {
 		_log("using file from cache for '%s' by '%s'", track->name, track->username);
 
 		struct download_state *cache_state = lmalloc(sizeof(struct download_state));
+		if(!cache_state) {
+			return false;
+		}
+
+		cache_state->track       = track;
 		cache_state->started     = true;
 		cache_state->finished    = true;
 		cache_state->bytes_recvd = cache_track_size;
@@ -422,6 +392,9 @@ bool sound_play(struct track *_track) {
 		sem_post(&sem_data_available);
 	} else {
 		state = downloader_queue_buffer(track, io_callback);
+		if(!state) {
+			return false;
+		}
 	}
 
 	return true;

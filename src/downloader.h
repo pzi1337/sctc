@@ -25,6 +25,7 @@
 	#include "track.h"
 
 	struct download_state {
+		struct track *track;
 		char  *buffer;
 		size_t bytes_recvd; ///< the number of Bytes already recvd (already in buffer)
 		size_t bytes_total; ///< the total number of Bytes (total size, as announced by server)

@@ -127,7 +127,7 @@ static int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char *
 		return 0;
 	}
 
-	_log("Mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(cmd->name));
+	_log("| * mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(cmd->name));
 	key_command_mapping[key].func  = cmd->func;
 	const char *param = argv[1] + strlen(cmd->name);
 	if(strcmp("", param)) key_command_mapping[key].param = lstrdup(param);
