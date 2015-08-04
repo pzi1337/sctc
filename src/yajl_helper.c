@@ -60,7 +60,7 @@ yajl_val yajl_helper_parse(char *data) {
 
 	if(!val) {
 		_log("%s", errbuf);
-		_log("length of affected string: %d", strlen(data));
+		_log("length of affected string: %zu", strlen(data));
 		_log("affected string: %s", data);
 	}
 	return val;

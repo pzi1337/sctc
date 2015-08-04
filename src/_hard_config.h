@@ -105,7 +105,7 @@
 	#define BENCH_STOP(ID, DESC) { \
 			struct timespec bench_end; \
 			clock_gettime(CLOCK_MONOTONIC, &bench_end); \
-			_log("%s took %dms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
+			_log("%s took %ldms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
 		}
 
 #endif

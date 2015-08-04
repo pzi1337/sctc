@@ -174,7 +174,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 		} while(href);
 	}
 	
-	_log("%4d/%4d tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : -1, user);
+	_log("%4zd/%4zd tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : -1, user);
 
 	/* only return the tracks received from the cache in case of an error in the request to soundcloud.com */
 	if(!list) {

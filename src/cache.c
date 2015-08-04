@@ -72,7 +72,7 @@ void* cache_track_get(struct track *track, size_t *track_size) {
 		void *audio_buffer = lmalloc(cache_stat.st_size);
 		*track_size = fread(audio_buffer, 1, cache_stat.st_size, fh);
 		if(*track_size != cache_stat.st_size) {
-			_log("expected %iBytes, but got %iBytes, reason: %s", cache_stat.st_size, *track_size, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
+			_log("expected %jdBytes, but got %zuBytes, reason: %s", cache_stat.st_size, *track_size, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
 		}
 
 		fclose(fh);

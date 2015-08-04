@@ -78,14 +78,11 @@ bool tls_init() {
 		return false;
 	}
 
-	size_t pos = 0;
 	for(x509_crt *cert = &cacerts; cert; cert = cert->next) {
 		char buf[2048];
 
 		ret = x509_dn_gets(buf, sizeof(buf), &cert->subject);
-		_log("| %3i. %s", pos, buf);
-
-		pos++;
+		_log("| * %s", buf);
 	}
 
 	if(atexit(tls_finalize)) {

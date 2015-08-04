@@ -132,7 +132,7 @@ static void* _download_thread(void *unused) {
 			_log("fetching of last 4096 bytes finished");
 
 			remaining = resp->content_length;
-			_log("have content length %u", remaining);
+			_log("have content length %zu", remaining);
 			while( remaining && !terminate ) {
 				size_t request_size = remaining > CHUNK_SIZE ? CHUNK_SIZE : remaining;
 				if(my->target_file) {

@@ -94,7 +94,7 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 	resp->buffer = buffer;
 
 	if(resp->http_status >= 300 && resp->http_status < 400) {
-		_log("http_status: %d, follow_redirect_steps: %d", resp->http_status, follow_redirect_steps);
+		_log("http_status: %i, follow_redirect_steps: %zd", resp->http_status, follow_redirect_steps);
 
 		if(follow_redirect_steps) {
 			_log("following redirect to '%s'", resp->location);

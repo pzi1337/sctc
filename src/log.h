@@ -59,5 +59,5 @@
 	 *  \param srcfunc  The function callint __log(); filled by macro _log(), do not use "by hand"
 	 *  \param fmt      The format used format the line, see man 3 printf for usage.
 	 */
-	void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...);
+	void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 #endif /* _LOG_H */
