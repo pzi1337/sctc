@@ -16,13 +16,7 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#ifndef _GNU_SOURCE
-	#define _GNU_SOURCE
-#endif
-
 #include "_hard_config.h"
-
-//#define NDEBUG
 
 /** \mainpage SCTC - the soundcloud.com terminal client
  *
@@ -115,19 +109,6 @@ static void tui_update_time(int time) {
 	}
 }
 
-static void list_href_to_list(struct track_list *list, struct track_list *target) {
-	for(size_t i = 0; i < target->count; i++) {
-		struct track *strack = track_list_get(list, TRACK(target, i)->permalink_url);
-
-		if(NULL != strack) {
-			track_destroy(strack);
-
-			strack->name = NULL;
-			strack->href = TRACK(target, i);
-		}
-	}
-}
-
 int main(int argc, char **argv) {
 	// initialize the modules
 	log_init("sctc.log");
@@ -151,7 +132,7 @@ int main(int argc, char **argv) {
 
 	struct track_list *list_bookmark = jspf_read(BOOKMARK_FILE);
 	list_bookmark->name = strdup("Bookmarks");
-	list_href_to_list(list_bookmark, list_stream);
+	track_list_href_to(list_bookmark, list_stream);
 
 	BENCH_START(SB)
 	for(size_t i = 0; i < list_stream->count; i++) {
@@ -182,7 +163,7 @@ int main(int argc, char **argv) {
 			e->d_name[strlen(e->d_name) - 5] = '\0';
 			list->name = strdup(e->d_name);
 
-			list_href_to_list(list, list_stream);
+			track_list_href_to(list, list_stream);
 			state_add_list(list);
 		}
 	}

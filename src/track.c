@@ -108,6 +108,19 @@ struct track* track_list_get(struct track_list *list, char *permalink) {
 	return NULL;
 }
 
+void track_list_href_to(struct track_list *list, struct track_list *target) {
+	for(size_t i = 0; i < target->count; i++) {
+		struct track *strack = track_list_get(list, TRACK(target, i)->permalink_url);
+
+		if(NULL != strack) {
+			track_destroy(strack);
+
+			strack->name = NULL;
+			strack->href = TRACK(target, i);
+		}
+	}
+}
+
 void track_destroy(struct track *track) {
 	if(track->name) {
 		free(track->name);

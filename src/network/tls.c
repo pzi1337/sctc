@@ -224,16 +224,14 @@ struct network_conn* tls_connect(char *server, int port) {
 	for(int i = 0; i < rcert->serial.len; i++) {
 		serial_str_off += sprintf(serial_str + serial_str_off, "%02x%s", rcert->serial.p[i], i == rcert->serial.len - 1 ? "" : ":");
 	}
-	_log("cert serial: %s", serial_str);
-
-	_log("cert version: %d", rcert->version);
+	_log("| * Serial: %s; Version %d", serial_str, rcert->version);
 	x509_dn_gets( buf, 2048, &rcert->issuer );
-	_log("issuer: %s", buf);
+	_log("| * Issuer: %s", buf);
 
 	x509_dn_gets( buf, 2048, &rcert->subject );
-	_log("subject: %s", buf);
+	_log("| * Subject: %s", buf);
 
-	_log("valid from %04d-%02d-%02d %02d:%02d:%02d to %04d-%02d-%02d %02d:%02d:%02d",
+	_log("| * Valid from %04d-%02d-%02d %02d:%02d:%02d to %04d-%02d-%02d %02d:%02d:%02d",
 		rcert->valid_from.year, rcert->valid_from.mon, rcert->valid_from.day, rcert->valid_from.hour, rcert->valid_from.min, rcert->valid_from.sec,
 		rcert->valid_to.year,   rcert->valid_to.mon,   rcert->valid_to.day,   rcert->valid_to.hour,   rcert->valid_to.min,   rcert->valid_to.sec);
 
