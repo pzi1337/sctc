@@ -353,6 +353,7 @@ static void cmd_seek(char *time) {
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  *  \return does not return
  */
+static void cmd_exit(char *unused) ATTR(noreturn);
 static void cmd_exit(char *unused) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
