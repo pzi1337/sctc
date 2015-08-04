@@ -35,6 +35,8 @@
 
 	#define MAX_LISTS 16
 
+	#define ATTR(...) __attribute__((__VA_ARGS__))
+
 	/** \brief The default path to the ca-certificates file
 	 *
 	 *  Should point to the system wide list of trusted certificates.

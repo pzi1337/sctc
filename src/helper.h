@@ -22,6 +22,9 @@
 
 #ifndef _HELPER_H
 	#define _HELPER_H
+
+	#include "_hard_config.h"
+
 	//\cond
 	#include <stdbool.h>                    // for bool
 	#include <stddef.h>                     // for size_t
@@ -35,14 +38,14 @@
 	 *  \param inbuf       The buffer to be hashed
 	 *  \param inbuf_size  The number of Bytes in `inbuf` to be hashed
 	 */
-	void sha512_string(char *sha512_buf, void *inbuf, size_t inbuf_size);
+	void sha512_string(char *sha512_buf, void *inbuf, size_t inbuf_size) ATTR(nonnull);
 
 	/** \brief printf style function with automated allocation of buffer.
 	 *
 	 *  \param fmt  The formatstring, as known from `printf`, see `man 3 printf`
 	 *  \return     Pointer to allocated memory (needs to be `free`'d) or `NULL` if malloc failed
 	 */
-	char* smprintf(char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
+	char* smprintf(char *fmt, ...) ATTR(format (printf, 1, 2), nonnull);
 
 	/** \brief Write a formated version of time_secs to buffer.
 	 *
@@ -55,7 +58,7 @@
 	 *  \param  time_secs    The seconds to be formated.
 	 *  \return              The number of bytes written to buffer (excluding the terminating '\0')
 	 */
-	int snprint_ftime(char *buffer, size_t buffer_size, int time_secs);
+	int snprint_ftime(char *buffer, size_t buffer_size, int time_secs) ATTR(nonnull);
 
 	/** \brief replace a char with another char in a given string
 	 *
@@ -63,9 +66,9 @@
 	 *  \param s    The char to `s`earch for
 	 *  \param r    The char to `r`eplace with
 	 */
-	void strcrep(char *str, char s, char r);
+	void strcrep(char *str, char s, char r) ATTR(nonnull);
 
-	char* strstrp(char *str);
+	char* strstrp(char *str) ATTR(nonnull, returns_nonnull);
 	bool fork_and_run(char *cmd, char *param);
 	size_t string_find_urls(char *string, char ***urls_out);
 	char* string_prepare_urls_for_display(char *string, size_t url_count);
@@ -75,7 +78,7 @@
 	 *  \param text  The text to yank
 	 *  \return      `true` on success, `false` otherwise
 	 */
-	bool yank(char *text);
+	bool yank(char *text) ATTR(nonnull);
 
 
 	#define INVALID_TIME ((unsigned int) ~0) ///< value indicating an invalid time
@@ -88,7 +91,7 @@
 	 *  \param str  The string to be parsed
 	 *  \return     The corresponding number of seconds or INVALID_TIME in case of invalid format
 	 */
-	unsigned int parse_time_to_sec(char *str);
+	unsigned int parse_time_to_sec(char *str) ATTR(nonnull);
 
 	/** \brief Logging wrapper for malloc().
 	 *
@@ -174,5 +177,5 @@
 	 *  \param srcfunc  The function calling _lstrdup(); filled by macro lstrdup(), do not use "by hand"
 	 *  \param s        The string to be duplicated
 	 */
-	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s);
+	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull);
 #endif /* _HELPER_H */

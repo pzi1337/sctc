@@ -19,6 +19,8 @@
 #ifndef _LOG_H
 	#define _LOG_H
 
+	#include "_hard_config.h"
+
 	//\cond
 	#include <stdbool.h>
 	//\endcond
@@ -59,5 +61,5 @@
 	 *  \param srcfunc  The function callint __log(); filled by macro _log(), do not use "by hand"
 	 *  \param fmt      The format used format the line, see man 3 printf for usage.
 	 */
-	void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
+	void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) ATTR(format (printf, 4, 5));
 #endif /* _LOG_H */
