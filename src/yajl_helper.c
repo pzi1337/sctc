@@ -29,7 +29,7 @@
 #include "helper.h"
 #include "log.h"
 
-char* yajl_helper_get_string(yajl_val parent, char *path1, char *path2) {
+char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_string);
@@ -40,14 +40,14 @@ char* yajl_helper_get_string(yajl_val parent, char *path1, char *path2) {
 	return NULL; 
 }
 
-int yajl_helper_get_int(yajl_val parent, char *path1, char *path2) {
+int yajl_helper_get_int(yajl_val parent, const char *path1, const char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_number);
 	return val ? YAJL_GET_INTEGER(val) : 0;
 }
 
-yajl_val yajl_helper_get_array(yajl_val parent, char *path1, char *path2) {
+yajl_val yajl_helper_get_array(yajl_val parent, const char *path1, const char *path2) {
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_array);

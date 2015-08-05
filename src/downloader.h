@@ -33,7 +33,7 @@
 		bool   finished;    ///< `true` if downloading terminated, `false` otherwise
 	};
 
-	bool downloader_init();
+	bool downloader_init(void);
 	//bool downloader_queue_file(char *url, char *file);
 	struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state *));
 #endif

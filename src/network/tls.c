@@ -47,7 +47,7 @@
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
 
-static void tls_finalize();
+static void tls_finalize(void);
 
 static x509_crt cacerts;
 
@@ -66,7 +66,7 @@ int  tls_recv      (struct network_conn *nwc, char *buffer, size_t buffer_len);
 int  tls_recv_byte (struct network_conn *nwc);
 void tls_disconnect(struct network_conn *nwc);
 
-bool tls_init() {
+bool tls_init(void) {
 	char *cert_path = config_get_cert_path();
 
 	_log("reading list of trusted CAs from %s:", cert_path);
@@ -85,7 +85,6 @@ bool tls_init() {
 		if(0 < ret) {
 			_log("| * %s", buf);
 		} else {
-			char buf[2048];
 			polarssl_strerror(ret, buf, sizeof(buf));
 			_log("| * x509_dn_gets: %s", buf);
 		}
@@ -335,6 +334,6 @@ void tls_disconnect(struct network_conn *nwc) {
 
 /** \brief Free previous global initialization of TLS.
  */
-static void tls_finalize() {
+static void tls_finalize(void) {
 	x509_crt_free(&cacerts);
 }

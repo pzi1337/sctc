@@ -29,20 +29,20 @@
 	 *
 	 *  *Typically this function is called only once directly after starting up the execution*
 	 */
-	void config_init();
+	void config_init(void);
 
 	/** \brief Returns the number of subscriptions.
 	 *
 	 *  \return  The number of subscriptions
 	 */
-	size_t config_get_subscribe_count();
+	size_t config_get_subscribe_count(void);
 
 
 	char* config_get_subscribe(int id);
 	command_func_ptr config_get_function(int key);
 	const char* config_get_param(int key);
-	char* config_get_cache_path();
-	char* config_get_cert_path();
+	char* config_get_cache_path(void);
+	char* config_get_cert_path(void);
 	float config_get_equalizer(int band);
 
 #endif /* _CONFIG_H */

@@ -54,12 +54,12 @@ static char* cert_path;
 static char* cache_path;
 static int   cache_limit;
 
-static void config_finalize();
+static void config_finalize(void);
 
 static struct {
 	void (*func)(char*);
 	const char *param;
-} key_command_mapping[KEY_MAX] = { {NULL} };
+} key_command_mapping[KEY_MAX] = { {NULL, NULL} };
 
 /** \brief Returns the ncurses keycode for a stringified key
  *
@@ -135,7 +135,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	return 0;
 }
 
-void config_init() {
+void config_init(void) {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
 		CFG_FLOAT_LIST(OPTION_EQUALIZER, "{}", CFGF_NONE),
@@ -183,7 +183,7 @@ void config_init() {
 	}
 }
 
-static void config_finalize() {
+static void config_finalize(void) {
 	for(size_t i = 0; i < config_subscribe_count; i++) {
 		free(config_subscribe[i]);
 	}
@@ -202,8 +202,8 @@ const char* config_get_param(int key) {
 	return key_command_mapping[key].param;
 }
 
-size_t config_get_subscribe_count()   { return config_subscribe_count; }
-char*  config_get_subscribe(int id)   { return config_subscribe[id]; }
-char*  config_get_cert_path()         { return cert_path; }
-char*  config_get_cache_path()        { return cache_path; }
-float  config_get_equalizer(int band) { return config_equalizer[band]; }
+size_t config_get_subscribe_count(void) { return config_subscribe_count; }
+char*  config_get_subscribe(int id)     { return config_subscribe[id]; }
+char*  config_get_cert_path(void)       { return cert_path; }
+char*  config_get_cache_path(void)      { return cache_path; }
+float  config_get_equalizer(int band)   { return config_equalizer[band]; }

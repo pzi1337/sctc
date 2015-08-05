@@ -35,6 +35,6 @@ bool ao_module_load(char *lib, audio_init_t *audio_init, audio_play_t *audio_pla
 	return true;
 }
 
-void ao_module_unload() {
+void ao_module_unload(void) {
 	dlclose(dl_ao);
 }

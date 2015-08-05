@@ -26,9 +26,11 @@
 #include <string.h>                     // for strerror
 //\endcond
 
+#include <mpg123.h>
+
 #include "../log.h"
 
-static void finalize();
+static void finalize(void);
 
 static ao_device *dev = NULL;
 static ao_option *options = NULL;
@@ -70,7 +72,7 @@ bool audio_set_format(unsigned int encoding, unsigned int rate, unsigned int cha
 	return true;
 }
 
-bool audio_init() {
+bool audio_init(void) {
 	_log("initializing libao...");
 	ao_initialize();
 
@@ -92,7 +94,7 @@ bool audio_init() {
 	return true;
 }
 
-static void finalize() {
+static void finalize(void) {
 	if(dev) {
 		ao_close(dev);
 	}

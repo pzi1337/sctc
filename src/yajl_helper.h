@@ -22,7 +22,7 @@
 	#include <stddef.h>                     // for size_t
 
 	yajl_val yajl_helper_parse(char *data);
-	char*    yajl_helper_get_string(yajl_val parent, char *path1, char *path2);
-	int      yajl_helper_get_int   (yajl_val parent, char *path1, char *path2);
-	yajl_val yajl_helper_get_array (yajl_val parent, char *path1, char *path2);
+	char*    yajl_helper_get_string(yajl_val parent, const char *path1, const char *path2);
+	int      yajl_helper_get_int   (yajl_val parent, const char *path1, const char *path2);
+	yajl_val yajl_helper_get_array (yajl_val parent, const char *path1, const char *path2);
 #endif

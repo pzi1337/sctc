@@ -29,7 +29,7 @@
 #include <semaphore.h>
 //\endcond
 
-static void log_close();
+static void log_close(void);
 
 static FILE* log_fh = NULL;
 static sem_t log_sem;
@@ -62,7 +62,7 @@ bool log_init(char *file) {
 }
 
 /* log to file using fmt, just as known from printf */
-void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) {
+void __log(const char *srcfile, int srcline, const char *srcfunc, const char *fmt, ...) {
 	if(!log_fh) return;
 
 	sem_wait(&log_sem);
@@ -95,7 +95,7 @@ void __log(char *srcfile, int srcline, const char *srcfunc, char *fmt, ...) {
  *
  *  *Typically this function is only called prior to termination.*
  */
-static void log_close() {
+static void log_close(void) {
 	assert(log_fh);
 	fclose(log_fh);
 	log_fh = NULL;

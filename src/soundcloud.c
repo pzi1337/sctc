@@ -43,7 +43,7 @@
 #define CLIENTID_GET "client_id="SC_API_KEY
 #define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
 
-struct track_list* soundcloud_get_stream() {
+struct track_list* soundcloud_get_stream(void) {
 	state_set_status(cline_default, "Info: Connecting to soundcloud.com");
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 

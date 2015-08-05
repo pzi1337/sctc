@@ -54,6 +54,6 @@
 	 *
 	 *  \return true in case of success, false otherwise
 	 */
-	bool sound_stop();
+	bool sound_stop(void);
 
 #endif /* _SOUND_H */

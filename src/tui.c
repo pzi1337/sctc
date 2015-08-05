@@ -53,18 +53,18 @@
 static void tui_track_print_line(struct track* entry, bool selected, int line);
 
 static void tui_print(WINDOW *win, char *fmt, ...);
-static void tui_track_list_print();
-static size_t tui_track_focus();
-static void tui_update_suggestion_list();
+static void tui_track_list_print(void);
+static size_t tui_track_focus(void);
+static void tui_update_suggestion_list(void);
 
-static void tui_update_textbox();
+static void tui_update_textbox(void);
 
 /* functions handling (re)drawing of (parts of) screen */
-static void tui_draw_title_line();
-static void tui_draw_tab_bar();
-static void tui_draw_status_line();
+static void tui_draw_title_line(void);
+static void tui_draw_tab_bar(void);
+static void tui_draw_status_line(void);
 
-static void tui_finalize();
+static void tui_finalize(void);
 
 #define wcsps(S) mbstowcs(NULL, S, 0)
 
@@ -76,7 +76,7 @@ static bool whole_redraw_required = false;
 static struct textbox_window {
 	WINDOW *win;
 	WINDOW *pad;
-} textbox_window = { NULL };
+} textbox_window = { NULL, NULL };
 
 static WINDOW *suggestion_window = NULL;
 
@@ -152,6 +152,7 @@ static void* _thread_tui_function(void *unused UNUSED) {
 					tui_track_list_print();
 					break;
 
+				case redraw: // TODO
 				default:
 					_log("currently not implemented action-kind %d", action);
 			}
@@ -165,7 +166,7 @@ static void* _thread_tui_function(void *unused UNUSED) {
 	return NULL;
 }
 
-static void tui_draw_title_line() {
+static void tui_draw_title_line(void) {
 	color_set(sbar_default, NULL);
 
 	move(0, 0);
@@ -173,7 +174,7 @@ static void tui_draw_title_line() {
 	refresh();
 }
 
-static void tui_draw_status_line() {
+static void tui_draw_status_line(void) {
 	color_set(state_get_status_color(), NULL);
 
 	move(LINES - 1, 0);
@@ -181,7 +182,7 @@ static void tui_draw_status_line() {
 	refresh();
 }
 
-static void tui_update_suggestion_list() {
+static void tui_update_suggestion_list(void) {
 	struct command* commands = state_get_commands();
 
 	if(!commands) {
@@ -230,7 +231,7 @@ static void tui_update_suggestion_list() {
 	}
 }
 
-static size_t tui_track_focus() {
+static size_t tui_track_focus(void) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_list_pos = state_get_current_position();
 
@@ -276,7 +277,7 @@ static size_t tui_track_focus() {
 	return current_list_pos;
 }
 
-static void tui_draw_tab_bar() {
+static void tui_draw_tab_bar(void) {
 	color_set(tbar_default, NULL);
 	mvprintw(1, 0, "%0*c", COLS, ' ');
 
@@ -384,7 +385,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_time_selected, "%0*c%s", 9 - time_len, ' ', time_buffer);
 }
 
-static void tui_track_list_print() {
+static void tui_track_list_print(void) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	// just abort if no list was set yet (px. during the initial update of the stream)
@@ -502,7 +503,7 @@ static WINDOW* tui_draw_text(char *text, const unsigned int max_width) {
 	return pad;
 }
 
-static void tui_update_textbox() {
+static void tui_update_textbox(void) {
 	const int height = LINES - 8;
 	const int width = COLS - 8;
 
@@ -547,12 +548,12 @@ void tui_submit_action(enum tui_action_kind _action) {
 	sem_post(&sem_wait_action);
 }
 
-static void tui_callback_textbox_modifed()    { tui_submit_action(textbox_modified);   }
-static void tui_callback_tabbar_modified()    { tui_submit_action(tabbar_modified);    }
-static void tui_callback_titlebar_modified()  { tui_submit_action(titlebar_modified);  }
-static void tui_callback_statusbar_modified() { tui_submit_action(statusbar_modified); }
-static void tui_callback_list_modified()      { tui_submit_action(list_modified);      }
-static void tui_callback_sugg_modified()      { tui_submit_action(sugg_modified);      }
+static void tui_callback_textbox_modifed(void)    { tui_submit_action(textbox_modified);   }
+static void tui_callback_tabbar_modified(void)    { tui_submit_action(tabbar_modified);    }
+static void tui_callback_titlebar_modified(void)  { tui_submit_action(titlebar_modified);  }
+static void tui_callback_statusbar_modified(void) { tui_submit_action(statusbar_modified); }
+static void tui_callback_list_modified(void)      { tui_submit_action(list_modified);      }
+static void tui_callback_sugg_modified(void)      { tui_submit_action(sugg_modified);      }
 
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
@@ -563,7 +564,7 @@ static void tui_terminal_resized(int signum) {
 	sem_post(&sem_have_action);
 }
 
-bool tui_init() {
+bool tui_init(void) {
 	sem_init(&sem_have_action, 0, 0);
 	sem_init(&sem_wait_action, 0, 1);
 
@@ -660,7 +661,7 @@ bool tui_init() {
 	return true;
 }
 
-static void tui_finalize() {
+static void tui_finalize(void) {
 	action = none;
 	terminate = true;
 	sem_post(&sem_have_action);

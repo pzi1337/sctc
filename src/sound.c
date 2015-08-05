@@ -70,7 +70,7 @@ static struct download_state *state = NULL;
 
 static void (*time_callback)(int);
 
-static void sound_finalize();
+static void sound_finalize(void);
 
 static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
@@ -177,14 +177,14 @@ static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_st
 	return new_mh;
 }
 
-static void io_callback(struct download_state *state) {
+static void io_callback(struct download_state *dlstate) {
 	sem_post(&sem_data_available);
 
-	struct track *track = state->track;
+	struct track *track = dlstate->track;
 
-	if(state->finished) {
+	if(dlstate->finished) {
 		_log("download of `%s` is finished, saving track to cache", track->name);
-		if(cache_track_save(track, (void*) state->buffer, state->bytes_recvd)) {
+		if(cache_track_save(track, (void*) dlstate->buffer, dlstate->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
 		}
 	}
@@ -317,7 +317,7 @@ int sound_change_volume(off_t delta) {
 	return audio_change_volume(delta);
 }
 
-static void sound_finalize() {
+static void sound_finalize(void) {
 	terminate = true;
 
 	_log("waiting for threads to terminate...");
@@ -334,7 +334,7 @@ static void sound_finalize() {
 
 #define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
 
-bool sound_stop() {
+bool sound_stop(void) {
 
 	SEM_SET_TO_ZERO(sem_data_available)
 

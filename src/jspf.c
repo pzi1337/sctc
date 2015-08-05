@@ -81,8 +81,6 @@
 
 static char* last_error = NULL;
 
-bool jspf_write(char *file, struct track_list *list);
-
 /** \brief YAJL print callback function for writing JSPF.
  *
  *  \param ctx  A context, here: a `FILE*` receiving the JSPF
@@ -186,12 +184,12 @@ struct track_list* jspf_read(char *file) {
 		list->count   = array->u.array.len;
 
 		for(size_t i = 0; i < array->u.array.len; i++) {
-			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
-			list->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "location",      NULL);
-			list->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "creator",       NULL);
-			list->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "identifier",    NULL);
-			list->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "annotation",    NULL);
-			list->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration",      NULL);
+			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",      NULL);
+			list->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "location",   NULL);
+			list->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "creator",    NULL);
+			list->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "identifier", NULL);
+			list->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "annotation", NULL);
+			list->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration",   NULL);
 			list->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
 			
 			// TODO \todo download_url not part of cached data
@@ -223,6 +221,6 @@ struct track_list* jspf_read(char *file) {
 	return list;
 }
 
-char* jspf_error() {
+char* jspf_error(void) {
 	return last_error;
 }

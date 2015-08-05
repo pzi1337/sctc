@@ -42,6 +42,6 @@
 	 *
 	 *  \return  Pointer the message
 	 */
-	char* jspf_error();
+	char* jspf_error(void);
 
 #endif /* _XSPF_H */

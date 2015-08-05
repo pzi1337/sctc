@@ -36,7 +36,7 @@
 	 *
 	 *  \return `true` in case of success, `false` otherwise
 	 */
-	bool tls_init();
+	bool tls_init(void);
 
 	/** \brief Connect an encrypted TCP/IP socket to server:port.
 	 *

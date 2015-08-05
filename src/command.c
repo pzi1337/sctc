@@ -56,7 +56,7 @@
 
 #define MIN(x,y) (x < y ? x : y)
 
-static void handle_textbox();
+static void handle_textbox(void);
 static bool handle_command(char *buffer, size_t buffer_size);
 
 /**
@@ -367,8 +367,7 @@ static void cmd_exit(char *unused UNUSED) {
 	}
 
 	for(size_t i = 0; i < MAX_LISTS; i++) {
-		struct track_list *list = state_get_list(i);
-		if(list) {
+		if( (list = state_get_list(i)) ) {
 			track_list_destroy(list, true);
 		}
 	}
@@ -648,7 +647,7 @@ const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
  *  Handles user's input for a textbox, such as `scroll up`, `scroll down`
  *  and `close textbox`.
  */
-static void handle_textbox() {
+static void handle_textbox(void) {
 	int c;
 	while( (c = getch()) ) {
 		switch(c) {

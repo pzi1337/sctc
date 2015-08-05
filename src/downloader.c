@@ -38,7 +38,7 @@
 #include "network/network.h"            // for network_conn
 #include "soundcloud.h"                 // for soundcloud_connect_track
 
-static void downloader_finalize();
+static void downloader_finalize(void);
 
 static pthread_t threads[MAX_PARALLEL_DOWNLOADS];
 static sem_t have_url;
@@ -64,7 +64,7 @@ struct download {
 static struct download *head;
 static struct download *tail;
 
-static struct download *download_dequeue() {
+static struct download *download_dequeue(void) {
 	sem_wait(&sem_url_queue);
 	struct download *dl = head;
 	head = dl->next;
@@ -205,7 +205,7 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 	return dl_stat;
 }
 
-bool downloader_init() {
+bool downloader_init(void) {
 	assert(!sem_init(&have_url, 0, 0));
 	assert(!sem_init(&sem_url_queue, 0, 1));
 
@@ -220,7 +220,7 @@ bool downloader_init() {
 	return true;
 }
 
-static void downloader_finalize() {
+static void downloader_finalize(void) {
 	terminate = true;
 
 	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++)

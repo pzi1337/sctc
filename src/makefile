@@ -1,10 +1,28 @@
 .PHONY: all clean cppcheck
 
-CCOPT=-O0 -g -fstack-protector-strong --param=ssp-buffer-size=4
-LDOPT=-pie -z relro -z now
+CCOPT=-O3 -s -fstack-protector-strong --param=ssp-buffer-size=4
+LDOPT=-O3 -s -pie -z relro -z now
+
+CCWARN=-Wall -Wextra -Wpedantic \
+	-Wformat -Winit-self \
+	-Wswitch-enum -Wswitch-default \
+	-Winit-self \
+	-Wcast-qual -Wcast-align \
+	-Wold-style-definition \
+	-Wstrict-prototypes \
+	-Wshadow -Wundef -Winline \
+	-Wnonnull \
+	-Wmissing-field-initializers \
+	-Wlogical-op -Wfloat-equal \
+	-Wpointer-arith \
+	-Wredundant-decls \
+	-Wnested-externs \
+	-fno-omit-frame-pointer -ffloat-store  -fstrict-aliasing \
+	-fno-common
+#-Wbad-function-cast
 
 CC=gcc
-CFLAGS=-D_GNU_SOURCE `pkg-config --cflags yajl ncursesw libconfuse libmpg123` -std=gnu11 -Wall -Wextra -fPIC -pedantic $(CCOPT)
+CFLAGS=-D_GNU_SOURCE `pkg-config --cflags yajl ncursesw libconfuse libmpg123` -std=gnu11 $(CCWARN) -fPIC -fdiagnostics-color=auto $(CCOPT)
 LDFLAGS=`pkg-config --libs yajl ncursesw libconfuse libmpg123` -lpolarssl -ldl -lpthread $(LDOPT)
 
 CFILES_MAIN=soundcloud.c cache.c command.c downloader.c state.c sound.c main.c helper.c log.c config.c http.c jspf.c track.c tui.c url.c yajl_helper.c audio/ao_module.c network/tls.c network/plain.c

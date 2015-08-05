@@ -81,5 +81,5 @@
 
 	void tui_submit_action(enum tui_action_kind kind);
 
-	bool tui_init();
+	bool tui_init(void);
 #endif /* _TUI_H */

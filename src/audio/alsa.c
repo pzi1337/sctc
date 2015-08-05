@@ -34,10 +34,10 @@
 #define ALSA_DEFAULT_CARD "default"
 #define ALSA_MASTER_MIXER "Master"
 
-static void finalize();
+static void finalize(void);
 static void* _thread_volwatcher_function(void *unused);
 
-int audio_get_volume();
+int audio_get_volume(void);
 
 #define ALSA_ERROR_CHECK(FUN) {int err = FUN; if(err) {_log("libalsa: "#FUN" failed: %s", snd_strerror(err)); return -1;} }
 
@@ -108,12 +108,14 @@ bool audio_set_format(unsigned int encoding, unsigned int rate, unsigned int cha
 	return true;
 }
 
-bool audio_init() {
+bool audio_init(void) {
 	_log("initializing libalsa...");
-	int err;
-	if(( err = snd_pcm_open(&pcm, ALSA_DEFAULT_CARD, SND_PCM_STREAM_PLAYBACK, 0) )) {
-		_log("libalsa: snd_pcm_open failed: %s", snd_strerror(err));
-		return false;
+	{
+		int err;
+		if(( err = snd_pcm_open(&pcm, ALSA_DEFAULT_CARD, SND_PCM_STREAM_PLAYBACK, 0) )) {
+			_log("libalsa: snd_pcm_open failed: %s", snd_strerror(err));
+			return false;
+		}
 	}
 
 	ALSA_ERROR_CHECK( snd_mixer_open(&mixer, 0) );
@@ -142,7 +144,7 @@ bool audio_init() {
 	return true;
 }
 
-static void finalize() {
+static void finalize(void) {
 	snd_pcm_close(pcm);
 }
 
@@ -169,7 +171,7 @@ static void* _thread_volwatcher_function(void *unused UNUSED) {
 	return NULL;
 }
 
-int audio_get_volume() {
+int audio_get_volume(void) {
 	long cur;
 	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
 	return  ( 100 * (cur - min) ) / range;

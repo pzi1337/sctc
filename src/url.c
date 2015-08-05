@@ -104,6 +104,8 @@ struct url* url_parse_string(char *str) {
 				u->request = &str[i];
 				i = str_len; // 'abort'
 				break;
+
+			default: break;
 		}
 	}
 
