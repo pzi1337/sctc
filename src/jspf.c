@@ -168,10 +168,19 @@ struct track_list* jspf_read(char *file) {
 	}
 
 	struct stat jspf_stat;
-	fstat(fileno(fh), &jspf_stat);
+	if(fstat(fileno(fh), &jspf_stat)) {
+		_log("fstat: %s", strerror(errno));
+		fclose(fh);
+		return list;
+	}
 
 	char *buffer = lmalloc(jspf_stat.st_size + 1);
-	fread(buffer, sizeof(char), jspf_stat.st_size, fh);
+	if(jspf_stat.st_size != fread(buffer, 1, jspf_stat.st_size, fh)) {
+		_log("expected %zuBytes from `%s`, but didn't get that", jspf_stat.st_size, file);
+		free(buffer);
+		fclose(fh);
+		return list;
+	}
 	buffer[jspf_stat.st_size] = '\0';
 
 	fclose(fh);
