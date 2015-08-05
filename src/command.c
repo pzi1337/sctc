@@ -172,7 +172,7 @@ static void cmd_open_user(char *_user) {
 
 static void cmd_add(char *_list) {
 	unsigned int list_id = NONE;
-	if(1 != sscanf(_list, " %u ", &list_id)) {
+	if(1 != sscanf(_list, " %8u ", &list_id)) {
 		state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not numeric, expecting ID of playlist", _list));
 		return;
 	}
@@ -267,16 +267,16 @@ static void cmd_goto(char *hint) {
 
 		if(NULL != strchr(target, '.')) {
 			float pages = 0;
-			valid = (1 == sscanf(target, " %f ", &pages));
+			valid = (1 == sscanf(target, " %16f ", &pages));
 
 			delta = pages * (LINES - 2);
 		} else {
-			valid = (1 == sscanf(target, " %d ", &delta));
+			valid = (1 == sscanf(target, " %16d ", &delta));
 		}
 		if(valid) state_set_current_selected_rel(delta);
 	} else {
 		unsigned int pos;
-		if(1 == sscanf(target, " %u ", &pos)) {
+		if(1 == sscanf(target, " %8u ", &pos)) {
 			state_set_current_selected(pos);
 		}
 	}
@@ -312,7 +312,7 @@ static void switch_to_list(unsigned int id) {
 static void cmd_list(char *list) {
 	unsigned int list_id;
 
-	if(1 == sscanf(list, " %u ", &list_id)) {
+	if(1 == sscanf(list, " %8u ", &list_id)) {
 		switch_to_list(list_id - 1);
 	} else {
 		_log("cannot switch to list %s", list);
@@ -591,7 +591,7 @@ static void cmd_stop(char *unused UNUSED)  { stop_playback(true);  }
 static void cmd_volume(char *hint) {
 	char *delta_str = strstrp(hint);
 	int delta;
-	if(1 == sscanf(delta_str, " %i ", &delta)) {
+	if(1 == sscanf(delta_str, " %4i ", &delta)) {
 		unsigned int vol = sound_change_volume(delta);
 		_log("volume now: %i, delta: %i", vol, delta);
 

@@ -375,9 +375,9 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c", (entry->current_position ? 0 : 12) + 3, ' ');
 
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%s%s%s",
-		FLAG_CACHED     & entry->flags ? "C"      : " ",
-		FLAG_NEW        & entry->flags ? "\u27EA" : " ",
-		FLAG_BOOKMARKED & entry->flags ? "\u2661" : " ");
+		(FLAG_CACHED     & entry->flags) ? "C"      : " ",
+		(FLAG_NEW        & entry->flags) ? "\u27EA" : " ",
+		(FLAG_BOOKMARKED & entry->flags) ? "\u2661" : " ");
 
 	char time_buffer[TIME_BUFFER_SIZE];
 	int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, entry->duration);

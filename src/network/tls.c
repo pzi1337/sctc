@@ -82,7 +82,13 @@ bool tls_init() {
 		char buf[2048];
 
 		ret = x509_dn_gets(buf, sizeof(buf), &cert->subject);
-		_log("| * %s", buf);
+		if(0 < ret) {
+			_log("| * %s", buf);
+		} else {
+			char buf[2048];
+			polarssl_strerror(ret, buf, sizeof(buf));
+			_log("| * x509_dn_gets: %s", buf);
+		}
 	}
 
 	if(atexit(tls_finalize)) {

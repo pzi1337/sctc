@@ -161,7 +161,7 @@ char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) {
 unsigned int parse_time_to_sec(char *str) {
 	unsigned int hour, min, sec;
 
-	if(3 == sscanf(str, " %u : %u : %u ", &hour, &min, &sec)) {
+	if(3 == sscanf(str, " %16u : %2u : %2u ", &hour, &min, &sec)) {
 		if(sec >= 60 || min >= 60) {
 			return INVALID_TIME;
 		}
@@ -170,12 +170,12 @@ unsigned int parse_time_to_sec(char *str) {
 	}
 
 	// check if we have a time consisting of min and sec (ab:cd)
-	if(2 == sscanf(str, " %u : %u ", &min, &sec)) {
+	if(2 == sscanf(str, " %16u : %2u ", &min, &sec)) {
 		return sec >= 60 ? INVALID_TIME : 60 * min + sec;
 	}
 
 	// check if we have a "second only" time
-	if(1 == sscanf(str, " %u ", &sec)) {
+	if(1 == sscanf(str, " %16u ", &sec)) {
 		return sec;
 	}
 
