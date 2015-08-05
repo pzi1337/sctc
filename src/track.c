@@ -100,7 +100,7 @@ bool track_list_append(struct track_list *target, struct track_list *source) {
 
 // TODO: speed!
 struct track* track_list_get(struct track_list *list, char *permalink) {
-	for(int i = 0; i < list->count; i++) {
+	for(size_t i = 0; i < list->count; i++) {
 		if(!strcmp(TRACK(list, i)->permalink_url, permalink)) {
 			return &list->entries[i];
 		}
@@ -134,7 +134,7 @@ void track_destroy(struct track *track) {
 
 void track_list_destroy(struct track_list *list, bool free_trackdata) {
 	if(free_trackdata) {
-		for(int i = 0; i < list->count; i++) {
+		for(size_t i = 0; i < list->count; i++) {
 			track_destroy(&list->entries[i]);
 		}
 	}

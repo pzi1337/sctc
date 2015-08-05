@@ -91,7 +91,7 @@ static void download_enqueue(struct download *dl) {
 	sem_post(&have_url);
 }
 
-static void* _download_thread(void *unused) {
+static void* _download_thread(void *unused UNUSED) {
 	while(!terminate) {
 		sem_wait(&have_url);
 		if(terminate) return NULL;

@@ -52,8 +52,8 @@ struct track_list* soundcloud_get_stream() {
 	lists[lists_size - 1] = NULL;
 
 	char status_msg[1024];
-	for(int i = 0; i < config_get_subscribe_count(); i++) {
-		snprintf(status_msg, sizeof(status_msg), "Info: Retrieving %i/%zu lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i));
+	for(size_t i = 0; i < config_get_subscribe_count(); i++) {
+		snprintf(status_msg, sizeof(status_msg), "Info: Retrieving %zu/%zu lists from soundcloud.com: "F_BOLD"%s"F_RESET, i, config_get_subscribe_count(), config_get_subscribe(i));
 		state_set_status(cline_default, status_msg);
 
 		lists[i] = soundcloud_get_entries(nwc, config_get_subscribe(i));
@@ -69,7 +69,7 @@ struct track_list* soundcloud_get_stream() {
 	track_list_sort(list);
 	BENCH_STOP(MP, "Merging playlists")
 
-	for(int i = 0; i < config_get_subscribe_count(); i++) {
+	for(size_t i = 0; i < config_get_subscribe_count(); i++) {
 		if(lists[i]) {
 			track_list_destroy(lists[i], false);
 		}
@@ -131,7 +131,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 			if(array) {
 				next_part->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
 				next_part->count   = array->u.array.len;
-				for(int i = 0; i < array->u.array.len; i++) {
+				for(size_t i = 0; i < array->u.array.len; i++) {
 
 					next_part->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
 					next_part->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "stream_url",    NULL);
@@ -174,7 +174,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 		} while(href);
 	}
 	
-	_log("%4zd/%4zd tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : -1, user);
+	_log("%4zu/%4zu tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : 0, user);
 
 	/* only return the tracks received from the cache in case of an error in the request to soundcloud.com */
 	if(!list) {

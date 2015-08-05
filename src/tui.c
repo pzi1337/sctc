@@ -85,7 +85,7 @@ static sem_t sem_wait_action;
 
 static enum tui_action_kind action;
 
-static void* _thread_tui_function(void *unused) {
+static void* _thread_tui_function(void *unused UNUSED) {
 	do {
 		int ret = sem_wait(&sem_have_action);
 		if(whole_redraw_required) {
@@ -248,9 +248,10 @@ static size_t tui_track_focus() {
 		// obviously one of the two possibilities is sensible ;)
 
 		// try to scroll up
+		const unsigned int scroll_step = LINES / 4;
 		while(new_selected < current_list_pos) {
-			if(current_list_pos >= LINES / 4) {
-				current_list_pos -= LINES / 4;
+			if(current_list_pos >= scroll_step) {
+				current_list_pos -= scroll_step;
 			} else {
 				current_list_pos = 0;
 			}
@@ -259,7 +260,7 @@ static size_t tui_track_focus() {
 		// try to scroll down
 		while(new_selected >= current_list_pos + LINES - 4) {
 			if(current_list_pos < list->count - LINES / 2) {
-				current_list_pos += LINES / 4;
+				current_list_pos += scroll_step;
 			} else {
 				current_list_pos = list->count - LINES / 2;
 				break; // GNAA TODO
@@ -393,7 +394,7 @@ static void tui_track_list_print() {
 
 	// if a textbox is shown, then do not write over it
 	int y = 2;
-	for(int i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
+	for(size_t i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
 		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
 			if( y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window) {
 				tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
@@ -460,7 +461,7 @@ static void tui_print(WINDOW *win, char *fmt, ...) {
 	wprintw(win, "%s", buf);
 }
 
-static WINDOW* tui_draw_text(char *text, const int max_width) {
+static WINDOW* tui_draw_text(char *text, const unsigned int max_width) {
 	text = strdup(text);
 	strcrep(text, '\r', ' ');
 
@@ -474,7 +475,7 @@ static WINDOW* tui_draw_text(char *text, const int max_width) {
 		while(wcsps(tok) > max_width) {
 			// search for any space to avoid breaking within words
 			int line_len = max_width;
-			for(int i = 0; i < max_width / 8; i++) {
+			for(size_t i = 0; i < max_width / 8; i++) {
 				if(' ' == tok[max_width - 1 - i]) {
 					line_len = max_width - i;
 					break;

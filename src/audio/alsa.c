@@ -146,7 +146,7 @@ static void finalize() {
 	snd_pcm_close(pcm);
 }
 
-static void* _thread_volwatcher_function(void *unused) {
+static void* _thread_volwatcher_function(void *unused UNUSED) {
 	while(!terminate) {
 		int pdc = snd_mixer_poll_descriptors_count(mixer);
 		if(0 < pdc) {

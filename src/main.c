@@ -109,7 +109,7 @@ static void tui_update_time(int time) {
 	}
 }
 
-int main(int argc, char **argv) {
+int main(int argc UNUSED, char **argv UNUSED) {
 	// initialize the modules
 	log_init("sctc.log");
 

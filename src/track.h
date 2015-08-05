@@ -90,7 +90,7 @@
 
 				/* these members are used for handling the playlist, they are not part of the data received from sc.com */
 				uint8_t flags;
-				int     current_position; ///< current position
+				unsigned int current_position; ///< current position
 			};
 			struct track *href; ///< Pointer to a normal track (only valid if `name == NULL`)
 		};

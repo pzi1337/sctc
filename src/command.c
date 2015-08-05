@@ -106,7 +106,7 @@ static int command_dispatcher(char *command) {
 #define PARAGRAPH_PART "\n \n"
 
 /** \todo a) does not belong here\n b) does not work */
-static void cmd_download(char *unused) { // TODO!
+static void cmd_download(char *unused UNUSED) { // TODO!
 /*
 	state_set_status(cline_default, smprintf("Info: Downloading "F_BOLD"%s"F_RESET"", list->entries[list->selected].name));
 
@@ -204,7 +204,7 @@ static void cmd_add(char *_list) {
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
-static void cmd_del(char *unused) {
+static void cmd_del(char *unused UNUSED) {
 	if(!state_get_current_list()) {
 		state_set_status(cline_warning, "Error: Cannot delete tracks from "F_BOLD"Stream"F_RESET);
 		return;
@@ -353,8 +353,8 @@ static void cmd_seek(char *time) {
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  *  \return does not return
  */
-static void cmd_exit(char *unused) ATTR(noreturn);
-static void cmd_exit(char *unused) {
+static void cmd_exit(char *unused UNUSED) ATTR(noreturn);
+static void cmd_exit(char *unused UNUSED) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
 	char *cache_path = config_get_cache_path();
@@ -433,10 +433,10 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	return false; // never reached
 }
 
-static void cmd_search_next(char *unused) { search_direction(true);  }
-static void cmd_search_prev(char *unused) { search_direction(false); }
+static void cmd_search_next(char *unused UNUSED) { search_direction(true);  }
+static void cmd_search_prev(char *unused UNUSED) { search_direction(false); }
 
-static void cmd_search_start(char *unused) {
+static void cmd_search_start(char *unused UNUSED) {
 	state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 	handle_search(state_get_input(), 127);
 
@@ -447,7 +447,7 @@ static void cmd_search_start(char *unused) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-static void cmd_command_input(char *unused) {
+static void cmd_command_input(char *unused UNUSED) {
 	state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
 	char *buffer = state_get_input();
@@ -468,7 +468,7 @@ static void cmd_command_input(char *unused) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-static void cmd_help(char *unused) {
+static void cmd_help(char *unused UNUSED) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
 	state_set_tb("Help / About", help_msg);
@@ -500,7 +500,7 @@ static void cmd_repeat(char *rep) {
 	}
 }
 
-static void cmd_yank(char *unused) {
+static void cmd_yank(char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
@@ -508,7 +508,7 @@ static void cmd_yank(char *unused) {
 	state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, TRACK(list, current_selected)->permalink_url));
 }
 
-static void cmd_details(char *unused) {
+static void cmd_details(char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
@@ -545,7 +545,7 @@ static void stop_playback(bool reset) {
 	struct track_list *list = state_get_list(state_get_current_playback_list());
 	size_t playing = state_get_current_playback_track();
 
-	if((~0) != playing) {
+	if(NONE != playing) {
 		sound_stop();
 
 		TRACK(list, playing)->flags &= ~FLAG_PLAYING;
@@ -565,7 +565,7 @@ static void stop_playback(bool reset) {
 	}
 }
 
-static void cmd_play(char *unused) {
+static void cmd_play(char *unused UNUSED) {
 	size_t current_selected = state_get_current_selected();
 	struct track_list *list = state_get_list(state_get_current_list());
 
@@ -585,8 +585,8 @@ static void cmd_play(char *unused) {
 	sound_play(TRACK(list, current_selected));
 }
 
-static void cmd_pause(char *unused) { stop_playback(false); }
-static void cmd_stop(char *unused)  { stop_playback(true);  }
+static void cmd_pause(char *unused UNUSED) { stop_playback(false); }
+static void cmd_stop(char *unused UNUSED)  { stop_playback(true);  }
 
 static void cmd_volume(char *hint) {
 	char *delta_str = strstrp(hint);
@@ -603,7 +603,7 @@ static void cmd_volume(char *hint) {
  *
  *  \return true
  */
-static void cmd_redraw(char *unused) {
+static void cmd_redraw(char *unused UNUSED) {
 	tui_submit_action(redraw);
 }
 
@@ -639,7 +639,7 @@ const struct command commands[] = {
 	{"vol",           cmd_volume,         "<delta (in percent)>",          "modify playback volume by given percentage"},
 	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},
 	{"yank",          cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
-	{NULL, NULL, NULL}
+	{NULL, NULL, NULL, NULL}
 };
 const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
 

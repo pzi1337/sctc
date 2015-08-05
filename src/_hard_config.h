@@ -36,6 +36,7 @@
 	#define MAX_LISTS 16
 
 	#define ATTR(...) __attribute__((__VA_ARGS__))
+	#define UNUSED __attribute__((__unused__))
 
 	/** \brief The default path to the ca-certificates file
 	 *

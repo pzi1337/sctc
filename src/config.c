@@ -107,7 +107,7 @@ static const struct command* get_cmd_by_name(const char *input) {
 	return NULL;
 }
 
-static int config_map_command(cfg_t *cfg, cfg_opt_t *opt, int argc, const char **argv) {
+static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
 	if(2 != argc) {
 		_log("map() requires exactly 2 parameters!");
 		return -1;
@@ -156,7 +156,7 @@ void config_init() {
 
 	config_subscribe_count = cfg_size(cfg, OPTION_SUBSCRIBE);
 	config_subscribe       = lcalloc(config_subscribe_count, sizeof(char*));
-	for(int i = 0; i < config_subscribe_count; i++) {
+	for(size_t i = 0; i < config_subscribe_count; i++) {
 		config_subscribe[i] = lstrdup(cfg_getnstr(cfg, OPTION_SUBSCRIBE, i));
 	}
 
@@ -173,7 +173,7 @@ void config_init() {
 
 	_log("config initialized, have values:");
 	_log("| subscriptions:");
-	for(int i = 0; i < config_subscribe_count; i++) {
+	for(size_t i = 0; i < config_subscribe_count; i++) {
 		_log("| * %s", config_subscribe[i]);
 	}
 	_log("| cache: `%s`, limit: %i", cache_path, cache_limit);
@@ -184,7 +184,7 @@ void config_init() {
 }
 
 static void config_finalize() {
-	for(int i = 0; i < config_subscribe_count; i++) {
+	for(size_t i = 0; i < config_subscribe_count; i++) {
 		free(config_subscribe[i]);
 	}
 	free(config_subscribe);

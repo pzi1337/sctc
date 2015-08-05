@@ -147,7 +147,7 @@ bool jspf_write(char *file, struct track_list *list) {
 	YAJL_GEN_STRING(hand, "track");
 
 	yajl_gen_array_open(hand);
-	for(int i = 0; i < list->count; i++) {
+	for(size_t i = 0; i < list->count; i++) {
 		write_jspf_track(hand, TRACK(list, i));
 	}
 	yajl_gen_array_close(hand);
@@ -185,7 +185,7 @@ struct track_list* jspf_read(char *file) {
 		list->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
 		list->count   = array->u.array.len;
 
-		for(int i = 0; i < array->u.array.len; i++) {
+		for(size_t i = 0; i < array->u.array.len; i++) {
 			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
 			list->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "location",      NULL);
 			list->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "creator",       NULL);
@@ -198,7 +198,7 @@ struct track_list* jspf_read(char *file) {
 			// list->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);
 
 			yajl_val node_meta = yajl_helper_get_array(array->u.array.values[i], "meta", NULL);
-			for(int j = 0; j < node_meta->u.array.len; j++) {
+			for(size_t j = 0; j < node_meta->u.array.len; j++) {
 				int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
 				int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
 

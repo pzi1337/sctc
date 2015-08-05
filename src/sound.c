@@ -195,7 +195,7 @@ static void io_callback(struct download_state *state) {
 *  \param unused  Unused parameter (never read), required due to pthread interface
 *  \return NULL   Unused return value, required due to pthread interface
 */
-static void* _thread_play_function(void *unused) {
+static void* _thread_play_function(void *unused UNUSED) {
 	mpg123_handle *mh = NULL;
 	do {
 		_log("waiting for data to play");

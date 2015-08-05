@@ -218,7 +218,7 @@ struct network_conn* tls_connect(char *server, int port) {
 
 	char serial_str[64];
 	size_t serial_str_off = 0;
-	for(int i = 0; i < rcert->serial.len; i++) {
+	for(size_t i = 0; i < rcert->serial.len; i++) {
 		serial_str_off += sprintf(serial_str + serial_str_off, "%02x%s", rcert->serial.p[i], i == rcert->serial.len - 1 ? "" : ":");
 	}
 	_log("| * Serial: %s; Version %d", serial_str, rcert->version);
