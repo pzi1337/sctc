@@ -211,7 +211,7 @@ struct network_conn* tls_connect(char *server, int port) {
 
 	/* write key to brain ;) */
 	{
-		char fingerprint_file[strlen(CERT_BRAIN_FOLDER) + strlen(server)];
+		char fingerprint_file[strlen(CERT_BRAIN_FOLDER) + strlen(server) + 1];
 		sprintf(fingerprint_file, CERT_BRAIN_FOLDER"%s", server);
 
 		FILE *fh = fopen(fingerprint_file, "w");
