@@ -31,6 +31,15 @@
 #include "track.h"
 #include "helper.h"
 
+struct track_list* track_list_create(char *name) {
+	struct track_list *list = lcalloc(1, sizeof(struct track_list));
+	if(list) {
+		list->name  = lstrdup( streq("", name) ? "unnamed list" : name );
+		list->count = 0;
+	}
+	return list;
+}
+
 // TODO: improve memory management, might be slow that way
 bool track_list_add(struct track_list *list, struct track *track) {
 	struct track *tracks = lrealloc(list->entries, (list->count + 1) * sizeof(struct track));

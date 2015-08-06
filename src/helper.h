@@ -32,6 +32,10 @@
 
 	#define SHA512_LEN 64
 
+	#define astrdup(VNEW, VOLD) char VNEW[strlen(VOLD) + 1]; strcpy(VNEW, VOLD);
+
+	#define streq(S1, S2) ( 0 == strcmp(S1, S2) )
+
 	/** \brief printf style function with automated allocation of buffer.
 	 *
 	 *  \param sha512_buf  Buffer receiving the SHA512 string (required size: SHA512_LEN * 3 + 1 = 193)

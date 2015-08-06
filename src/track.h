@@ -24,6 +24,8 @@
 #ifndef _TRACK_H
 	#define _TRACK_H
 
+	#include "_hard_config.h"
+
 	//\cond
 	#include <stdbool.h>
 	#include <stdint.h>
@@ -101,6 +103,8 @@
 		size_t count;
 		struct track *entries;
 	};
+
+	struct track_list* track_list_create(char *name) ATTR(nonnull);
 
 	/** \brief Add a single track to an existing track_list
 	 *

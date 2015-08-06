@@ -23,13 +23,13 @@
 	#include <stddef.h>                     // for size_t
 	//\endcond
 
-	typedef void (*command_func_ptr)(char*);
+	typedef void (*command_func_ptr)(const char*);
 
 	struct command {
-		char  *name;
+		const char  *name;
 		command_func_ptr func;
-		char  *desc_param;
-		char  *desc;
+		const char  *desc_param;
+		const char  *desc;
 	};
 
 	extern const struct command commands[];

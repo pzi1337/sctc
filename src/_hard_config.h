@@ -111,4 +111,16 @@
 			_log("%s took %ldms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
 		}
 
+	#define LOGO_PART "   ____________________\n"\
+	"  / __/ ___/_  __/ ___/\n"\
+	" _\\ \\/ /__  / / / /__  \n"\
+	"/___/\\___/ /_/  \\___/  \n"\
+	"  - the soundcloud.com terminal client"
+	#define DESCRIPTION_PART "SCTC is a curses based client for soundcloud.com.\nIts primary target is streaming - the most social media - like features are and will not (be) supported."
+	#define LICENSE_PART "SCTC is Free Software released under the GPL v3 or later license.\nFor details see LICENSE or visit https://www.gnu.org/copyleft/gpl.html"
+	#define ALPHA_PART "This version is NOT a stable release - expect bugs!"
+	#define FEATURE_PART "Implemented / functional features:\n - TUI (resizing, updating)\n - playback\n - caching\n - bookmarks"
+	#define NONFEATURE_PART "Planned features not yet implemented:\n - playlist management\n - logging in to soundcloud.com (OAuth)\n - reading playlists from soundcloud.com"
+	#define KNOWN_BUGS_PART "Known bugs:\n {none}"
+	#define PARAGRAPH_PART "\n \n"
 #endif

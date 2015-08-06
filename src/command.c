@@ -50,14 +50,79 @@
 #include "track.h"                      // for track, track_list, etc
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
-
-#define NONE (~0)
+#define NONE ((unsigned) ~0)
 #define TIME_BUFFER_SIZE 64
 
 #define MIN(x,y) (x < y ? x : y)
 
+static int command_dispatcher(char *command);
+static void search_direction(bool down);
+static void switch_to_list(unsigned int id);
+static bool handle_search(char *buffer, size_t buffer_size);
+static void stop_playback(bool reset);
 static void handle_textbox(void);
+static size_t submit_updated_suggestion_list(struct command *buffer, char *filter);
 static bool handle_command(char *buffer, size_t buffer_size);
+
+static void cmd_open_user     (const char *_user) ATTR(nonnull);
+static void cmd_add           (const char *_list) ATTR(nonnull);
+static void cmd_list_new      (const char *_name) ATTR(nonnull);
+static void cmd_write_playlist(const char *_file) ATTR(nonnull);
+static void cmd_goto          (const char *_hint) ATTR(nonnull);
+static void cmd_list          (const char *list)  ATTR(nonnull);
+static void cmd_seek          (const char *time)  ATTR(nonnull);
+static void cmd_volume        (const char *_hint) ATTR(nonnull);
+static void cmd_repeat        (const char *rep)   ATTR(nonnull);
+
+static void cmd_download      (const char *unused UNUSED);
+static void cmd_del           (const char *unused UNUSED);
+static void cmd_exit          (const char *unused UNUSED) ATTR(noreturn);
+static void cmd_search_next   (const char *unused UNUSED);
+static void cmd_search_prev   (const char *unused UNUSED);
+static void cmd_search_start  (const char *unused UNUSED);
+static void cmd_command_input (const char *unused UNUSED);
+static void cmd_help          (const char *unused UNUSED);
+static void cmd_yank          (const char *unused UNUSED);
+static void cmd_details       (const char *unused UNUSED);
+static void cmd_play          (const char *unused UNUSED);
+static void cmd_pause         (const char *unused UNUSED);
+static void cmd_stop          (const char *unused UNUSED);
+static void cmd_redraw        (const char *unused UNUSED);
+
+/** \brief Array of all commands supported by SCTC.
+ *
+ *  Includes a description, which is, for instance, shown in the commandwindow, and the function to call in
+ *  order to execute the command.
+ *
+ *  \todo At this point only the `listview` can be used via commands
+ */
+const struct command commands[] = {
+	{"add",           cmd_add,            "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
+	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
+	{"del",           cmd_del,            "<none/ignored>",                "Delete currently selected track from current playlist"},
+	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
+	{"download",      cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
+	{"exit",          cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
+	{"goto",          cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
+	{"help",          cmd_help,           "<none/ignored>",                "Show help"},
+	{"list",          cmd_list,           "<number of list>",              "Switch to specified playlist"},
+	{"list-new",      cmd_list_new,       "<name of list>",                "Create a new playlist with specified name"},
+	{"open",          cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
+	{"pause",         cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
+	{"play",          cmd_play,           "<none/ignored>",                "Start playback of currently selected track"},
+	{"redraw",        cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
+	{"repeat",        cmd_repeat,         "{,none,one,all}",               "Set/Toggle repeat"},
+	{"search-start",  cmd_search_start,   "<none/ignored>",                "Start searching (open input field)"},
+	{"search-next",   cmd_search_next,    "<none/ignored>",                "Continue search downwards"},
+	{"search-prev",   cmd_search_prev,    "<none/ignored>",                "Continue search upwards"},
+	{"seek",          cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
+	{"stop",          cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
+	{"vol",           cmd_volume,         "<delta (in percent)>",          "modify playback volume by given percentage"},
+	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},
+	{"yank",          cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
+	{NULL, NULL, NULL, NULL}
+};
+const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
 
 /**
  *  These functions represent the individual commands action.\n
@@ -66,14 +131,13 @@ static bool handle_command(char *buffer, size_t buffer_size);
  *  \todo Commands are, at this point, only usefull for the main interface (the list).
  *        As soon as we open any other window everything is hardcoded again!
  */
-
 static int command_dispatcher(char *command) {
 	for(int i = 0; commands[i].name; i++) {
 		const size_t ci_size = strlen(commands[i].name);
 
 		if(!strncmp(commands[i].name, command, ci_size)) {
 			if('\0' == command[ci_size] || ' ' == command[ci_size]) {
-				commands[i].func(command + strlen(commands[i].name) + 1);
+				commands[i].func(&command[ci_size + 1]);
 				return -1;
 			}
 		}
@@ -86,75 +150,18 @@ static int command_dispatcher(char *command) {
 		return val;
 	}
 
-	_log("Unknown command '%s'", command);
 	state_set_status(cline_warning, smprintf("Error: Unknown command "F_BOLD"%s"F_RESET, command));
 	return -1;
 }
 
-
-#define LOGO_PART "   ____________________\n"\
-"  / __/ ___/_  __/ ___/\n"\
-" _\\ \\/ /__  / / / /__  \n"\
-"/___/\\___/ /_/  \\___/  \n"\
-"  - the soundcloud.com terminal client"
-#define DESCRIPTION_PART "SCTC is a curses based client for soundcloud.com.\nIts primary target is streaming - the most social media - like features are and will not (be) supported."
-#define LICENSE_PART "SCTC is Free Software released under the GPL v3 or later license.\nFor details see LICENSE or visit https://www.gnu.org/copyleft/gpl.html"
-#define ALPHA_PART "This version is NOT a stable release - expect bugs!"
-#define FEATURE_PART "Implemented / functional features:\n - TUI (resizing, updating)\n - playback\n - caching\n - bookmarks"
-#define NONFEATURE_PART "Planned features not yet implemented:\n - playlist management\n - logging in to soundcloud.com (OAuth)\n - reading playlists from soundcloud.com"
-#define KNOWN_BUGS_PART "Known bugs:\n - track in bookmarks is not marked as 'currently playing'"
-#define PARAGRAPH_PART "\n \n"
-
 /** \todo a) does not belong here\n b) does not work */
-static void cmd_download(char *unused UNUSED) { // TODO!
-/*
-	state_set_status(cline_default, smprintf("Info: Downloading "F_BOLD"%s"F_RESET"", list->entries[list->selected].name));
-
-	char urlbuf[2048];
-	sprintf(urlbuf, "%s?client_id=848ee866ea93c21373f6a8b61772b412", list->entries[list->selected].download_url);
-
-	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
-	struct http_response *resp = http_request_get(nwc, urlbuf, "api.soundcloud.com");
-	nwc->disconnect(nwc);
-
-	char errbuf[1024];
-	yajl_val node = yajl_tree_parse((const char *) resp->body, errbuf, sizeof(errbuf));
-
-	if(!node) {
-		_log("%s", errbuf);
-		_log("length of affected string: %d", strlen(resp->body));
-		_log("affected string: %s", resp->body);
-		return NULL;
-	}
-
-	char *download_url = json_get_string(node, "location", NULL);
-	yajl_tree_free(node);
-
-	http_response_destroy(resp);
-
-	_log("actual download url: %s", download_url);
-
-	struct url* url = url_parse_string(download_url);
-	url_connect(url);
-
-	struct http_response *dlresp = http_request_get(url->nwc, download_url, url->host);
-
-	char fname[strlen(list->entries[list->selected].name) + 16];
-	sprintf(fname, "%s.mp3", list->entries[list->selected].name);
-	FILE *fh = fopen(fname, "w");
-	fwrite(dlresp->body, dlresp->content_length, sizeof(char), fh);
-	fclose(fh);
-
-	url->nwc->disconnect(url->nwc);
-
-	_log("finished downloading from SC, result: %i", resp->http_status);
-
-	state_set_status(cline_default, strdup("Info: Download finished"));
-*/
+static void cmd_download(const char *unused UNUSED) { // TODO!
+	state_set_status(cline_warning, "Error: Downloading not yet implemented");
 }
 
-static void cmd_open_user(char *_user) {
-	char *user = strstrp(_user);
+static void cmd_open_user(const char *_user) {
+	astrdup(tuser, _user);
+	char *user = strstrp(tuser);
 	state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET"'s channel\n", user));
 
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
@@ -170,7 +177,7 @@ static void cmd_open_user(char *_user) {
 	}
 }
 
-static void cmd_add(char *_list) {
+static void cmd_add(const char *_list) {
 	unsigned int list_id = NONE;
 	if(1 != sscanf(_list, " %8u ", &list_id)) {
 		state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not numeric, expecting ID of playlist", _list));
@@ -189,27 +196,32 @@ static void cmd_add(char *_list) {
 	}
 
 	struct track_list *clist = state_get_list(state_get_current_list());
-
-	struct track track = {
-		.name = NULL,
-		.href = TRACK(clist, state_get_current_selected())
-	};
-
 	if(2 == list_id) {
 		TRACK(clist, state_get_current_selected())->flags |= FLAG_BOOKMARKED;
 		tui_submit_action(update_list);
 	}
 
+	struct track track = {
+		.name = NULL,
+		.href = TRACK(clist, state_get_current_selected())
+	};
 	track_list_add(list, &track);
+
+	// update the view, if we just added a track from to current list to the current list
+	if(state_get_current_list() == list_id - 1) {
+		tui_submit_action(update_list);
+	}
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
-static void cmd_del(char *unused UNUSED) {
+static void cmd_del(const char *unused UNUSED) {
 	if(!state_get_current_list()) {
 		state_set_status(cline_warning, "Error: Cannot delete tracks from "F_BOLD"Stream"F_RESET);
 		return;
 	}
 
+	// ensure we do not keep an element selected, which is not part
+	// of the list (e.g. the list is empty, or we are pointing `behind` the list)
 	size_t current_selected = state_get_current_selected();
 	struct track_list *list = state_get_list(state_get_current_list());
 
@@ -223,23 +235,21 @@ static void cmd_del(char *unused UNUSED) {
 	tui_submit_action(update_list);
 }
 
-static void cmd_list_new(char *_name) {
-	char *name = strstrp(_name);
+static void cmd_list_new(const char *_name) {
+	astrdup(tname, _name);
+	char *name = strstrp(tname);
 
-	struct track_list *list = lcalloc(1, sizeof(struct track_list));
+	struct track_list *list = track_list_create(name);
 	if(!list) {
 		state_set_status(cline_warning, "Error: Failed to allocate memory for new list!");
-		return;
+	} else {
+		state_add_list(list);
 	}
-
-	list->name  = lstrdup( strcmp("", name) ? name : "unnamed list" );
-	list->count = 0;
-
-	state_add_list(list);
 }
 
-static void cmd_write_playlist(char *_file) {
-	char *file = strstrp(_file);
+static void cmd_write_playlist(const char *_file) {
+	astrdup(tfile, _file);
+	char *file = strstrp(tfile);
 	struct track_list *list = state_get_list(state_get_current_list());
 
 	state_set_status(cline_default, smprintf("Info: Writing to file "F_BOLD"%s"F_RESET" (type: JSPF)\n", file));
@@ -248,15 +258,16 @@ static void cmd_write_playlist(char *_file) {
 	}
 }
 
-static void cmd_goto(char *hint) {
+static void cmd_goto(const char *_hint) {
+	astrdup(hint, _hint);
 	char *target = strstrp(hint);
 
-	if(!strcmp("", target)) {
+	if(streq("", target)) {
 		if(state_get_current_playback_list() == state_get_current_list()) {
 			state_set_current_selected(state_get_current_list() - 1);
 		}
 		state_set_status(cline_default, "");
-	} else if(!strcmp("end", target)) {
+	} else if(streq("end", target)) {
 		struct track_list *list = state_get_list(state_get_current_list());
 
 		state_set_current_selected(list->count - 1);
@@ -285,41 +296,37 @@ static void cmd_goto(char *hint) {
 /** \brief Switch to playlist with `id`
  *
  *  \param id  The id of the playlist to switch to
- *  \return    `true` on success, otherwise false
  */
 static void switch_to_list(unsigned int id) {
 	struct track_list *list = state_get_list(id);
 
-	if(!list) {
-		state_set_status(cline_warning, "Error: Not switching to list: No such list");
-		return;
+	if(list) {
+		if(list->count) {
+			state_set_current_list(id);
+		} else {
+			state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
+		}
+	} else {
+		state_set_status(cline_warning, smprintf("Error: Not switching to list %u: No such list", (id + 1)));
 	}
-
-	if(!list->count) {
-		state_set_status(cline_warning, smprintf("Error: Not switching to "F_BOLD"%s"F_RESET": List is empty", list->name));
-		return;
-	}
-
-	state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET, list->name));
-	state_set_current_list(id);
 }
 
 /** \brief Switch to playlist specified in string `list`
  *
  *  \param list  The id of the playlist to switch to
- *  \return      `true` on success, otherwise false
  */
-static void cmd_list(char *list) {
+static void cmd_list(const char *list) {
 	unsigned int list_id;
 
 	if(1 == sscanf(list, " %8u ", &list_id)) {
 		switch_to_list(list_id - 1);
 	} else {
-		_log("cannot switch to list %s", list);
+		state_set_status(cline_warning, smprintf("Error: Not switching to list "F_BOLD"%s"F_RESET": Expecting numeric ID", list));
 	}
 }
 
-static void cmd_seek(char *time) {
+static void cmd_seek(const char *_time) {
+	astrdup(time, _time);
 	char *seekto = strstrp(time);
 	unsigned int new_abs = INVALID_TIME;
 
@@ -351,10 +358,8 @@ static void cmd_seek(char *time) {
  *  Writes the list of bookmarks to file and shuts down SCTC.
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
- *  \return does not return
  */
-static void cmd_exit(char *unused UNUSED) ATTR(noreturn);
-static void cmd_exit(char *unused UNUSED) {
+static void cmd_exit(const char *unused UNUSED) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
 	char *cache_path = config_get_cache_path();
@@ -379,9 +384,12 @@ static void search_direction(bool down) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	const int step = down ? 1 : -1;
 
-	for(int i = state_get_current_selected() + step; i >= 0 && i < list->count; i += step) {
-		if(strcasestr(TRACK(list, i)->name, state_get_input())) {
-			state_set_current_selected(i);
+	size_t current = state_get_current_selected();
+	while(current > 0 && current < list->count - 1) {
+		current += step;
+
+		if(strcasestr(TRACK(list, current)->name, state_get_input())) {
+			state_set_current_selected(current);
 			return;
 		}
 	}
@@ -432,10 +440,10 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	return false; // never reached
 }
 
-static void cmd_search_next(char *unused UNUSED) { search_direction(true);  }
-static void cmd_search_prev(char *unused UNUSED) { search_direction(false); }
+static void cmd_search_next(const char *unused UNUSED) { search_direction(true);  }
+static void cmd_search_prev(const char *unused UNUSED) { search_direction(false); }
 
-static void cmd_search_start(char *unused UNUSED) {
+static void cmd_search_start(const char *unused UNUSED) {
 	state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 	handle_search(state_get_input(), 127);
 
@@ -446,7 +454,7 @@ static void cmd_search_start(char *unused UNUSED) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-static void cmd_command_input(char *unused UNUSED) {
+static void cmd_command_input(const char *unused UNUSED) {
 	state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
 	char *buffer = state_get_input();
@@ -467,7 +475,7 @@ static void cmd_command_input(char *unused UNUSED) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-static void cmd_help(char *unused UNUSED) {
+static void cmd_help(const char *unused UNUSED) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
 	state_set_tb("Help / About", help_msg);
@@ -478,19 +486,23 @@ static void cmd_help(char *unused UNUSED) {
  *
  *  \param rep  The type of repeat to use (one in {none,one,all})
  */
-static void cmd_repeat(char *rep) {
-	if(rep) rep = strstrp(rep);
+static void cmd_repeat(const char *_rep) {
+	astrdup(trep, _rep);
+	char *rep = strstrp(trep);
 
-	if(!rep || !strcmp("", rep)) {
+	if(streq("", rep)) {
 		switch(state_get_repeat()) {
 			case rep_none: cmd_repeat("one");  break;
 			case rep_one:  cmd_repeat("all");  break;
 			case rep_all:  cmd_repeat("none"); break;
+
+			/* no error-handling default case here, `enum repeat` only has 3 values */
+			default: break;
 		}
 	} else {
-		if     (!strcmp("none", rep)) state_set_repeat(rep_none);
-		else if(!strcmp("one",  rep)) state_set_repeat(rep_one);
-		else if(!strcmp("all",  rep)) state_set_repeat(rep_all);
+		if     (streq("none", rep)) state_set_repeat(rep_none);
+		else if(streq("one",  rep)) state_set_repeat(rep_one);
+		else if(streq("all",  rep)) state_set_repeat(rep_all);
 		else {
 			state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not in {none,one,all}", rep));
 			return;
@@ -499,7 +511,7 @@ static void cmd_repeat(char *rep) {
 	}
 }
 
-static void cmd_yank(char *unused UNUSED) {
+static void cmd_yank(const char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
@@ -507,12 +519,12 @@ static void cmd_yank(char *unused UNUSED) {
 	state_set_status(cline_default, smprintf("yanked "F_BOLD"%s"F_RESET, TRACK(list, current_selected)->permalink_url));
 }
 
-static void cmd_details(char *unused UNUSED) {
+static void cmd_details(const char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
 	size_t url_count = TRACK(list, current_selected)->url_count;
-	char **urls = TRACK(list, current_selected)->urls;
+	char **urls      = TRACK(list, current_selected)->urls;
 
 	if(URL_COUNT_UNINITIALIZED == url_count) {
 		url_count = string_find_urls(TRACK(list, current_selected)->description, &urls);
@@ -541,12 +553,12 @@ static void cmd_details(char *unused UNUSED) {
  *  \param reset  Reset the current position of playback to 0
  */
 static void stop_playback(bool reset) {
-	struct track_list *list = state_get_list(state_get_current_playback_list());
 	size_t playing = state_get_current_playback_track();
 
 	if(NONE != playing) {
 		sound_stop();
 
+		struct track_list *list = state_get_list(state_get_current_playback_list());
 		TRACK(list, playing)->flags &= ~FLAG_PLAYING;
 		if(reset) {
 			TRACK(list, playing)->current_position = 0;
@@ -554,8 +566,6 @@ static void stop_playback(bool reset) {
 			if(TRACK(list, playing)->current_position) {
 				TRACK(list, playing)->flags |= FLAG_PAUSED;
 			}
-
-			TRACK(list, playing)->current_position = state_get_current_playback_time();
 		}
 
 		tui_submit_action(update_list);
@@ -564,11 +574,9 @@ static void stop_playback(bool reset) {
 	}
 }
 
-static void cmd_play(char *unused UNUSED) {
+static void cmd_play(const char *unused UNUSED) {
 	size_t current_selected = state_get_current_selected();
 	struct track_list *list = state_get_list(state_get_current_list());
-
-	stop_playback(false); // pause other playing track (if any)
 
 	char time_buffer[TIME_BUFFER_SIZE];
 	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, current_selected)->duration);
@@ -584,10 +592,11 @@ static void cmd_play(char *unused UNUSED) {
 	sound_play(TRACK(list, current_selected));
 }
 
-static void cmd_pause(char *unused UNUSED) { stop_playback(false); }
-static void cmd_stop(char *unused UNUSED)  { stop_playback(true);  }
+static void cmd_pause(const char *unused UNUSED) { stop_playback(false); }
+static void cmd_stop (const char *unused UNUSED) { stop_playback(true);  }
 
-static void cmd_volume(char *hint) {
+static void cmd_volume(const char *_hint) {
+	astrdup(hint, _hint);
 	char *delta_str = strstrp(hint);
 	int delta;
 	if(1 == sscanf(delta_str, " %4i ", &delta)) {
@@ -599,48 +608,10 @@ static void cmd_volume(char *hint) {
 }
 
 /** \brief Issue a redraw of the whole screen
- *
- *  \return true
  */
-static void cmd_redraw(char *unused UNUSED) {
+static void cmd_redraw(const char *unused UNUSED) {
 	tui_submit_action(redraw);
 }
-
-/** \brief Array of all commands supported by SCTC.
- *
- *  Includes a description, which is, for instance, shown in the commandwindow, and the function to call in
- *  order to execute the command.
- *
- *  \todo Step by step, 'everything' should be moved here.\n
- *  At some point in time we want to be able to bind keys via configfile.
- */
-const struct command commands[] = {
-	{"add",           cmd_add,            "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
-	{"command-input", cmd_command_input,  "<none/ignored>",                "Open command input field"},
-	{"del",           cmd_del,            "<none/ignored>",                "Delete currently selected track from current playlist"},
-	{"details",       cmd_details,        "<none/ignored>",                "Show details for currently selected track"},
-	{"download",      cmd_download,       "<none/ignored>",                "Download the currently selected entry to file"},
-	{"exit",          cmd_exit,           "<none/ignored>",                "Terminate SCTC"},
-	{"goto",          cmd_goto,           "<relative or absolute offset>", "Set selection to specific entry"},
-	{"help",          cmd_help,           "<none/ignored>",                "Show help"},
-	{"list",          cmd_list,           "<number of list>",              "Switch to specified playlist"},
-	{"list-new",      cmd_list_new,       "<name of list>",                "Create a new playlist with specified name"},
-	{"open",          cmd_open_user,      "<name of user>",                "Open a specific user's stream"},
-	{"pause",         cmd_pause,          "<none/ignored>",                "Pause playback of current track"},
-	{"play",          cmd_play,           "<none/ignored>",                "Start playback of currently selected track"},
-	{"redraw",        cmd_redraw,         "<none/ignored>",                "Redraw the screen"},
-	{"repeat",        cmd_repeat,         "{,none,one,all}",               "Set/Toggle repeat"},
-	{"search-start",  cmd_search_start,   "<none/ignored>",                "Start searching (open input field)"},
-	{"search-next",   cmd_search_next,    "<none/ignored>",                "Continue search downwards"},
-	{"search-prev",   cmd_search_prev,    "<none/ignored>",                "Continue search upwards"},
-	{"seek",          cmd_seek,           "<time to seek to>",             "Seek to specified time in current track"},
-	{"stop",          cmd_stop,           "<none/ignored>",                "Stop playback of current track"},
-	{"vol",           cmd_volume,         "<delta (in percent)>",          "modify playback volume by given percentage"},
-	{"write",         cmd_write_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},
-	{"yank",          cmd_yank,           "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
-	{NULL, NULL, NULL, NULL}
-};
-const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
 
 /** \brief Handle input for a textbox
  *

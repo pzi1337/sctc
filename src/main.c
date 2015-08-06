@@ -180,7 +180,7 @@ int main(int argc UNUSED, char **argv UNUSED) {
 		// corresponding function from configuration and
 		// execute it
 		command_func_ptr func = config_get_function(c);
-		if(func) func((char*)config_get_param(c));
+		if(func) func(config_get_param(c));
 	}
 
 	// never reached, exit called in case of 'cmd_exit'
