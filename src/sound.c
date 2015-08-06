@@ -60,7 +60,7 @@ struct io_handle {
 static sem_t sem_stopped;
 static pthread_t thread_play; // thread decoding and playing downloaded data
 
-static sem_t sem_data_available;
+static sem_t sem_play;
 
 static volatile unsigned int seek_to_pos = SEEKPOS_NONE;
 static volatile bool         stopped     = false;
@@ -94,9 +94,9 @@ static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 		iohandle->position += bytes_copied;
 	}
 
-	if(bytes_copied < count) {
-		_log("WARNING: %zu bytes at position %zu requested, but can only deliver %zu bytes", count, iohandle->position, bytes_copied);
-	}
+//	if(bytes_copied < count) {
+//		_log("WARNING: %zu bytes at position %zu requested, but can only deliver %zu bytes", count, iohandle->position, bytes_copied);
+//	}
 
 	return bytes_copied;
 }
@@ -132,24 +132,17 @@ static void _io_cleanup(void *iohandle) {
 
 /** \brief Reinitialize libmpg123
  *
- *  \param mh  The old handle to close (may be NULL)
- *  \return    A pointer to the new handle (or NULL in case of failure)
+ *  \return  A pointer to the new handle (or NULL in case of failure)
  */
-static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_state *download_state) {
-	// close the old mh if available
-	if(mh) {
-		mpg123_close(mh);
-		mpg123_delete(mh);
-	}
-
-	mpg123_handle *new_mh = mpg123_new(NULL, NULL);
-	if(!new_mh) {
+static mpg123_handle* mpg123_init_playback(struct download_state *download_state) {
+	mpg123_handle *mh = mpg123_new(NULL, NULL);
+	if(!mh) {
 		_log("mpg123_new failed");
 		return NULL;
 	}
 
-	if(MPG123_OK != mpg123_replace_reader_handle(new_mh, _io_read, _io_seek, _io_cleanup)) {
-		_log("mpg123_replace_reader_handle: %s", mpg123_strerror(new_mh));
+	if(MPG123_OK != mpg123_replace_reader_handle(mh, _io_read, _io_seek, _io_cleanup)) {
+		_log("mpg123_replace_reader_handle: %s", mpg123_strerror(mh));
 		return NULL;
 	}
 
@@ -157,29 +150,27 @@ static mpg123_handle* mpg123_init_playback(mpg123_handle *mh, struct download_st
 	iohandle->position       = 0;
 	iohandle->download_state = download_state;
 
-	if(MPG123_OK != mpg123_open_handle(new_mh, iohandle)) {
-		_log("mpg123_open_handle: %s", mpg123_strerror(new_mh));
+	if(MPG123_OK != mpg123_open_handle(mh, iohandle)) {
+		_log("mpg123_open_handle: %s", mpg123_strerror(mh));
 		free(iohandle);
 		return NULL;
 	}
 
-	if(MPG123_OK != mpg123_param(new_mh, MPG123_FLAGS, MPG123_QUIET, 0.0)) {
-		_log("mpg123_param: %s", mpg123_strerror(new_mh));
+	if(MPG123_OK != mpg123_param(mh, MPG123_FLAGS, MPG123_QUIET, 0.0)) {
+		_log("mpg123_param: %s", mpg123_strerror(mh));
 		free(iohandle);
 		return NULL;
 	}
 
 	// set the new values for the equalizer obtained from configuration
 	for(int i = 0; i < 32; i++) {
-		mpg123_eq(new_mh, MPG123_LR, i, config_get_equalizer(i));
+		mpg123_eq(mh, MPG123_LR, i, config_get_equalizer(i));
 	}
 
-	return new_mh;
+	return mh;
 }
 
 static void io_callback(struct download_state *dlstate) {
-	sem_post(&sem_data_available);
-
 	struct track *track = dlstate->track;
 
 	if(dlstate->finished) {
@@ -196,16 +187,16 @@ static void io_callback(struct download_state *dlstate) {
 *  \return NULL   Unused return value, required due to pthread interface
 */
 static void* _thread_play_function(void *unused UNUSED) {
-	mpg123_handle *mh = NULL;
 	do {
-		_log("waiting for data to play");
-		sem_wait(&sem_data_available);
+		_log("waiting for playback");
+		sem_wait(&sem_play);
+		_log("starting playback");
 
 		if(terminate) {
 			return NULL;
 		}
 
-		mh = mpg123_init_playback(mh, state);
+		mpg123_handle *mh = mpg123_init_playback(state);
 
 		unsigned int last_reported_pos = ~0;
 
@@ -263,12 +254,14 @@ static void* _thread_play_function(void *unused UNUSED) {
 		}
 
 		if(stopped) {
+			if(mh) {
+				mpg123_close(mh);
+				mpg123_delete(mh);
+			}
+			mh = NULL;
 			sem_post(&sem_stopped);
 		}
 	} while(!terminate);
-
-	mpg123_close(mh);
-	mpg123_delete(mh);
 
 	return NULL;
 }
@@ -293,7 +286,7 @@ bool sound_init(void (*_time_callback)(int)) {
 
 	mpg123_init();
 
-	if(sem_init(&sem_data_available, 0, 0)) {
+	if(sem_init(&sem_play, 0, 0)) {
 		_log("sem_init failed: %s", strerror(errno));
 		return false;
 	}
@@ -323,7 +316,7 @@ static void sound_finalize(void) {
 	_log("waiting for threads to terminate...");
 
 	_log("thread_play...");
-	sem_post(&sem_data_available);
+	sem_post(&sem_play);
 	pthread_join(thread_play, NULL);
 
 	// cleanup libmpg123
@@ -332,11 +325,7 @@ static void sound_finalize(void) {
 	ao_module_unload();
 }
 
-#define SEM_SET_TO_ZERO(S) {int sval; while(!sem_getvalue(&S, &sval) && sval) {sem_wait(&S);}}
-
 bool sound_stop(void) {
-
-	SEM_SET_TO_ZERO(sem_data_available)
 
 	stopped = true;
 
@@ -345,8 +334,7 @@ bool sound_stop(void) {
 	// if stop() is called by the thread doing the playback,
 	// for instance caused by the `time_callback`, then we may not block
 	if(pthread_self() != thread_play) {
-		sem_post(&sem_data_available);
-
+		if(!state) sem_post(&sem_play);
 		sem_wait(&sem_stopped);
 	}
 
@@ -388,14 +376,13 @@ bool sound_play(struct track *track) {
 		cache_state->buffer      = cache_track_buffer;
 
 		state = cache_state;
-
-		sem_post(&sem_data_available);
 	} else {
 		state = downloader_queue_buffer(track, io_callback);
 		if(!state) {
 			return false;
 		}
 	}
+	sem_post(&sem_play);
 
 	return true;
 }
