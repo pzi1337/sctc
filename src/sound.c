@@ -21,6 +21,7 @@
 #include "sound.h"
 
 //\cond
+#include <assert.h>
 #include <errno.h>                      // for errno
 #include <pthread.h>                    // for pthread_create, etc
 #include <semaphore.h>                  // for sem_post, sem_wait, etc
@@ -59,7 +60,6 @@ struct io_handle {
 
 static sem_t sem_stopped;
 static pthread_t thread_play; // thread decoding and playing downloaded data
-
 static sem_t sem_play;
 
 static volatile unsigned int seek_to_pos = SEEKPOS_NONE;
@@ -71,6 +71,19 @@ static struct download_state *state = NULL;
 static void (*time_callback)(int);
 
 static void sound_finalize(void);
+
+static void _io_await_recvd_size(struct download_state *dlstat, size_t recvd) {
+	bool io_have_data = false;
+	do {
+		pthread_mutex_lock(&dlstat->io_mutex);
+		io_have_data = (recvd < dlstat->bytes_recvd);
+		if(!io_have_data) {
+			pthread_cond_wait(&dlstat->io_cond, &dlstat->io_mutex);
+			io_have_data = (recvd < dlstat->bytes_recvd);
+		}
+		pthread_mutex_unlock(&dlstat->io_mutex);
+	} while(!io_have_data);
+}
 
 static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
@@ -84,6 +97,8 @@ static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 		memcpy(mpg123buffer, &dlstat->buffer[iohandle->position], bytes_copied);
 		iohandle->position += bytes_copied;
 	} else {
+		_io_await_recvd_size(dlstat, iohandle->position + count);
+
 		size_t bytes_available = 0;
 		if(dlstat->bytes_recvd > iohandle->position) {
 			bytes_available = dlstat->bytes_recvd - iohandle->position;
@@ -94,9 +109,9 @@ static ssize_t _io_read(void *_iohandle, void *mpg123buffer, size_t count) {
 		iohandle->position += bytes_copied;
 	}
 
-//	if(bytes_copied < count) {
-//		_log("WARNING: %zu bytes at position %zu requested, but can only deliver %zu bytes", count, iohandle->position, bytes_copied);
-//	}
+	if(bytes_copied < count) {
+		_log("WARNING: %zu bytes at position %zu requested, but can only deliver %zu bytes", count, iohandle->position, bytes_copied);
+	}
 
 	return bytes_copied;
 }
@@ -105,9 +120,12 @@ static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
 	struct io_handle *iohandle    = (struct io_handle*) _iohandle;
 	struct download_state *dlstat = iohandle->download_state;
 
+	// downloading needs to be started at least, as we need to know the bytes available in total
+	_io_await_recvd_size(dlstat, 0);
+
 	size_t abs_offset = 0;
 	switch(whence) {
-		case SEEK_SET: abs_offset = offset;                       break;
+		case SEEK_SET: assert(offset >= 0); abs_offset = offset;   break;
 		case SEEK_CUR: abs_offset = iohandle->position  + offset; break;
 		case SEEK_END: abs_offset = dlstat->bytes_total + offset; break;
 		default: {
@@ -121,6 +139,7 @@ static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
 		return (off_t) -1;
 	}
 
+	_log("seeking to %zu", abs_offset);
 	iohandle->position = abs_offset;
 	return abs_offset;
 }
@@ -173,7 +192,7 @@ static mpg123_handle* mpg123_init_playback(struct download_state *download_state
 static void io_callback(struct download_state *dlstate) {
 	struct track *track = dlstate->track;
 
-	if(dlstate->finished) {
+	if(dlstate->bytes_recvd == dlstate->bytes_total) {
 		_log("download of `%s` is finished, saving track to cache", track->name);
 		if(cache_track_save(track, (void*) dlstate->buffer, dlstate->bytes_recvd)) {
 			track->flags |= FLAG_CACHED;
@@ -363,19 +382,16 @@ bool sound_play(struct track *track) {
 	if( ( cache_track_buffer = cache_track_get(track, &cache_track_size) ) ) {
 		_log("using file from cache for '%s' by '%s'", track->name, track->username);
 
-		struct download_state *cache_state = lmalloc(sizeof(struct download_state));
-		if(!cache_state) {
+		struct download_state *cstate = downloader_create_state(track);
+		if(!cstate) {
 			return false;
 		}
 
-		cache_state->track       = track;
-		cache_state->started     = true;
-		cache_state->finished    = true;
-		cache_state->bytes_recvd = cache_track_size;
-		cache_state->bytes_total = cache_track_size;
-		cache_state->buffer      = cache_track_buffer;
+		cstate->bytes_recvd = cache_track_size;
+		cstate->bytes_total = cache_track_size;
+		cstate->buffer      = cache_track_buffer;
 
-		state = cache_state;
+		state = cstate;
 	} else {
 		state = downloader_queue_buffer(track, io_callback);
 		if(!state) {

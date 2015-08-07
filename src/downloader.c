@@ -98,8 +98,6 @@ static void* _download_thread(void *unused UNUSED) {
 
 		struct download *my = download_dequeue();
 
-		__sync_bool_compare_and_swap(&my->state->started, false, true);
-
 		FILE *fh = NULL;
 		if(my->target_file) fh = fopen(my->file, "w");
 
@@ -111,15 +109,16 @@ static void* _download_thread(void *unused UNUSED) {
 
 			// allocate buffer
 			if(resp->content_length <= DOWNLOAD_MAX_SIZE) {
-				my->buffer        = lmalloc(resp->content_length);
-				my->state->buffer = my->buffer;
-				my->buffer_size   = resp->content_length;
+				my->buffer             = lmalloc(resp->content_length);
+				// TODO: check for lmalloc fail
+				my->state->buffer      = my->buffer;
+				my->state->bytes_total = resp->content_length;
+				_log("my->state->bytes_total = %zu", my->state->bytes_total);
+				my->buffer_size        = resp->content_length;
 			} else {
 				_log("download too large, aborting!");
 				// TODO
 			}
-
-			__sync_bool_compare_and_swap(&my->state->bytes_total, 0, resp->content_length);
 
 			// read the last 4096 bytes at first (... do not ask.)
 			size_t remaining = resp_last->content_length;
@@ -146,7 +145,12 @@ static void* _download_thread(void *unused UNUSED) {
 					int ret = nwc->recv(nwc, &((char*)my->buffer)[my->state->bytes_recvd], request_size);
 					if(ret > 0) {
 						remaining -= ret;
-						__sync_add_and_fetch(&my->state->bytes_recvd, ret);
+
+						pthread_mutex_lock(&my->state->io_mutex);
+						my->state->bytes_recvd += ret;
+						pthread_cond_signal(&my->state->io_cond);
+						pthread_mutex_unlock(&my->state->io_mutex);
+
 						if(my->callback) my->callback(my->state);
 					}
 				}
@@ -156,8 +160,6 @@ static void* _download_thread(void *unused UNUSED) {
 			http_response_destroy(resp);
 
 			if(my->target_file) fclose(fh);
-			__sync_bool_compare_and_swap(&my->state->finished, false, true);
-			if(my->callback) my->callback(my->state);
 		} else {
 			_log("failed to open `%s`: `%s`", my->file, strerror(errno));
 		}
@@ -181,19 +183,37 @@ bool downloader_queue_file(char *url, char *file) {
 }
 */
 
+struct download_state* downloader_create_state(struct track *track) {
+	struct download_state *dlstat = lcalloc(1, sizeof(struct download_state));
+	if(dlstat) {
+		dlstat->track = track;
+
+		int err;
+
+		if( !(err = pthread_cond_init(&dlstat->io_cond, NULL)) ) {
+			if( !(err = pthread_mutex_init(&dlstat->io_mutex, NULL)) ) {
+				return dlstat;
+			}
+			_log("pthread_mutex_init: %s", strerror(err));
+			pthread_cond_destroy(&dlstat->io_cond);
+		} else {
+			_log("pthread_cond_init: %s", strerror(err));
+		}
+		free(dlstat);
+	}
+	return NULL;
+}
+
 struct download_state* downloader_queue_buffer(struct track *track, void (*callback)(struct download_state*)) {
 	struct download *new_dl = lmalloc(sizeof(struct download));
 	if(!new_dl) return NULL;
 
-	struct download_state *dl_stat = lcalloc(1, sizeof(struct download_state));
-	if(!dl_stat) {
+	new_dl->state = downloader_create_state(track);
+	if(!new_dl->state) {
 		free(new_dl);
 		return NULL;
 	}
 
-	dl_stat->track      = track;
-
-	new_dl->state       = dl_stat;
 	new_dl->target_file = false;
 	new_dl->buffer      = NULL;
 	new_dl->buffer_size = 0;
@@ -202,7 +222,7 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 
 	download_enqueue(new_dl);
 
-	return dl_stat;
+	return new_dl->state;
 }
 
 bool downloader_init(void) {
