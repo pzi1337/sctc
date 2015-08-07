@@ -195,4 +195,12 @@
 	 *  \param s        The string to be duplicated
 	 */
 	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull);
+
+	struct mmaped_file {
+		const void *data;
+		size_t      size;
+	};
+
+	struct mmaped_file file_read_contents(char *file);
+	void file_release_contents(struct mmaped_file file);
 #endif /* _HELPER_H */

@@ -17,6 +17,8 @@
 */
 
 #ifndef _XSPF_H
+	#include <stdbool.h>
+
 	#include "track.h"
 
 	/** \brief Write a whole tracklist to file.

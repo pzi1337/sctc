@@ -22,20 +22,22 @@
 #include "helper.h"
 
 //\cond
-#include <assert.h>
-#include <errno.h>
+#include <assert.h>                     // for assert
+#include <errno.h>                      // for errno
+#include <fcntl.h>                      // for open, O_NOFOLLOW
+#include <polarssl/sha512.h>            // for sha512
 #include <stdarg.h>                     // for va_end, va_list, va_start
-#include <stdbool.h>                    // for bool, false, true
-#include <stdio.h>                      // for sscanf, snprintf, vsnprintf
-#include <stdlib.h>                     // for calloc, exit, malloc, etc
-#include <string.h>                     // for strlen, strdup
-#include <unistd.h>                     // for close, dup2, execlp, fork, etc
+#include <stdbool.h>                    // for true, false, bool
+#include <stdio.h>                      // for snprintf, sscanf, vsnprintf, etc
+#include <stdlib.h>                     // for exit, EXIT_FAILURE, calloc, etc
+#include <string.h>                     // for strerror, strlen, strdup, etc
+#include <sys/mman.h>                   // for mmap, munmap, MAP_FAILED, etc
+#include <sys/stat.h>                   // for stat, fstat
+#include <unistd.h>                     // for close, execlp, fork, dup2, etc
 //\endcond
 
-#include <polarssl/sha512.h>            // for sha512
-
-#include "log.h"
-#include "tui.h"
+#include "log.h"                        // for __log, _err, _log
+#include "tui.h"                        // for F_RESET, F_UNDERLINE
 
 char* smprintf(char *fmt, ...) {
 	va_list ap;
@@ -280,4 +282,42 @@ char* string_prepare_urls_for_display(char *string, size_t url_count) {
 
 	assert(url_count == urls_found && "Failed to refind all URLs previously found!");
 	return prep;
+}
+
+struct mmaped_file file_read_contents(char *path) {
+	struct mmaped_file file;
+
+	int fd = open(path, O_NOFOLLOW);
+	if(-1 == fd) {
+		_err("open: %s", strerror(errno));
+		file.data = NULL;
+		return file;
+	}
+
+
+	struct stat fdstat;
+	if(!fstat(fd, &fdstat)) {
+		if(fdstat.st_size >= 0) {
+			file.size = (size_t) fdstat.st_size;
+			file.data = mmap(NULL, file.size, PROT_READ, MAP_SHARED, fd, 0);
+			if(MAP_FAILED != file.data) {
+				return file;
+			} else {
+				_err("mmap: %s", strerror(errno));
+			}
+		} else {
+			_err("fstat returned a negative size for `%s`", path);
+		}
+	} else {
+		_err("fstat: %s", strerror(errno));
+	}
+
+	close(fd);
+
+	file.data = NULL;
+	return file;
+}
+
+void file_release_contents(struct mmaped_file file) {
+	munmap(file.data, file.size);
 }

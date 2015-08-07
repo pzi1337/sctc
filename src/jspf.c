@@ -29,29 +29,27 @@
 
 #define _XOPEN_SOURCE 500
 
+#include "_hard_config.h"
+#include "jspf.h"
+
 //\cond
-#include <assert.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <string.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <errno.h>
+#include <errno.h>                      // for errno
+#include <stdbool.h>                    // for bool, false, true
+#include <stddef.h>                     // for size_t
+#include <stdio.h>                      // for NULL, fclose, FILE, fopen, etc
+#include <stdlib.h>                     // for free
+#include <string.h>                     // for strlen, strerror
+#include <sys/stat.h>                   // for stat, fstat
+#include <time.h>                       // for strftime, strptime
 //\endcond
 
-#include <yajl/yajl_gen.h>
-#include <yajl/yajl_version.h>
-#include <yajl/yajl_tree.h>
+#include <yajl/yajl_gen.h>              // for yajl_gen_string, etc
+#include <yajl/yajl_tree.h>             // for yajl_val_s, etc
 
-#include "yajl_helper.h"
-#include "track.h"
-#include "log.h"
-#include "helper.h"
-#include "jspf.h"
+#include "helper.h"                     // for lcalloc, lmalloc
+#include "log.h"                        // for _log
+#include "track.h"                      // for track, etc
+#include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
 #define YAJL_GEN_STRING(hand, str) yajl_gen_string(hand, (unsigned char*)str, strlen(str))
 
@@ -159,33 +157,47 @@ bool jspf_write(char *file, struct track_list *list) {
 	return true;
 }
 
-struct track_list* jspf_read(char *file) {
+static void yajl_to_track(yajl_val parent, struct track *track) {
+	track->name          = yajl_helper_get_string(parent, "title",      NULL);
+	track->stream_url    = yajl_helper_get_string(parent, "location",   NULL);
+	track->username      = yajl_helper_get_string(parent, "creator",    NULL);
+	track->permalink_url = yajl_helper_get_string(parent, "identifier", NULL);
+	track->description   = yajl_helper_get_string(parent, "annotation", NULL);
+	track->duration      = yajl_helper_get_int   (parent, "duration",   NULL);
+	track->url_count     = URL_COUNT_UNINITIALIZED;
+
+	// TODO \todo download_url not part of cached data
+	// track->download_url  = yajl_helper_get_string(parent, "download_url",  NULL);
+
+	yajl_val node_meta = yajl_helper_get_array(parent, "meta", NULL);
+	for(size_t j = 0; j < node_meta->u.array.len; j++) {
+		int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
+		int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
+
+		if(val_user_id)  track->user_id  = val_user_id;
+		if(val_track_id) track->track_id = val_track_id;
+
+		char *date_str = yajl_helper_get_string(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);
+		if(date_str) {
+			char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &track->created_at);
+			if(!ret || *ret) {
+				_log("strptime(\"%s\"): '%s'", date_str, strerror(errno));
+			}
+			free(date_str);
+		}
+	}
+}
+
+struct track_list* jspf_read(char *path) {
 	struct track_list *list = lcalloc(1, sizeof(struct track_list));
-
-	FILE *fh = fopen(file, "r");
-	if(!fh) {
-		return list;
+	if(!list) {
+		return NULL;
 	}
 
-	struct stat jspf_stat;
-	if(fstat(fileno(fh), &jspf_stat)) {
-		_log("fstat: %s", strerror(errno));
-		fclose(fh);
-		return list;
-	}
+	// allocate buffer and read whole .jspf-file into the buffer
+	struct mmaped_file file = file_read_contents(path);
 
-	char *buffer = lmalloc(jspf_stat.st_size + 1);
-	if(jspf_stat.st_size != fread(buffer, 1, jspf_stat.st_size, fh)) {
-		_log("expected %zuBytes from `%s`, but didn't get that", jspf_stat.st_size, file);
-		free(buffer);
-		fclose(fh);
-		return list;
-	}
-	buffer[jspf_stat.st_size] = '\0';
-
-	fclose(fh);
-
-	yajl_val node_root = yajl_helper_parse(buffer);
+	yajl_val node_root = yajl_helper_parse(file.data);
 	yajl_val array = yajl_helper_get_array(node_root, "playlist", "track");
 
 	if(array) {
@@ -193,39 +205,12 @@ struct track_list* jspf_read(char *file) {
 		list->count   = array->u.array.len;
 
 		for(size_t i = 0; i < array->u.array.len; i++) {
-			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",      NULL);
-			list->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "location",   NULL);
-			list->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "creator",    NULL);
-			list->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "identifier", NULL);
-			list->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "annotation", NULL);
-			list->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration",   NULL);
-			list->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
-			
-			// TODO \todo download_url not part of cached data
-			// list->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);
-
-			yajl_val node_meta = yajl_helper_get_array(array->u.array.values[i], "meta", NULL);
-			for(size_t j = 0; j < node_meta->u.array.len; j++) {
-				int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
-				int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
-
-				if(val_user_id)  list->entries[i].user_id  = val_user_id;
-				if(val_track_id) list->entries[i].track_id = val_track_id;
-
-				char *date_str = yajl_helper_get_string(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);
-				if(date_str) {
-					char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &list->entries[i].created_at);
-					if(!ret || *ret) {
-						_log("strptime(\"%s\"): '%s'", date_str, strerror(errno));
-					}
-					free(date_str);
-				}
-			}
+			yajl_to_track(array->u.array.values[i], &list->entries[i]);
 		}
 	}
 
 	yajl_tree_free(node_root);
-	free(buffer);
+	file_release_contents(file);
 
 	return list;
 }
