@@ -37,12 +37,30 @@
 	 */
 	size_t config_get_subscribe_count(void);
 
-
+	/** \brief Returns the number of subscriptions.
+	 *
+	 *  \return  The number of subscriptions
+	 */
 	char* config_get_subscribe(int id);
+
+	/** \brief Returns the command-function to be executed on keypress
+	 *
+	 *  \param key  The key to find the function for
+	 *  \return     The function mapped to a specific key (of NULL if unmapped)
+	 */
 	command_func_ptr config_get_function(int key);
+
 	const char* config_get_param(int key);
 	char* config_get_cache_path(void);
 	char* config_get_cert_path(void);
+
+	#define EQUALIZER_SIZE 32
+
+	/** \brief Returns the value for band `band`
+	 *
+	 *  \param band  The band to return the value for
+	 *  \return      The corresponding value, where `1` denotes `no change in volume`
+	 */
 	float config_get_equalizer(int band);
 
 #endif /* _CONFIG_H */

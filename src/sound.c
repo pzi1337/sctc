@@ -182,7 +182,7 @@ static mpg123_handle* mpg123_init_playback(struct download_state *download_state
 	}
 
 	// set the new values for the equalizer obtained from configuration
-	for(int i = 0; i < 32; i++) {
+	for(int i = 0; i < EQUALIZER_SIZE; i++) {
 		mpg123_eq(mh, MPG123_LR, i, config_get_equalizer(i));
 	}
 

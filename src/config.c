@@ -43,8 +43,6 @@
 #define OPTION_CACHE_PATH  "cache_path"
 #define OPTION_CACHE_LIMIT "cache_limit"
 
-#define EQUALIZER_SIZE 32
-
 static char** config_subscribe = NULL;
 static size_t config_subscribe_count = 0;
 
@@ -57,7 +55,7 @@ static int   cache_limit;
 static void config_finalize(void);
 
 static struct {
-	void (*func)(char*);
+	void (*func)(const char*);
 	const char *param;
 } key_command_mapping[KEY_MAX] = { {NULL, NULL} };
 
@@ -92,6 +90,11 @@ static int get_curses_ch(const char *str) {
 	return ERR;
 }
 
+/** \brief Find the corresponding `struct command` for a given string
+ *
+ *  \param input  The string to search for
+ *  \return       The matching `struct command` (or `NULL` if nothing matches)
+ */
 static const struct command* get_cmd_by_name(const char *input) {
 	const size_t in_len = strlen(input);
 
