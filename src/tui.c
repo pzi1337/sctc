@@ -183,9 +183,9 @@ static void tui_draw_status_line(void) {
 }
 
 static void tui_update_suggestion_list(void) {
-	struct command* commands = state_get_commands();
+	struct command* sugg_cmds = state_get_commands();
 
-	if(!commands) {
+	if(!sugg_cmds) {
 		// remove suggestion_window if commands are not set
 		// expects an existing suggestion_window
 
@@ -210,16 +210,16 @@ static void tui_update_suggestion_list(void) {
 		}
 
 		size_t line;
-		for(line = 0; line < SUGGESTION_LIST_HEIGHT && commands[start + line].name; line++) {
+		for(line = 0; line < SUGGESTION_LIST_HEIGHT && sugg_cmds[start + line].name; line++) {
 			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
 			mvwprintw (suggestion_window, line, 0, "%0*c", COLS, ' ');
-			mvwprintw (suggestion_window, line, 1, "%s", commands[start + line].name);
+			mvwprintw (suggestion_window, line, 1, "%s", sugg_cmds[start + line].name);
 
 			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_descparam_selected : cmdlist_descparam, NULL);
-			mvwprintw (suggestion_window, line, 20, "%s", commands[start + line].desc_param);
+			mvwprintw (suggestion_window, line, 20, "%s", sugg_cmds[start + line].desc_param);
 
 			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
-			mvwprintw (suggestion_window, line, COLS / 2, commands[start + line].desc);
+			mvwprintw (suggestion_window, line, COLS / 2, sugg_cmds[start + line].desc);
 		}
 
 		wcolor_set(suggestion_window, cmdlist_default, NULL);
@@ -299,6 +299,8 @@ static void tui_draw_tab_bar(void) {
 		case rep_none:                        break;
 		case rep_one: addstr("\u21BA1");      break;
 		case rep_all: addstr("\u21BA\u221E"); break;
+		/* no error-handling default case here, `enum repeat` only has 3 values */
+		default: break;
 	}
 }
 
