@@ -189,6 +189,6 @@ int audio_change_volume(off_t delta) {
 	// return the current volume (after modification)
 	long cur;
 	ALSA_ERROR_CHECK( snd_mixer_selem_get_playback_volume(elem, SND_MIXER_SCHN_MONO, &cur) );
-	return ( 100 * (cur - min) ) / range;;
+	return ( 100 * (cur - min) ) / range;
 }
 
