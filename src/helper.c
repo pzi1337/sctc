@@ -284,8 +284,8 @@ char* string_prepare_urls_for_display(char *string, size_t url_count) {
 	return prep;
 }
 
-struct mmaped_file file_read_contents(char *path) {
-	struct mmaped_file file;
+struct mmapped_file file_read_contents(char *path) {
+	struct mmapped_file file;
 
 	int fd = open(path, O_NOFOLLOW);
 	if(-1 == fd) {
@@ -318,6 +318,6 @@ struct mmaped_file file_read_contents(char *path) {
 	return file;
 }
 
-void file_release_contents(struct mmaped_file file) {
+void file_release_contents(struct mmapped_file file) {
 	munmap(file.data, file.size);
 }

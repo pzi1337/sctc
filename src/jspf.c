@@ -195,7 +195,7 @@ struct track_list* jspf_read(char *path) {
 	}
 
 	// allocate buffer and read whole .jspf-file into the buffer
-	struct mmaped_file file = file_read_contents(path);
+	struct mmapped_file file = file_read_contents(path);
 
 	yajl_val node_root = yajl_helper_parse(file.data);
 	yajl_val array = yajl_helper_get_array(node_root, "playlist", "track");

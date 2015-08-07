@@ -196,11 +196,11 @@
 	 */
 	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull);
 
-	struct mmaped_file {
+	struct mmapped_file {
 		const void *data;
 		size_t      size;
 	};
 
-	struct mmaped_file file_read_contents(char *file);
-	void file_release_contents(struct mmaped_file file);
+	struct mmapped_file file_read_contents(char *file);
+	void file_release_contents(struct mmapped_file file);
 #endif /* _HELPER_H */
