@@ -72,8 +72,21 @@
 	 */
 	void strcrep(char *str, char s, char r) ATTR(nonnull);
 
+	/** \brief Strip whitespaces at the beginning and at the end of the string
+	 *
+	 *  \param str  The string to strip, points to a buffer that will be *modified*
+	 *  \return     Pointer to the new beginning
+	 */
 	char* strstrp(char *str) ATTR(nonnull, returns_nonnull);
+
+	/** \brief Executes a provided command (including argument)
+	 *
+	 *  \param cmd    The executable
+	 *  \param param  The parameters
+	 *  \return       `true` on success, `false` otherwise
+	 */
 	bool fork_and_run(char *cmd, char *param);
+
 	size_t string_find_urls(char *string, char ***urls_out);
 	char* string_prepare_urls_for_display(char *string, size_t url_count);
 

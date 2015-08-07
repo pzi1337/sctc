@@ -56,13 +56,17 @@ bool log_init(char *file) {
 
 	if(atexit(log_close)) {
 		_log("atexit: %s", strerror(errno));
+
+		fclose(log_fh);
+		log_fh = NULL;
+		return false;
 	}
 
 	return true;
 }
 
 /* log to file using fmt, just as known from printf */
-void __log(const char *srcfile, int srcline, const char *srcfunc, const char *fmt, ...) {
+void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error, const char *fmt, ...) {
 	if(!log_fh) return;
 
 	sem_wait(&log_sem);
@@ -72,6 +76,9 @@ void __log(const char *srcfile, int srcline, const char *srcfunc, const char *fm
 	char *tstring = ctime(&t);
 	tstring[strlen(tstring) - 1] = '\0';
 	fprintf(log_fh, "[;33;02m[%s][m ", tstring);
+	if(is_error) {
+		fprintf(log_fh, "[;31;02mERROR: ");
+	}
 
 	// append the remaining (user-supplied) data
 	va_list ap;
@@ -80,7 +87,7 @@ void __log(const char *srcfile, int srcline, const char *srcfunc, const char *fm
 	va_end(ap);
 
 	// append sourcefile and -line (of call to _log)
-	fprintf(log_fh, " [;32;02m{ in %s (%s:%i) }[m", srcfunc, srcfile, srcline);
+	fprintf(log_fh, "[m [;32;02m{ in %s (%s:%i) }[m", srcfunc, srcfile, srcline);
 
 	fprintf(log_fh, "\n");
 	fflush(log_fh);

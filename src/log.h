@@ -47,7 +47,9 @@
 	 *
 	 *  Always use _log() instead of __log().
 	 */
-	#define _log(...) __log(__FILE__, __LINE__, __func__, __VA_ARGS__)
+	#define _log(...) __log(__FILE__, __LINE__, __func__, false, __VA_ARGS__)
+
+	#define _err(...) __log(__FILE__, __LINE__, __func__, true, __VA_ARGS__)
 
 	/** The internal implementation for logging.
 	 *
@@ -61,5 +63,5 @@
 	 *  \param srcfunc  The function callint __log(); filled by macro _log(), do not use "by hand"
 	 *  \param fmt      The format used format the line, see man 3 printf for usage.
 	 */
-	void __log(const char *srcfile, int srcline, const char *srcfunc, const char *fmt, ...) ATTR(format (printf, 4, 5));
+	void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error, const char *fmt, ...) ATTR(format (printf, 5, 6));
 #endif /* _LOG_H */

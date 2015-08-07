@@ -125,7 +125,7 @@ bool fork_and_run(char *cmd, char *param) {
 void* _lmalloc(char *srcfile, int srcline, const char *srcfunc, size_t size) {
 	void *ptr = malloc(size);
 	if(!ptr) {
-		__log(srcfile, srcline, srcfunc, "malloc(%zu) failed: %s", size, strerror(errno));
+		__log(srcfile, srcline, srcfunc, true, "malloc(%zu) failed: %s", size, strerror(errno));
 	}
 
 	return ptr;
@@ -134,7 +134,7 @@ void* _lmalloc(char *srcfile, int srcline, const char *srcfunc, size_t size) {
 void* _lcalloc(char *srcfile, int srcline, const char *srcfunc, size_t nmemb, size_t size) {
 	void *ptr = calloc(nmemb, size);
 	if(!ptr) {
-		__log(srcfile, srcline, srcfunc, "calloc(%zu, %zu) failed: %s", nmemb, size, strerror(errno));
+		__log(srcfile, srcline, srcfunc, true, "calloc(%zu, %zu) failed: %s", nmemb, size, strerror(errno));
 	}
 
 	return ptr;
@@ -143,7 +143,7 @@ void* _lcalloc(char *srcfile, int srcline, const char *srcfunc, size_t nmemb, si
 void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size_t size) {
 	void *new_ptr = realloc(ptr, size);
 	if(!new_ptr) {
-		__log(srcfile, srcline, srcfunc, "realloc(%p, %zu) failed: %s", ptr, size, strerror(errno));
+		__log(srcfile, srcline, srcfunc, true, "realloc(%p, %zu) failed: %s", ptr, size, strerror(errno));
 	}
 
 	return new_ptr;
@@ -152,7 +152,7 @@ void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size
 char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) {
 	void *d = strdup(s);
 	if(!d) {
-		__log(srcfile, srcline, srcfunc, "strdup(\"%s\") failed: %s", s, strerror(errno));
+		__log(srcfile, srcline, srcfunc, true, "strdup(\"%s\") failed: %s", s, strerror(errno));
 	}
 
 	return d;
