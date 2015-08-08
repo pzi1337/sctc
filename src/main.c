@@ -130,6 +130,10 @@ int main(int argc UNUSED, char **argv UNUSED) {
 	list_stream->name = strdup("Stream");
 	state_add_list(list_stream);
 
+#ifndef NDEBUG
+	track_list_dump_mem_usage(list_stream);
+#endif
+
 	struct track_list *list_bookmark = jspf_read(BOOKMARK_FILE);
 	list_bookmark->name = strdup("Bookmarks");
 	track_list_href_to(list_bookmark, list_stream);

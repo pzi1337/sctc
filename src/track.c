@@ -152,3 +152,25 @@ void track_list_destroy(struct track_list *list, bool free_trackdata) {
 	free(list->name);
 	free(list);
 }
+
+#ifndef NDEBUG
+void track_list_dump_mem_usage(struct track_list *list) {
+	size_t mem = sizeof(struct track_list) + list->count * sizeof(struct track);
+
+	mem += strlen(list->name) + 1;
+
+	for(size_t i = 0; i < list->count; i++) {
+		struct track *track = &list->entries[i];
+		if(track->name) {
+			mem += strlen(track->name) + 1;
+
+			if(track->stream_url)    mem += strlen(track->stream_url)    + 1;
+			if(track->permalink_url) mem += strlen(track->permalink_url) + 1;
+			if(track->download_url)  mem += strlen(track->download_url)  + 1;
+			if(track->username)      mem += strlen(track->username)      + 1;
+			if(track->description)   mem += strlen(track->description)   + 1;
+		}
+	}
+	_log("List `%s` occupies %zukB", list->name, mem / 1024);
+}
+#endif

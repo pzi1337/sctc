@@ -156,4 +156,8 @@
 	void track_list_href_to(struct track_list *list, struct track_list *target);
 	bool track_list_del(struct track_list *list, size_t track_id);
 	void track_destroy(struct track *track);
+
+#ifndef NDEBUG
+	void track_list_dump_mem_usage(struct track_list *list);
+#endif
 #endif /* _TRACK_H */
