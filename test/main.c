@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
 
 	size_t failed_tcs = 0;
 
+	log_init("run_tests.log");
 	config_init();
 
 	if(!test_helper())     failed_tcs++;
@@ -26,8 +27,6 @@ int main(int argc, char **argv) {
 	} else {
 		fprintf(stderr, "\n\nRESULT: ALL OK\n");
 	}
-
-	config_finalize();
 
 	return EXIT_SUCCESS;
 }

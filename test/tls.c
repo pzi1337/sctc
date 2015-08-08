@@ -13,8 +13,6 @@
 bool test_tls() {
 	fprintf(stderr, "\n\ntls.o");
 
-	log_init("tls.log");
-
 	bool is_ok = true;
 
 	TEST_FUNC("tls_init");
@@ -34,9 +32,6 @@ bool test_tls() {
 		TEST_RES(nwc);
 		nwc->disconnect(nwc);
 	}
-
-	tls_finalize();
-	log_close();
 
 	return is_ok;
 }

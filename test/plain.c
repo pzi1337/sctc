@@ -17,8 +17,6 @@
 bool test_plain() {
 	fprintf(stderr, "\n\nplain.o");
 
-	log_init("plain.log");
-
 	bool is_ok = true;
 
 	TEST_FUNC("plain_connect");
@@ -36,8 +34,6 @@ bool test_plain() {
 		http_response_destroy(resp);
 		nwc->disconnect(nwc);
 	}
-
-	log_close();
 
 	return is_ok;
 }

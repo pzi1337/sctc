@@ -7,7 +7,7 @@ LDOPT=-pie -z relro -z now
 CC=gcc
 CFLAGS=`pkg-config --cflags ao yajl ncursesw libconfuse libmpg123` -std=gnu11 -Wall -pedantic -fPIC $(CCOPT)
 #-Wextra
-LDFLAGS=`pkg-config --libs ao yajl ncursesw libconfuse libmpg123` -lpolarssl -lpthread $(LDOPT)
+LDFLAGS=`pkg-config --libs ao yajl ncursesw libconfuse libmpg123` -lpolarssl -lpthread -ldl $(LDOPT)
 
 _%.o: %.c
 	gcc $(CFLAGS) -c $< -o $@
@@ -15,7 +15,7 @@ _%.o: %.c
 all: _main.o _helper.o _url.o _plain.o _tls.o
 	# do a clean build of SCTC
 	make -C ../src/ clean all
-	gcc $(LDFLAGS) ../src/cache.o  ../src/command.o ../src/downloader.o ../src/config.o  ../src/helper.o  ../src/http.o  ../src/jspf.o  ../src/log.o  ../src/soundcloud.o  ../src/sound.o  ../src/state.o  ../src/track.o  ../src/tui.o  ../src/url.o  ../src/yajl_helper.o ../src/network/*.o $^ -o run_tests
+	gcc $(LDFLAGS) ../src/cache.o  ../src/command.o ../src/downloader.o ../src/config.o  ../src/helper.o  ../src/http.o  ../src/jspf.o  ../src/log.o  ../src/soundcloud.o  ../src/sound.o  ../src/state.o  ../src/track.o  ../src/tui.o  ../src/url.o  ../src/yajl_helper.o ../src/audio/ao_module.o ../src/network/*.o $^ -o run_tests
 
 run: all
 	valgrind --leak-check=full --show-leak-kinds=all -v --log-file=run_tests_valgrind.log ./run_tests
