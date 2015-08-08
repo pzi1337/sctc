@@ -54,9 +54,9 @@ yajl_val yajl_helper_get_array(yajl_val parent, const char *path1, const char *p
 	return YAJL_IS_ARRAY(val) ? val : NULL;
 }
 
-yajl_val yajl_helper_parse(char *data) {
+yajl_val yajl_helper_parse(const char *data) {
 	char errbuf[1024];
-	yajl_val val = yajl_tree_parse((const char *) data, errbuf, sizeof(errbuf));
+	yajl_val val = yajl_tree_parse(data, errbuf, sizeof(errbuf));
 
 	if(!val) {
 		_log("%s", errbuf);
