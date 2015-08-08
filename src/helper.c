@@ -285,24 +285,23 @@ char* string_prepare_urls_for_display(char *string, size_t url_count) {
 }
 
 struct mmapped_file file_read_contents(char *path) {
-	struct mmapped_file file;
+	struct mmapped_file file = { .data = NULL, .size = 0 };
 
 	int fd = open(path, O_NOFOLLOW);
 	if(-1 == fd) {
 		_err("open: %s", strerror(errno));
-		file.data = NULL;
 		return file;
 	}
-
 
 	struct stat fdstat;
 	if(!fstat(fd, &fdstat)) {
 		if(fdstat.st_size >= 0) {
-			file.size = (size_t) fdstat.st_size;
-			file.data = mmap(NULL, file.size, PROT_READ, MAP_SHARED, fd, 0);
+			size_t fsize = (size_t) fdstat.st_size;
+			file.data = mmap(NULL, fsize, PROT_READ, MAP_SHARED, fd, 0);
 			if(MAP_FAILED != file.data) {
-				return file;
+				file.size = fsize;
 			} else {
+				file.data = NULL;
 				_err("mmap: %s", strerror(errno));
 			}
 		} else {
@@ -311,10 +310,8 @@ struct mmapped_file file_read_contents(char *path) {
 	} else {
 		_err("fstat: %s", strerror(errno));
 	}
-
 	close(fd);
 
-	file.data = NULL;
 	return file;
 }
 
