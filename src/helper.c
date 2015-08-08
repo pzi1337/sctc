@@ -315,6 +315,11 @@ struct mmapped_file file_read_contents(char *path) {
 	return file;
 }
 
+// suppress warning regarding the cast (const void*) to (void*)
+// mmapped files are mapped ro, therefore a const can be used
+// to warn about writing to that memory.
+// as munmap expects a (void*), we need to get rid of that const here
+#pragma GCC diagnostic ignored "-Wcast-qual"
 void file_release_contents(struct mmapped_file file) {
-	munmap(file.data, file.size);
+	munmap((void*) file.data, file.size);
 }
