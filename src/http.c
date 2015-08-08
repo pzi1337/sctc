@@ -35,16 +35,42 @@
 
 #define DEFAULT_BUFFER_SIZE 16384
 
-#define NWC_GET_BYTE(NWC, BUF, I) { \
-		int byte = nwc->recv_byte(NWC); \
-		if(-1 != byte) BUF[I] = byte;  \
-		else { \
-			_log("got EOF from ssL_recv_byte for byte %i", I); \
-			return NULL; \
-		} \
+static size_t http_read_header(struct network_conn *nwc, char *buffer, size_t bsize) {
+	const char abort_sequence[] = "\r\n\r\n";
+	unsigned int aspos = 0;
+
+	for(size_t idx = 0; idx < bsize - 1; idx++) {
+		int byte = nwc->recv_byte(nwc);
+		if(-1 == byte) {
+			_err("unexpected EOF from ssl_recv_byte at position %zu", idx);
+			return 0;
+		}
+
+		buffer[idx] = (char) byte;
+
+		// search for abort sequence
+		if(byte == abort_sequence[aspos]) {
+			aspos++;
+
+			if( (sizeof(abort_sequence) - 1) == aspos ) {
+				buffer[idx + 1] = '\0';
+				return idx;
+			}
+		} else {
+			aspos = (byte == abort_sequence[0]) ? 1 : 0;
+		}
 	}
+	return 0;
+}
 
 struct http_response* http_request_get_only_header(struct network_conn *nwc, char *url, char *host, char *range, size_t follow_redirect_steps) {
+	struct http_response *resp = lcalloc(1, sizeof(struct http_response));
+	char *buffer               = lcalloc(DEFAULT_BUFFER_SIZE, sizeof(char));
+	if(!resp || !buffer) {
+		free(resp);
+		free(buffer);
+		return NULL;
+	}
 
 	nwc->send_fmt(nwc, "GET %s HTTP/1.1\r\n", url);
 	nwc->send_fmt(nwc, "Host: %s\r\n", host);
@@ -54,34 +80,24 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 	}
 	nwc->send_fmt(nwc, "\r\n");
 
-	struct http_response *resp = lcalloc(1, sizeof(struct http_response));
-	char *buffer               = lcalloc(DEFAULT_BUFFER_SIZE, sizeof(char));
-	if(!resp || !buffer) {
+	resp->header_length = http_read_header(nwc, buffer, DEFAULT_BUFFER_SIZE);
+	if(!resp->header_length) {
 		free(resp);
 		free(buffer);
 		return NULL;
 	}
 
-	NWC_GET_BYTE(nwc, buffer, 0)
-	NWC_GET_BYTE(nwc, buffer, 1)
-	NWC_GET_BYTE(nwc, buffer, 2)
-	NWC_GET_BYTE(nwc, buffer, 3)
-
-	int i = 4;
-	while(! ('\r' == buffer[i-4] && '\n' == buffer[i-3] && '\r' == buffer[i-2] && '\n' == buffer[i-1]) ) {
-		NWC_GET_BYTE(nwc, buffer, i)
-		i++;
-	}
-
-	resp->header_length = i;
-
-	char *tok = strtok(buffer, "\r") - 1;
+	char *tok = strtok(buffer, "\r");
+	if(tok) tok--; // subtract 1, due to the tok++
 	while(tok) {
 		// omit the '\n' after the '\r'
 		tok++;
 
 		if(!strncmp(tok, "HTTP/1.1 ", 9)) {
-			resp->http_status = atoi(tok + 9);
+			long http_status = strtol(tok + 9, NULL, 10);
+			if(100 <= http_status && http_status <= 599) {
+				resp->http_status = (int) http_status;
+			}
 		} else if(!strncmp(tok, "Content-Length: ", 16)) {
 			resp->content_length = atoi(tok + 16);
 		} else if(!strncmp(tok, "Location: ", 10)) {
@@ -119,8 +135,6 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 struct http_response* http_request_get(struct network_conn *nwc, char *url, char *host) {
 
 	struct http_response* resp = http_request_get_only_header(nwc, url, host, NULL, MAX_REDIRECT_STEPS);
-	//_log("content_length: %d", resp->content_length);
-	//_log("http_status: %d", resp->http_status);
 
 	resp->body = &resp->buffer[resp->header_length];
 	if(resp->nwc) {
@@ -148,7 +162,6 @@ struct http_response* http_request_get(struct network_conn *nwc, char *url, char
 	while(body_read < resp->content_length) {
 		int res = nwc->recv(nwc, &resp->body[body_read], resp->content_length - body_read);
 		if(res > 0) {
-			//_log("+ %dB: %dB", res, body_read);
 			body_read += res;
 		}
 	}
