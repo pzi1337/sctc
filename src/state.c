@@ -99,7 +99,7 @@ void state_set_tb_pos(size_t pos) {
 
 void state_set_tb_pos_rel(int delta) {
 	if(delta < 0) {
-		textbox.pos = textbox.pos < -delta ? 0 : textbox.pos + delta;
+		textbox.pos = textbox.pos < (unsigned int) (-delta) ? 0 : textbox.pos + delta;
 	} else {
 		textbox.pos += delta;
 	}
@@ -171,7 +171,7 @@ void state_set_current_position(size_t pos) {
 void state_set_current_selected_rel(int delta) {
 	lists[_current_list].old_selected = lists[_current_list].selected;
 	if(delta < 0) {
-		lists[_current_list].selected = lists[_current_list].selected < -delta ? 0 : lists[_current_list].selected + delta;
+		lists[_current_list].selected = lists[_current_list].selected < (unsigned int) (-delta) ? 0 : lists[_current_list].selected + delta;
 	} else {
 		lists[_current_list].selected += delta;
 		if(lists[_current_list].selected >= lists[_current_list].list->count) {
