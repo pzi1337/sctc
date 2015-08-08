@@ -19,15 +19,17 @@
 #include "log.h"
 
 //\cond
-#include <assert.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <semaphore.h>
+#include <assert.h>                     // for assert
+#include <errno.h>                      // for errno
+#include <semaphore.h>                  // for sem_destroy, sem_init, etc
+#include <stdarg.h>                     // for va_end, va_list, va_start
+#include <stdio.h>                      // for fprintf, NULL, fclose, etc
+#include <stdlib.h>                     // for atexit
+#include <string.h>                     // for strerror, strlen
+#include <time.h>                       // for ctime, time, time_t
 //\endcond
+
+#define SHELL_ESC "\x1b"
 
 static void log_close(void);
 
@@ -37,37 +39,32 @@ static sem_t log_sem;
 /* init the logging (subsequent calls to _log write to 'file') */
 bool log_init(char *file) {
 	/* prevent multiple subsequent initializations of logging */
-	assert(!log_fh);
-	log_fh = fopen(file, "w");
+	assert(!log_fh && "logging already initialized");
 
+	log_fh = fopen(file, "w");
 	if(!log_fh) {
 		fprintf(stderr, "internal error: failed to open logfile '%s'\n", file);
 		return false;
 	}
 
-	/* initialize the semaphore */
-	if(-1 == sem_init(&log_sem, 0, 1)) {
-		_log("sem_init failed: %s", strerror(errno));
-
-		fclose(log_fh);
-		log_fh = NULL;
-		return false;
+	if(-1 != sem_init(&log_sem, 0, 1)) {
+		if(!atexit(log_close)) {
+			return true;
+		}
+		_err("atexit: %s", strerror(errno));
+		sem_destroy(&log_sem);
+	} else {
+		fprintf(stderr, "internal error: failed to initialize sem: %s\n", strerror(errno));
 	}
+	fclose(log_fh);
+	log_fh = NULL;
 
-	if(atexit(log_close)) {
-		_log("atexit: %s", strerror(errno));
-
-		fclose(log_fh);
-		log_fh = NULL;
-		return false;
-	}
-
-	return true;
+	return false;
 }
 
 /* log to file using fmt, just as known from printf */
 void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error, const char *fmt, ...) {
-	if(!log_fh) return;
+	assert(log_fh && "logging not yet initialized");
 
 	sem_wait(&log_sem);
 
@@ -75,9 +72,9 @@ void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error,
 	time_t t = time(NULL);
 	char *tstring = ctime(&t);
 	tstring[strlen(tstring) - 1] = '\0';
-	fprintf(log_fh, "[;33;02m[%s][m ", tstring);
+	fprintf(log_fh, SHELL_ESC"[;33;02m[%s]"SHELL_ESC"[m ", tstring);
 	if(is_error) {
-		fprintf(log_fh, "[;31;02mERROR: ");
+		fprintf(log_fh, SHELL_ESC"[;31;02mERROR: ");
 	}
 
 	// append the remaining (user-supplied) data
@@ -87,7 +84,7 @@ void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error,
 	va_end(ap);
 
 	// append sourcefile and -line (of call to _log)
-	fprintf(log_fh, "[m [;32;02m{ in %s (%s:%i) }[m", srcfunc, srcfile, srcline);
+	fprintf(log_fh, SHELL_ESC"[m "SHELL_ESC"[;32;02m{ in %s (%s:%i) }"SHELL_ESC"[m", srcfunc, srcfile, srcline);
 
 	fprintf(log_fh, "\n");
 	fflush(log_fh);
@@ -103,7 +100,7 @@ void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error,
  *  *Typically this function is only called prior to termination.*
  */
 static void log_close(void) {
-	assert(log_fh);
+	assert(log_fh && "logging not yet initialized");
 	fclose(log_fh);
 	log_fh = NULL;
 

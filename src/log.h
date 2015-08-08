@@ -49,6 +49,17 @@
 	 */
 	#define _log(...) __log(__FILE__, __LINE__, __func__, false, __VA_ARGS__)
 
+	/** Write an error to the logfile.
+	 *
+	 *  A timestamp it prepended to the line and the location of the call to _log is appended.\n
+	 *  Format of timestamp: "Wed Jun 30 21:49:08 1993".\n
+	 *  Format of the location: "{ in function_name (file_name.c:line_number) }"\n
+	 *  Calling _log() prior to log_init() or after log_close() does not have any effect.
+	 *
+	 *  Due to the synchronisation of __log(), _log() may be called by several threads 'at once' as well.
+	 *
+	 *  Always use _log() instead of __log().
+	 */
 	#define _err(...) __log(__FILE__, __LINE__, __func__, true, __VA_ARGS__)
 
 	/** The internal implementation for logging.
@@ -58,10 +69,11 @@
 	 *
 	 *  This function is synchronized internally and therefore may be called by several threads 'at once'.
 	 *
-	 *  \param srcfile  The file executing the call to __log(); filled by macro _log(), do not use "by hand"
-	 *  \param srcline  The line in the file executing the call to __log(); filled by macro _log(), do not use "by hand"
-	 *  \param srcfunc  The function callint __log(); filled by macro _log(), do not use "by hand"
-	 *  \param fmt      The format used format the line, see man 3 printf for usage.
+	 *  \param srcfile   The file executing the call to __log(); filled by macro _log(), do not use "by hand"
+	 *  \param srcline   The line in the file executing the call to __log(); filled by macro _log(), do not use "by hand"
+	 *  \param srcfunc   The function callint __log(); filled by macro _log(), do not use "by hand"
+	 *  \param is_error  If set to true, the message will be printed in read
+	 *  \param fmt       The format used format the line, see man 3 printf for usage.
 	 */
 	void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error, const char *fmt, ...) ATTR(format (printf, 5, 6));
 #endif /* _LOG_H */
