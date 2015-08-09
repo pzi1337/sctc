@@ -83,7 +83,7 @@
 				char   *download_url; ///< The URL pointing to the download. Might be NULL, if the uploader does not provide a download.
 				char   *username; ///< The username
 				char   *description;
-				struct tm created_at;
+				time_t created_at;
 				int    duration; ///< duration in seconds
 				int    user_id;
 				int    track_id;

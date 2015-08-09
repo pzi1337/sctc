@@ -109,16 +109,9 @@ static void write_jspf_track(yajl_gen hand, struct track *track) {
 	YAJL_GEN_STRING(hand, "meta");
 	yajl_gen_array_open(hand);
 
-	char time_buffer[256];
-	strftime(time_buffer, sizeof(time_buffer), "%Y/%m/%d %H:%M:%S %z", &track->created_at);
-
-	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/user_id",  track->user_id);
-	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/track_id", track->track_id);
-
-	yajl_gen_map_open(hand);
-	YAJL_GEN_STRING(hand, "https://sctc.narbo.de/created_at");
-	YAJL_GEN_STRING(hand, time_buffer);
-	yajl_gen_map_close(hand);
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/user_id",    track->user_id);
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/track_id",   track->track_id);
+	YAJL_GEN_SCOPED_ENTRY_INT(hand, "https://sctc.narbo.de/created_at", track->created_at);
 
 	yajl_gen_array_close(hand);
 
@@ -171,20 +164,13 @@ static void yajl_to_track(yajl_val parent, struct track *track) {
 
 	yajl_val node_meta = yajl_helper_get_array(parent, "meta", NULL);
 	for(size_t j = 0; j < node_meta->u.array.len; j++) {
-		int val_user_id  = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
-		int val_track_id = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
+		int val_user_id    = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/user_id", NULL);
+		int val_track_id   = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/track_id", NULL);
+		int val_created_at = yajl_helper_get_int(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);
 
-		if(val_user_id)  track->user_id  = val_user_id;
-		if(val_track_id) track->track_id = val_track_id;
-
-		char *date_str = yajl_helper_get_string(node_meta->u.array.values[j], "https://sctc.narbo.de/created_at", NULL);
-		if(date_str) {
-			char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &track->created_at);
-			if(!ret || *ret) {
-				_log("strptime(\"%s\"): '%s'", date_str, strerror(errno));
-			}
-			free(date_str);
-		}
+		if(val_user_id)    track->user_id    = val_user_id;
+		if(val_track_id)   track->track_id   = val_track_id;
+		if(val_created_at) track->created_at = val_created_at;
 	}
 }
 
@@ -196,21 +182,22 @@ struct track_list* jspf_read(char *path) {
 
 	// allocate buffer and read whole .jspf-file into the buffer
 	struct mmapped_file file = file_read_contents(path);
+	if(file.data) {
+		yajl_val node_root = yajl_helper_parse(file.data);
+		yajl_val array = yajl_helper_get_array(node_root, "playlist", "track");
 
-	yajl_val node_root = yajl_helper_parse(file.data);
-	yajl_val array = yajl_helper_get_array(node_root, "playlist", "track");
+		if(array) {
+			list->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
+			list->count   = array->u.array.len;
 
-	if(array) {
-		list->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
-		list->count   = array->u.array.len;
-
-		for(size_t i = 0; i < array->u.array.len; i++) {
-			yajl_to_track(array->u.array.values[i], &list->entries[i]);
+			for(size_t i = 0; i < array->u.array.len; i++) {
+				yajl_to_track(array->u.array.values[i], &list->entries[i]);
+			}
 		}
-	}
 
-	yajl_tree_free(node_root);
-	file_release_contents(file);
+		yajl_tree_free(node_root);
+		file_release_contents(file);
+	}
 
 	return list;
 }

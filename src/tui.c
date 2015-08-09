@@ -363,7 +363,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	}
 
 	char date_buffer[256];
-	int date_buffer_used = strftime(date_buffer, sizeof(date_buffer), "%Y/%m/%d %H:%M:%S", &entry->created_at);
+	int date_buffer_used = strftime(date_buffer, sizeof(date_buffer), "%Y/%m/%d %H:%M:%S", localtime(&entry->created_at));
 	played_chars = tui_track_print_played(played_chars, selected, tline_date,    tline_date_played,    tline_date_selected,    " %s",    date_buffer);
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, " %s",    entry->name);
 	played_chars = tui_track_print_played(played_chars, selected, tline_user,    tline_user_played,    tline_user_selected,    " by %s", entry->username);

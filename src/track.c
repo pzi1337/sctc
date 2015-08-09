@@ -67,7 +67,7 @@ static int entry_compare(const void *v1, const void *v2) {
 	struct track *e2 = (struct track*)v2;
 	if(!e2->name) e2 = e2->href;
 
-	return difftime(mktime(&e2->created_at), mktime(&e1->created_at));
+	return difftime(e2->created_at, e1->created_at);
 }
 
 struct track_list* track_list_merge(struct track_list **lists) {

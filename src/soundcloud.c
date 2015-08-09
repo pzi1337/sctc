@@ -85,11 +85,9 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 
 	char created_at_from_string[256] = { 0 };
 	if(cache_tracks->count) {
-		struct tm mtime = cache_tracks->entries[0].created_at;
-		mtime.tm_sec += 1;
-		mktime(&mtime); // TODO
+		time_t t = cache_tracks->entries[0].created_at + 1;
 
-		strftime(created_at_from_string, sizeof(created_at_from_string), "%Y-%m-%d%%20%T", &mtime);
+		strftime(created_at_from_string, sizeof(created_at_from_string), "%Y-%m-%d%%20%T", localtime(&t)); // TODO: localtime!?
 		//_log("most recent track created at %s", created_at_from_string);
 	}
 
@@ -149,10 +147,9 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 
 					char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
 					if(date_str) {
-						char *ret = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &next_part->entries[i].created_at);
-						if(!ret || *ret) {
-							_log("strptime(\"%s\"): '%s'", date_str, strerror(errno));
-						}
+						struct tm ctime;
+						strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &ctime);
+						next_part->entries[i].created_at = mktime(&ctime);
 						free(date_str);
 					}
 
