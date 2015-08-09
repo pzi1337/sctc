@@ -41,11 +41,27 @@
 #include <polarssl/ssl.h>               // for ssl_read, ssl_close_notify, etc
 
 #include "../config.h"
-#include "../helper.h"                  // for lcalloc, lmalloc
+#include "../helper.h"                  // for lcalloc
 #include "../log.h"                     // for _log
 #include "network.h"                    // for network_conn
 
 #define TLS_CONN_MAGIC 0x42434445 ///< Magic used to validate the type of network_conn
+
+#define POLARSSL_ERROR(ENO, M, ...) { \
+	char err_str[2048]; \
+	polarssl_strerror(ENO, err_str, sizeof(err_str)); \
+	_err(M": %s", __VA_ARGS__, err_str); \
+}
+
+#define ERROR_CHECK_NOT_ZERO(func, retval) { \
+	int eno = func; \
+	if(0 != eno) { \
+		char err_str[2048]; \
+		polarssl_strerror(eno, err_str, sizeof(err_str)); \
+		_err(#func": %s", err_str); \
+		return retval; \
+	} \
+}
 
 static void tls_finalize(void);
 
@@ -68,13 +84,17 @@ void tls_disconnect(struct network_conn *nwc);
 
 bool tls_init(void) {
 	char *cert_path = config_get_cert_path();
+	if(!cert_path) {
+		_err("`cert_path` not set");
+		return false;
+	}
 
 	_log("reading list of trusted CAs from %s:", cert_path);
 	x509_crt_init(&cacerts);
 
 	int ret = x509_crt_parse_file(&cacerts, cert_path);
 	if(ret < 0) {
-		_log("x509_crt_parse: %d", ret);
+		_err("x509_crt_parse: %d", ret);
 		return false;
 	}
 
@@ -86,13 +106,36 @@ bool tls_init(void) {
 			_log("| * %s", buf);
 		} else {
 			polarssl_strerror(ret, buf, sizeof(buf));
-			_log("| * x509_dn_gets: %s", buf);
+			_err("| * x509_dn_gets: %s", buf);
 		}
 	}
 
 	if(atexit(tls_finalize)) {
-		_log("atexit: %s", strerror(errno));
+		_err("atexit: %s", strerror(errno));
 	}
+
+	return true;
+}
+
+static bool tls_init_tls_conn(struct tls_conn *tls) {
+	tls->magic = TLS_CONN_MAGIC;
+
+	entropy_init(&tls->entropy);
+
+	// intialize the RNG
+	ERROR_CHECK_NOT_ZERO(ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) SC_API_KEY, strlen(SC_API_KEY)), false)
+
+	// initialize the SSL context
+	ERROR_CHECK_NOT_ZERO(ssl_init(&tls->ssl), false)
+
+	// required verification, fail if the certificate cannot be verified
+	// (is invalid/expired/...)
+	ssl_set_authmode(&tls->ssl, SSL_VERIFY_REQUIRED);
+
+	// behave as client (not server)
+	ssl_set_endpoint(&tls->ssl, SSL_IS_CLIENT);
+
+	ssl_set_rng(&tls->ssl, ctr_drbg_random, &tls->ctr_drbg);
 
 	return true;
 }
@@ -112,68 +155,42 @@ struct network_conn* tls_connect(char *server, int port) {
 	struct tls_conn *tls = (struct tls_conn*) &nwc[1];
 	nwc->mdata = tls;
 
-	tls->magic = TLS_CONN_MAGIC;
-
-	entropy_init(&tls->entropy);
-
-
-	// intialize the RNG
-	int ret = ctr_drbg_init(&tls->ctr_drbg, entropy_func, &tls->entropy, (const unsigned char*) SC_API_KEY, strlen(SC_API_KEY));
-	if(ret) {
-		_log("ctr_drbg_init: %d", ret);
+	if(!tls_init_tls_conn(tls)) {
 		free(nwc);
 		return NULL;
 	}
 
 	// do the actual connection
-	ret = net_connect(&tls->fd, server, port);
+	int ret = net_connect(&tls->fd, server, port);
 	if(ret) {
-		char buf[2048];
-		polarssl_strerror(ret, buf, sizeof(buf));
-		_log("connection to '%s:%d' cannot be established: %s", server, port, buf);
+		POLARSSL_ERROR(ret, "connection to '%s:%d' cannot be established", server, port);
 		free(nwc);
 		return NULL;
 	}
-
-	// initialize the SSL context
-	if( (ret = ssl_init(&tls->ssl)) ) {
-		_log("ssl_init: %d\n", ret);
-		free(nwc);
-		return NULL;
-	}
-
-	// required verification, fail if the certificate cannot be verified
-	// (is invalid/expired/...)
-	ssl_set_authmode(&tls->ssl, SSL_VERIFY_REQUIRED);
 
 	// use the certificates gathered in tls_init()
 	// at this point CRL is not used
 	ssl_set_ca_chain(&tls->ssl, &cacerts, NULL, server);
-
-	// behave as client (not server)
-	ssl_set_endpoint(&tls->ssl, SSL_IS_CLIENT);
-
-	ssl_set_rng(&tls->ssl, ctr_drbg_random, &tls->ctr_drbg);
 	ssl_set_bio(&tls->ssl, net_recv, &tls->fd, net_send, &tls->fd);
 
 	while( ( ret = ssl_handshake( &tls->ssl ) ) != 0 ) {
 		if( ret != POLARSSL_ERR_NET_WANT_READ && ret != POLARSSL_ERR_NET_WANT_WRITE ) {
-			char buf[2048];
-			polarssl_strerror(ret, buf, sizeof(buf));
-			_log("failure in handshake: %s", buf);
+			POLARSSL_ERROR(ret, "failure in handshake with '%s:%d'", server, port);
+
 			tls_disconnect(nwc);
 			return NULL;
 		}
 	}
 
 	if( (ret = ssl_get_verify_result(&tls->ssl)) ) {
-		char *reason = "unknown reason";
+		const char *reason = "unknown reason";
 		if(ret & BADCERT_EXPIRED)     reason = "server certificate has expired";
 		if(ret & BADCERT_REVOKED)     reason = "server certificate has been revoked";
 		if(ret & BADCERT_CN_MISMATCH) reason = "CN mismatch";
 		if(ret & BADCERT_NOT_TRUSTED) reason = "self-signed or not signed by a trusted CA";
-		_log("verification of certificate failed: %s; aborting connection to %s:%d", reason, server, port);
+		_err("verification of certificate failed: %s; aborting connection to %s:%d", reason, server, port);
 
+		tls_disconnect(nwc);
 		return NULL;
 	}
 
@@ -184,11 +201,10 @@ struct network_conn* tls_connect(char *server, int port) {
 
 	char expected_sha512_fingerprint_string[SHA512_LEN * 3 + 1] = { 0 };
 	{
-		char fingerprint_file[strlen(CERT_BRAIN_FOLDER) + strlen(server)];
+		char fingerprint_file[strlen(CERT_BRAIN_FOLDER) + strlen(server) + 1];
 		sprintf(fingerprint_file, CERT_BRAIN_FOLDER"%s", server);
 
 		FILE *fh = fopen(fingerprint_file, "r");
-
 		if(fh) {
 			fgets(expected_sha512_fingerprint_string, SHA512_LEN * 3, fh);
 			fclose(fh);
@@ -204,7 +220,7 @@ struct network_conn* tls_connect(char *server, int port) {
 		_log("| is:       %s", sha512_fingerprint_string);
 
 		if(expected_sha512_fingerprint_string[0]) {
-			_log("aborting connection to %s:%d", server, port);
+			_err("aborting connection to %s:%d", server, port);
 			return NULL;
 		}
 	}
