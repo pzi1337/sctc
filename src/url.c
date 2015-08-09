@@ -16,17 +16,19 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
-#include "network/network.h"
-#include "network/plain.h"
-#include "network/tls.h"
-#include "helper.h"
+#include "_hard_config.h"
 #include "url.h"
-#include "log.h"
+
+#include <stdbool.h>                    // for true, bool, false
+#include <stddef.h>                     // for size_t
+#include <stdio.h>                      // for NULL, fprintf, stderr
+#include <stdlib.h>                     // for free, atoi
+#include <string.h>                     // for strcmp, strchr, strlen
+
+#include "helper.h"                     // for lstrdup, lcalloc
+#include "log.h"                        // for _log
+#include "network/plain.h"              // for plain_connect
+#include "network/tls.h"                // for tls_connect
 
 struct url* url_parse_string(char *str) {
 	char *str_clone = lstrdup(str);
@@ -37,6 +39,7 @@ struct url* url_parse_string(char *str) {
 	char *hit = strchr(str, ':');
 	if(!hit) {
 		_log("URL seems invalid, cannot find ':'");
+		free(str);
 		free(u);
 
 		return NULL;
@@ -115,9 +118,9 @@ struct url* url_parse_string(char *str) {
 	if(port) {
 		u->port = atoi(port);
 	} else {
-		if(!strcmp(u->scheme, "http")) {
+		if(streq(u->scheme, "http")) {
 			u->port = 80;
-		} else if(!strcmp(u->scheme, "https")) {
+		} else if(streq(u->scheme, "https")) {
 			u->port = 443;
 		} else {
 			fprintf(stderr, "Invalid URL '%s', unknown scheme '%s'\n", str, u->scheme);
@@ -135,10 +138,10 @@ struct url* url_parse_string(char *str) {
 }
 
 bool url_connect(struct url *u) {
-	if(!strcmp(u->scheme, "http")) {
+	if(streq(u->scheme, "http")) {
 		u->nwc = plain_connect(u->host, u->port);
 		if(u->nwc) return true;
-	} else if(!strcmp(u->scheme, "https")) {
+	} else if(streq(u->scheme, "https")) {
 		u->nwc = tls_connect(u->host, u->port);
 		if(u->nwc) return true;
 	}
