@@ -382,9 +382,8 @@ bool sound_play(struct track *track) {
 
 	seek_to_pos = track->current_position ? track->current_position : SEEKPOS_NONE;
 
-	size_t cache_track_size;
-	void  *cache_track_buffer;
-	if( ( cache_track_buffer = cache_track_get(track, &cache_track_size) ) ) {
+	struct mmapped_file cache_track = cache_track_get(track);
+	if(cache_track.data) {
 		_log("using file from cache for '%s' by '%s'", track->name, track->username);
 
 		struct download_state *cstate = downloader_create_state(track);
@@ -392,9 +391,9 @@ bool sound_play(struct track *track) {
 			return false;
 		}
 
-		cstate->bytes_recvd = cache_track_size;
-		cstate->bytes_total = cache_track_size;
-		cstate->buffer      = cache_track_buffer;
+		cstate->bytes_recvd = cache_track.size;
+		cstate->bytes_total = cache_track.size;
+		cstate->buffer      = cache_track.data;
 
 		state = cstate;
 	} else {

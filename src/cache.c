@@ -55,32 +55,13 @@ bool cache_track_exists(struct track *track) {
 	return false;
 }
 
-void* cache_track_get(struct track *track, size_t *track_size) {
+struct mmapped_file cache_track_get(struct track *track) {
 	char *cache_path = config_get_cache_path();
 	const size_t buffer_size = strlen(cache_path) + 1 + strlen(CACHE_STREAM_FOLDER) + 1 + 64 + strlen(CACHE_STREAM_EXT);
 	char cache_file[buffer_size];
 	snprintf(cache_file, buffer_size, "%s/"CACHE_STREAM_FOLDER"/%d_%d"CACHE_STREAM_EXT, cache_path, track->user_id, track->track_id);
 
-	FILE *fh = fopen(cache_file, "r");
-
-	if(fh) {
-		_log("using file '%s'", cache_file);
-
-		struct stat cache_stat;
-		fstat(fileno(fh), &cache_stat);
-
-		void *audio_buffer = lmalloc(cache_stat.st_size);
-		*track_size = fread(audio_buffer, 1, cache_stat.st_size, fh);
-		if(*track_size != cache_stat.st_size) {
-			_log("expected %jdBytes, but got %zuBytes, reason: %s", cache_stat.st_size, *track_size, ferror(fh) ? strerror(errno) : (feof(fh) ? "EOF" : "unknown error"));
-		}
-
-		fclose(fh);
-
-		return audio_buffer;
-	}
-
-	return NULL;
+	return file_read_contents(cache_file);
 }
 
 bool cache_track_save(struct track *track, void *buffer, size_t size) {
