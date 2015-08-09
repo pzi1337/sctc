@@ -33,6 +33,7 @@
 #include <stdio.h>                      // for fclose, fopen, snprintf, etc
 #include <string.h>                     // for strlen, strerror
 #include <sys/stat.h>                   // for stat, fstat, mkdir
+#include <unistd.h>
 //\endcond
 
 #include "config.h"
@@ -46,13 +47,7 @@ bool cache_track_exists(struct track *track) {
 	char cache_file[buffer_size];
 	snprintf(cache_file, buffer_size, "%s/"CACHE_STREAM_FOLDER"/%d_%d"CACHE_STREAM_EXT, cache_path, track->user_id, track->track_id);
 
-	FILE *fh = fopen(cache_file, "r");
-
-	if(fh) {
-		fclose(fh);
-		return true;
-	}
-	return false;
+	return (0 == access(cache_file, F_OK));
 }
 
 struct mmapped_file cache_track_get(struct track *track) {
