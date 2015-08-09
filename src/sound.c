@@ -125,21 +125,20 @@ static off_t _io_seek(void *_iohandle, off_t offset, int whence) {
 
 	size_t abs_offset = 0;
 	switch(whence) {
-		case SEEK_SET: assert(offset >= 0); abs_offset = offset;   break;
+		case SEEK_SET: assert(offset >= 0);  abs_offset = offset; break;
 		case SEEK_CUR: abs_offset = iohandle->position  + offset; break;
 		case SEEK_END: abs_offset = dlstat->bytes_total + offset; break;
 		default: {
-			_log("invalid value for whence: %i", whence);
+			_err("invalid value for whence: %i", whence);
 			return (off_t) -1;
 		}
 	}
 
 	if(abs_offset > dlstat->bytes_total) {
-		_log("cannot seek to %zu, only have at max. %zu bytes", abs_offset, dlstat->bytes_total);
+		_err("cannot seek to %zu, only have at max. %zu bytes", abs_offset, dlstat->bytes_total);
 		return (off_t) -1;
 	}
 
-	_log("seeking to %zu", abs_offset);
 	iohandle->position = abs_offset;
 	return abs_offset;
 }
@@ -251,7 +250,13 @@ static void* _thread_play_function(void *unused UNUSED) {
 					}
 					break;
 
+				case MPG123_DONE:
+					playback_done = true;
+					time_callback(-1);
+					break;
+
 				default:
+					_err("mpg123_decode_frame: %i - %s", err, mpg123_plain_strerror(err));
 					break;
 			}
 
