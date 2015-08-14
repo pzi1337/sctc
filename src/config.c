@@ -110,6 +110,7 @@ static const struct command* get_cmd_by_name(const char *input) {
 	return NULL;
 }
 
+static unsigned int kcm_count = 0;
 static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
 	if(2 != argc) {
 		_log("map() requires exactly 2 parameters!");
@@ -130,6 +131,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 		return 0;
 	}
 
+	kcm_count++;
 	_log("| * mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(cmd->name));
 	key_command_mapping[key].func  = cmd->func;
 	const char *param = argv[1] + strlen(cmd->name);
@@ -138,7 +140,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	return 0;
 }
 
-void config_init(void) {
+bool config_init(void) {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
 		CFG_FLOAT_LIST(OPTION_EQUALIZER, "{}", CFGF_NONE),
@@ -157,8 +159,27 @@ void config_init(void) {
 	cfg_t *cfg = cfg_init(opts, CFGF_NOCASE);
 	cfg_parse(cfg, SCTC_CONFIG_FILE);
 
+	// verify required settings:
+	// at least one subscription
+	// at least one key mapped
 	config_subscribe_count = cfg_size(cfg, OPTION_SUBSCRIBE);
-	config_subscribe       = lcalloc(config_subscribe_count, sizeof(char*));
+
+	if(!config_subscribe_count) {
+		_log("Have 0 subscriptions");
+		_log("To continue add at least one user");
+	}
+
+	if(!kcm_count) {
+		_log("Have 0 keymappings");
+		_log("By default you want to have quite a bunch of keymappings...");
+	}
+
+	if(!config_subscribe_count || !kcm_count) {
+		cfg_free(cfg);
+		return false;
+	}
+
+	config_subscribe = lcalloc(config_subscribe_count, sizeof(char*));
 	for(size_t i = 0; i < config_subscribe_count; i++) {
 		config_subscribe[i] = lstrdup(cfg_getnstr(cfg, OPTION_SUBSCRIBE, i));
 	}
@@ -184,6 +205,8 @@ void config_init(void) {
 	if(atexit(config_finalize)) {
 		_log("atexit: %s", strerror(errno));
 	}
+
+	return true;
 }
 
 static void config_finalize(void) {

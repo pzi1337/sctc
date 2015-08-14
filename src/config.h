@@ -19,6 +19,8 @@
 #ifndef _CONFIG_H
 	#define _CONFIG_H
 
+	#include <stdbool.h>
+
 	#include "command.h"                    // for command_func_ptr
 
 	/** \brief Initialize the configuration.
@@ -29,7 +31,7 @@
 	 *
 	 *  *Typically this function is called only once directly after starting up the execution*
 	 */
-	void config_init(void);
+	bool config_init(void);
 
 	/** \brief Returns the number of subscriptions.
 	 *

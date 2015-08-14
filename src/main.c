@@ -109,14 +109,20 @@ static void tui_update_time(int time) {
 	}
 }
 
-int main(int argc UNUSED, char **argv UNUSED) {
+int main(int argc UNUSED, char **argv) {
 	// initialize the modules
-	log_init("sctc.log");
+	log_init(SCTC_LOG_FILE);
 
 	setlocale(LC_CTYPE, "C-UTF-8");
 
 	state_init();
-	config_init();
+	if(!config_init()) {
+		// cannot continue without (correct) configuration ;)
+		fprintf(stderr, "Terminating `%s`, fix your config first... :/\n", argv[0]);
+		fprintf(stderr, "For details see `" SCTC_LOG_FILE "`\n");
+		return EXIT_FAILURE;
+	}
+
 	tls_init();
 	tui_init();
 	downloader_init();
@@ -130,9 +136,7 @@ int main(int argc UNUSED, char **argv UNUSED) {
 	list_stream->name = strdup("Stream");
 	state_add_list(list_stream);
 
-#ifndef NDEBUG
-	track_list_dump_mem_usage(list_stream);
-#endif
+	ONLY_DEBUG( track_list_dump_mem_usage(list_stream); )
 
 	struct track_list *list_bookmark = jspf_read(BOOKMARK_FILE);
 	list_bookmark->name = strdup("Bookmarks");

@@ -47,6 +47,8 @@
 	/** \brief The maximum number of allowed HTTP redirects */
 	#define MAX_REDIRECT_STEPS 20
 
+	#define SCTC_LOG_FILE "sctc.log"
+
 	/** \brief The name of the (default) configfile
 	 *
 	 *  Keep in mind: this is a default value, which can be modified by the user.
