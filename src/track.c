@@ -61,10 +61,10 @@ bool track_list_del(struct track_list *list, size_t track_id) {
 }
 
 static int entry_compare(const void *v1, const void *v2) {
-	struct track *e1 = (struct track*)v1;
+	const struct track *e1 = (const struct track*)v1;
 	if(!e1->name) e1 = e1->href;
 
-	struct track *e2 = (struct track*)v2;
+	const struct track *e2 = (const struct track*)v2;
 	if(!e2->name) e2 = e2->href;
 
 	return difftime(e2->created_at, e1->created_at);
