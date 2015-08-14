@@ -547,6 +547,15 @@ static void cmd_details(const char *unused UNUSED) {
 	free(title);
 }
 
+static void update_flags_stop_playback(struct track_list *list, size_t tid) {
+	if(list && NO_TRACK != tid) {
+		TRACK(list, tid)->flags &= ~FLAG_PLAYING;
+		if(TRACK(list, tid)->current_position) {
+			TRACK(list, tid)->flags |= FLAG_PAUSED;
+		}
+	}
+}
+
 /** \brief Stop playback of currently playing track
  *
  *  Nothing happens in case no track is currently playing.
@@ -565,14 +574,10 @@ static void stop_playback(bool reset) {
 		}
 
 		struct track_list *list = state_get_list(state_get_current_playback_list());
-		TRACK(list, playing)->flags &= ~FLAG_PLAYING;
 		if(reset) {
 			TRACK(list, playing)->current_position = 0;
-		} else {
-			if(TRACK(list, playing)->current_position) {
-				TRACK(list, playing)->flags |= FLAG_PAUSED;
-			}
 		}
+		update_flags_stop_playback(list, playing);
 
 		tui_submit_action(update_list);
 
@@ -586,6 +591,8 @@ static void cmd_play(const char *unused UNUSED) {
 
 	char time_buffer[TIME_BUFFER_SIZE];
 	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, current_selected)->duration);
+
+	update_flags_stop_playback(state_get_list(state_get_current_playback_list()), state_get_current_playback_track());
 
 	state_set_current_playback(state_get_current_list(), current_selected);
 	size_t playing = state_get_current_playback_track();
