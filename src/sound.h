@@ -56,4 +56,6 @@
 	 */
 	bool sound_stop(void);
 
+	const char* sound_error(void);
+
 #endif /* _SOUND_H */

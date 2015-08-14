@@ -62,6 +62,8 @@ static sem_t sem_stopped;
 static pthread_t thread_play; // thread decoding and playing downloaded data
 static sem_t sem_play;
 
+static const char* last_error = "<no error>";
+
 static volatile unsigned int seek_to_pos = SEEKPOS_NONE;
 static volatile bool         stopped     = false;
 static volatile bool         terminate   = false;
@@ -351,9 +353,13 @@ static void sound_finalize(void) {
 
 bool sound_stop(void) {
 
-	stopped = true;
+	if(!state) {
+		last_error = "no playback, nothing to stop";
+		_log("> %s", last_error);
+		return false;
+	}
 
-	_log("waiting for threads to stop playback");
+	stopped = true;
 
 	// if stop() is called by the thread doing the playback,
 	// for instance caused by the `time_callback`, then we may not block
@@ -366,8 +372,6 @@ bool sound_stop(void) {
 	state = NULL;
 
 	stopped = false;
-
-	_log("stopping done");
 
 	return true;
 }
@@ -407,3 +411,6 @@ bool sound_play(struct track *track) {
 	return true;
 }
 
+const char* sound_error(void) {
+	return last_error;
+}

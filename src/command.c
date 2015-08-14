@@ -50,7 +50,9 @@
 #include "track.h"                      // for track, track_list, etc
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
-#define NONE ((unsigned) ~0)
+#define NONE ((unsigned int) ~0)
+#define NO_TRACK ((size_t) ~0)
+
 #define TIME_BUFFER_SIZE 64
 
 #define MIN(x,y) (x < y ? x : y)
@@ -555,8 +557,10 @@ static void cmd_details(const char *unused UNUSED) {
 static void stop_playback(bool reset) {
 	size_t playing = state_get_current_playback_track();
 
-	if(NONE != playing) {
-		sound_stop();
+	if(NO_TRACK != playing) {
+		if(!sound_stop()) {
+			_log("failed to stop playback: %s", sound_error());
+		}
 
 		struct track_list *list = state_get_list(state_get_current_playback_list());
 		TRACK(list, playing)->flags &= ~FLAG_PLAYING;
