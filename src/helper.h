@@ -30,6 +30,12 @@
 	#include <stddef.h>                     // for size_t
 	//\endcond
 
+	#ifdef NDEBUG
+		#define ONLY_DEBUG(X)
+	#else
+		#define ONLY_DEBUG(X) X
+	#endif
+
 	#define SHA512_LEN 64
 
 	#define astrdup(VNEW, VOLD) char VNEW[strlen(VOLD) + 1]; strcpy(VNEW, VOLD);
@@ -195,6 +201,8 @@
 	 *  \param s        The string to be duplicated
 	 */
 	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull);
+
+	ONLY_DEBUG( void dump_alloc_counter(void); )
 
 	struct mmapped_file {
 		const void *data;

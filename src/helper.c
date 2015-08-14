@@ -124,8 +124,16 @@ bool fork_and_run(char *cmd, char *param) {
 	return true;
 }
 
+#ifndef NDEBUG
+static unsigned int _lmalloc_count  = 0;
+static unsigned int _lcalloc_count  = 0;
+static unsigned int _lrealloc_count = 0;
+static unsigned int _lstrdup_count  = 0;
+#endif
+
 void* _lmalloc(char *srcfile, int srcline, const char *srcfunc, size_t size) {
 	void *ptr = malloc(size);
+	ONLY_DEBUG( __sync_fetch_and_add(&_lmalloc_count, 1); )
 	if(!ptr) {
 		__log(srcfile, srcline, srcfunc, true, "malloc(%zu) failed: %s", size, strerror(errno));
 	}
@@ -135,6 +143,7 @@ void* _lmalloc(char *srcfile, int srcline, const char *srcfunc, size_t size) {
 
 void* _lcalloc(char *srcfile, int srcline, const char *srcfunc, size_t nmemb, size_t size) {
 	void *ptr = calloc(nmemb, size);
+	ONLY_DEBUG( __sync_fetch_and_add(&_lcalloc_count, 1); )
 	if(!ptr) {
 		__log(srcfile, srcline, srcfunc, true, "calloc(%zu, %zu) failed: %s", nmemb, size, strerror(errno));
 	}
@@ -144,6 +153,7 @@ void* _lcalloc(char *srcfile, int srcline, const char *srcfunc, size_t nmemb, si
 
 void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size_t size) {
 	void *new_ptr = realloc(ptr, size);
+	ONLY_DEBUG( __sync_fetch_and_add(&_lrealloc_count, 1); )
 	if(!new_ptr) {
 		__log(srcfile, srcline, srcfunc, true, "realloc(%p, %zu) failed: %s", ptr, size, strerror(errno));
 	}
@@ -153,12 +163,19 @@ void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size
 
 char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) {
 	void *d = strdup(s);
+	ONLY_DEBUG( __sync_fetch_and_add(&_lstrdup_count, 1); )
 	if(!d) {
 		__log(srcfile, srcline, srcfunc, true, "strdup(\"%s\") failed: %s", s, strerror(errno));
 	}
 
 	return d;
 }
+
+#ifndef NDEBUG
+void dump_alloc_counter(void) {
+	_log("#{m,c,re}alloc/strdup: %u %u %u %u", _lmalloc_count, _lcalloc_count, _lrealloc_count, _lstrdup_count);
+}
+#endif
 
 unsigned int parse_time_to_sec(char *str) {
 	unsigned int hour, min, sec;

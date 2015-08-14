@@ -379,6 +379,8 @@ static void cmd_exit(const char *unused UNUSED) {
 		}
 	}
 
+	ONLY_DEBUG( dump_alloc_counter(); )
+
 	exit(EXIT_SUCCESS);
 }
 
