@@ -35,6 +35,21 @@
 
 #define DEFAULT_BUFFER_SIZE 16384
 
+/** \brief Read an HTTP header from `nwc`
+ *
+ *  Writes the plain data received from `nwc` into `buffer`.
+ *  Reading from `nwc` stops when either `\r\n\r\n` is found or the buffer is filled,
+ *  whichever happens first.
+ *  Keep in mind that the remaining data (if any) needs to be read before trying to rea
+ *  the actual content.
+ *
+ *  On error `0` is returned, but nevertheless `buffer` may be modified.
+ *
+ *  \param nwc     The network connection to use
+ *  \param buffer  The buffer to write the header into (at least `bsize` Bytes large)
+ *  \param bsize   The size (in Bytes) available in `buffer`
+ *  \return        The number of bytes written to `buffer`, 0 on error
+ */
 static size_t http_read_header(struct network_conn *nwc, char *buffer, size_t bsize) {
 	const char abort_sequence[] = "\r\n\r\n";
 	unsigned int aspos = 0;
@@ -152,8 +167,7 @@ struct http_response* http_request_get(struct network_conn *nwc, char *url, char
 
 		char *buffer = lrealloc(resp->buffer, new_size);
 		if(!buffer) {
-			free(resp->buffer); // free the 'old' buffer
-			free(resp);
+			http_response_destroy(resp); // free the 'old' buffer
 			return NULL;
 		}
 
