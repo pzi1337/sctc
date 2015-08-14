@@ -42,7 +42,7 @@ static size_t http_read_header(struct network_conn *nwc, char *buffer, size_t bs
 	for(size_t idx = 0; idx < bsize - 1; idx++) {
 		int byte = nwc->recv_byte(nwc);
 		if(-1 == byte) {
-			_err("unexpected EOF from ssl_recv_byte at position %zu", idx);
+			_err("unexpected EOF from nwc->recv_byte at position %zu", idx);
 			return 0;
 		}
 
@@ -135,6 +135,11 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 struct http_response* http_request_get(struct network_conn *nwc, char *url, char *host) {
 
 	struct http_response* resp = http_request_get_only_header(nwc, url, host, NULL, MAX_REDIRECT_STEPS);
+
+	// abort if reading header failed
+	if(!resp) {
+		return NULL;
+	}
 
 	resp->body = &resp->buffer[resp->header_length];
 	if(resp->nwc) {
