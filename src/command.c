@@ -77,6 +77,7 @@ static void cmd_volume        (const char *_hint) ATTR(nonnull);
 static void cmd_repeat        (const char *rep)   ATTR(nonnull);
 
 static void cmd_download      (const char *unused UNUSED);
+static void cmd_close         (const char *unused UNUSED);
 static void cmd_del           (const char *unused UNUSED);
 static void cmd_exit          (const char *unused UNUSED) ATTR(noreturn);
 static void cmd_scroll        (const char *_hint);
@@ -102,6 +103,7 @@ static void cmd_redraw        (const char *unused UNUSED);
 const struct command commands[] = {
 	{"add",           cmd_add,            scope_playlist, "<ID of list>",                  "Add currently selected track to playlist with provided ID"},
 	{"command-input", cmd_command_input,  scope_playlist, "<none/ignored>",                "Open command input field"},
+	{"close",         cmd_close,          scope_textbox,  "<none/ignored>",                "Close the currently visible textbox"},
 	{"del",           cmd_del,            scope_playlist, "<none/ignored>",                "Delete currently selected track from current playlist"},
 	{"details",       cmd_details,        scope_playlist, "<none/ignored>",                "Show details for currently selected track"},
 	{"download",      cmd_download,       scope_playlist, "<none/ignored>",                "Download the currently selected entry to file"},
@@ -330,20 +332,8 @@ static void cmd_list(const char *list) {
 }
 
 static void cmd_scroll(const char *_hint) {
-	/* manual scrolling
-	 *  -> single line up
-	 *  -> single line down
-	 *  -> page up
-	 *  -> page down */
-	//case KEY_UP:    state_set_tb_pos_rel(-1);            break;
-	//case KEY_DOWN:  state_set_tb_pos_rel(+1);            break;
-	//case KEY_PPAGE: state_set_tb_pos_rel(- (LINES - 2)); break;
-	//case KEY_NPAGE: state_set_tb_pos_rel(+ (LINES - 2)); break;
-
 	astrdup(hint, _hint);
 	char *target = strstrp(hint);
-
-	_log("cmd_scroll(\"%s\") called!", _hint);
 
 	if('+' == *target || '-' == *target) {
 		int delta = 0;
@@ -660,6 +650,11 @@ static void cmd_redraw(const char *unused UNUSED) {
 	tui_submit_action(redraw);
 }
 
+static void cmd_close(const char *unused UNUSED) {
+	state_set_tb_pos(0);
+	state_set_tb(NULL, NULL);
+}
+
 /** \brief Handle input for a textbox
  *
  *  Handles user's input for a textbox, such as `scroll up`, `scroll down`
@@ -671,27 +666,21 @@ static void handle_textbox(void) {
 		command_func_ptr func = config_get_function(scope_textbox, c);
 		if(func) {
 			func(config_get_param(scope_textbox, c));
+			if(func == cmd_close) {
+				return;
+			}
 		} else {
-			switch(c) {
-				case 'd':
-				case 'q':
-					state_set_tb_pos(0);
-					state_set_tb(NULL, NULL);
-					return;
+			if('0' <= c && c <= '9') {
+				unsigned int idx = c - '0';
+				struct track_list *list = state_get_list(state_get_current_list());
+				size_t current_selected = state_get_current_selected();
 
-				default:
-					if('0' <= c && c <= '9') {
-						unsigned int idx = c - '0';
-						struct track_list *list = state_get_list(state_get_current_list());
-						size_t current_selected = state_get_current_selected();
+				size_t url_count = TRACK(list, current_selected)->url_count;
+				char **urls = TRACK(list, current_selected)->urls;
 
-						size_t url_count = TRACK(list, current_selected)->url_count;
-						char **urls = TRACK(list, current_selected)->urls;
-
-						if(idx < url_count) {
-							fork_and_run("xdg-open", urls[idx]);
-						}
-					}
+				if(idx < url_count) {
+					fork_and_run("xdg-open", urls[idx]);
+				}
 			}
 		}
 	}
