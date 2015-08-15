@@ -54,10 +54,12 @@ static int   cache_limit;
 
 static void config_finalize(void);
 
+static const char* scopes[] = {"playlist", NULL};
+
 static struct {
 	void (*func)(const char*);
 	const char *param;
-} key_command_mapping[KEY_MAX] = { {NULL, NULL} };
+} key_command_mapping[sizeof(scopes) / sizeof(scopes[0])][KEY_MAX] = { {{NULL, NULL}} };
 
 /** \brief Returns the ncurses keycode for a stringified key
  *
@@ -110,32 +112,45 @@ static const struct command* get_cmd_by_name(const char *input) {
 	return NULL;
 }
 
+
 static unsigned int kcm_count = 0;
 static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
-	if(2 != argc) {
-		_log("map() requires exactly 2 parameters!");
+	if(3 != argc) {
+		_log("map() requires exactly 3 parameters!");
 		return -1;
 	}
 
+	// search for scope
+	unsigned int scope;
+	for(scope = 0; scopes[scope]; scope++) {
+		if(streq(argv[0], scopes[scope])) {
+			break;
+		}
+	}
+	if(!scopes[scope]) {
+		_log("Unknown scope '%s', ommitting `map(\"%s\", \"%s\", \"%s\")`", argv[0], argv[0], argv[1], argv[2]);
+		return 0;
+	}
+
 	// search for corresponding key
-	int key = get_curses_ch(argv[0]);
+	int key = get_curses_ch(argv[1]);
 	if(ERR == key) {
-		_log("Unknown key '%s', ommiting `map(\"%s\", \"%s\")`", argv[0], argv[0], argv[1]);
+		_log("Unknown key '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[1], argv[2]);
 		return 0;
 	}
 
 	// search for function to call
-	const struct command *cmd = get_cmd_by_name(argv[1]);
+	const struct command *cmd = get_cmd_by_name(argv[2]);
 	if(!cmd) {
-		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\")`", argv[1], argv[0], argv[1]);
+		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[1], argv[2]);
 		return 0;
 	}
 
 	kcm_count++;
-	_log("| * mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[0], key, argv[1], argv[1] + strlen(cmd->name));
-	key_command_mapping[key].func  = cmd->func;
-	const char *param = argv[1] + strlen(cmd->name);
-	if(strcmp("", param)) key_command_mapping[key].param = lstrdup(param);
+	_log("| * mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[1], key, argv[2], argv[2] + strlen(cmd->name));
+	key_command_mapping[scope][key].func  = cmd->func;
+	const char *param = argv[2] + strlen(cmd->name);
+	if(strcmp("", param)) key_command_mapping[scope][key].param = lstrdup(param);
 
 	return 0;
 }
@@ -220,12 +235,12 @@ static void config_finalize(void) {
 
 command_func_ptr config_get_function(int key) {
 	assert(key < KEY_MAX);
-	return key_command_mapping[key].func;
+	return key_command_mapping[0][key].func;
 }
 
 const char* config_get_param(int key) {
 	assert(key < KEY_MAX);
-	return key_command_mapping[key].param;
+	return key_command_mapping[0][key].param;
 }
 
 size_t config_get_subscribe_count(void) { return config_subscribe_count; }
