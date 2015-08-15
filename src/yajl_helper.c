@@ -20,6 +20,7 @@
  *  \brief Functions wrapping the JSON-implementation (abstraction)
  */
 
+#include <assert.h>
 #include <yajl/yajl_gen.h>
 #include <yajl/yajl_version.h>
 #include <yajl/yajl_tree.h>
@@ -30,6 +31,7 @@
 #include "log.h"
 
 char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *path2) {
+	assert(path1 && "no path if provided at all");
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_string);
@@ -41,6 +43,7 @@ char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *pat
 }
 
 int yajl_helper_get_int(yajl_val parent, const char *path1, const char *path2) {
+	assert(path1 && "no path if provided at all");
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_number);
@@ -48,6 +51,7 @@ int yajl_helper_get_int(yajl_val parent, const char *path1, const char *path2) {
 }
 
 yajl_val yajl_helper_get_array(yajl_val parent, const char *path1, const char *path2) {
+	assert(path1 && "no path if provided at all");
 	const char* path[] = {path1, path2, NULL};
 
 	yajl_val val = yajl_tree_get(parent, path, yajl_t_array);

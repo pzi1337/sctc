@@ -25,6 +25,7 @@
 	#define _TRACK_H
 
 	#include "_hard_config.h"
+	#include "helper.h"
 
 	//\cond
 	#include <stdbool.h>
@@ -157,7 +158,5 @@
 	bool track_list_del(struct track_list *list, size_t track_id);
 	void track_destroy(struct track *track);
 
-#ifndef NDEBUG
-	void track_list_dump_mem_usage(struct track_list *list);
-#endif
+	ONLY_DEBUG( void track_list_dump_mem_usage(struct track_list *list); )
 #endif /* _TRACK_H */

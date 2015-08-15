@@ -1,12 +1,11 @@
 .PHONY: all clean cppcheck
 
-CCOPT=-O3 -s -fstack-protector-strong --param=ssp-buffer-size=4
-LDOPT=-O3 -s -pie -z relro -z now
+CCOPT=-O0 -g -flto -fstack-protector-strong --param=ssp-buffer-size=4
+LDOPT=-O0 -g -flto -pie -z relro -z now
 
 CCWARN=-Wall -Wextra -Wpedantic \
-	-Wformat -Winit-self \
-	-Wswitch-enum -Wswitch-default \
 	-Winit-self \
+	-Wswitch-enum -Wswitch-default \
 	-Wcast-qual -Wcast-align \
 	-Wold-style-definition \
 	-Wstrict-prototypes \
@@ -16,9 +15,7 @@ CCWARN=-Wall -Wextra -Wpedantic \
 	-Wlogical-op -Wfloat-equal \
 	-Wpointer-arith \
 	-Wredundant-decls \
-	-Wnested-externs \
-	-fno-omit-frame-pointer -ffloat-store  -fstrict-aliasing \
-	-fno-common
+	-Wnested-externs
 #-Wbad-function-cast
 
 CC=gcc
