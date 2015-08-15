@@ -54,7 +54,9 @@ static int   cache_limit;
 
 static void config_finalize(void);
 
-static const char* scopes[] = {"playlist", NULL};
+#define SCOPE_GLOBAL   0
+#define SCOPE_PLAYLIST 1
+static const char* scopes[] = {"global", "playlist", NULL};
 
 static struct {
 	void (*func)(const char*);
@@ -235,12 +237,22 @@ static void config_finalize(void) {
 
 command_func_ptr config_get_function(int key) {
 	assert(key < KEY_MAX);
-	return key_command_mapping[0][key].func;
+
+	if(!key_command_mapping[SCOPE_PLAYLIST][key].func) {
+		return key_command_mapping[SCOPE_GLOBAL][key].func;
+	}
+
+	return key_command_mapping[SCOPE_PLAYLIST][key].func;
 }
 
 const char* config_get_param(int key) {
 	assert(key < KEY_MAX);
-	return key_command_mapping[0][key].param;
+
+	if(!key_command_mapping[SCOPE_PLAYLIST][key].func) {
+		return key_command_mapping[SCOPE_GLOBAL][key].param;
+	}
+
+	return key_command_mapping[SCOPE_PLAYLIST][key].param;
 }
 
 size_t config_get_subscribe_count(void) { return config_subscribe_count; }
