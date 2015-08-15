@@ -56,7 +56,8 @@ static void config_finalize(void);
 
 static const char* scopes[] = {
 	[scope_global] = "global",
-	[scope_playlist] = "playlist"
+	[scope_playlist] = "playlist",
+	[scope_textbox] = "textbox"
 };
 
 static struct {
@@ -146,6 +147,11 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	const struct command *cmd = get_cmd_by_name(argv[2]);
 	if(!cmd) {
 		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[1], argv[2]);
+		return 0;
+	}
+
+	if(cmd->valid_scope != scope && cmd->valid_scope != scope_global) {
+		_log("Command '%s' cannot be used in scope '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[0], argv[1], argv[2]);
 		return 0;
 	}
 

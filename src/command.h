@@ -21,13 +21,17 @@
 
 	//\cond
 	#include <stddef.h>                     // for size_t
+	#include <stdint.h>
 	//\endcond
 
 	typedef void (*command_func_ptr)(const char*);
 
+	#include "config.h"
+
 	struct command {
 		const char  *name;
 		command_func_ptr func;
+		enum scope   valid_scope;
 		const char  *desc_param;
 		const char  *desc;
 	};

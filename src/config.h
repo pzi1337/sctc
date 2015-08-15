@@ -21,11 +21,11 @@
 
 	#include <stdbool.h>
 
-	#include "command.h"                    // for command_func_ptr
-
 	enum scope {
-		scope_global, scope_playlist, scope_size
+		scope_global, scope_playlist, scope_textbox, scope_size
 	};
+
+	#include "command.h"                    // for command_func_ptr
 
 	/** \brief Initialize the configuration.
 	 *
