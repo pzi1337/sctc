@@ -23,6 +23,10 @@
 
 	#include "command.h"                    // for command_func_ptr
 
+	enum scope {
+		scope_global, scope_playlist, scope_size
+	};
+
 	/** \brief Initialize the configuration.
 	 *
 	 *  Initialize the internal data structures and read the configuration from SCTC_CONFIG_FILE.
@@ -50,9 +54,9 @@
 	 *  \param key  The key to find the function for
 	 *  \return     The function mapped to a specific key (of NULL if unmapped)
 	 */
-	command_func_ptr config_get_function(int key);
+	command_func_ptr config_get_function(enum scope scope, int key);
 
-	const char* config_get_param(int key);
+	const char* config_get_param(enum scope scope, int key);
 	char* config_get_cache_path(void);
 	char* config_get_cert_path(void);
 

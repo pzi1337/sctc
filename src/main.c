@@ -187,8 +187,8 @@ int main(int argc UNUSED, char **argv) {
 		// then try to read the
 		// corresponding function from configuration and
 		// execute it
-		command_func_ptr func = config_get_function(c);
-		if(func) func(config_get_param(c));
+		command_func_ptr func = config_get_function(scope_playlist, c);
+		if(func) func(config_get_param(scope_playlist, c));
 	}
 
 	// never reached, exit called in case of 'cmd_exit'

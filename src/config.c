@@ -54,9 +54,10 @@ static int   cache_limit;
 
 static void config_finalize(void);
 
-#define SCOPE_GLOBAL   0
-#define SCOPE_PLAYLIST 1
-static const char* scopes[] = {"global", "playlist", NULL};
+static const char* scopes[] = {
+	[scope_global] = "global",
+	[scope_playlist] = "playlist"
+};
 
 static struct {
 	void (*func)(const char*);
@@ -124,7 +125,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 
 	// search for scope
 	unsigned int scope;
-	for(scope = 0; scopes[scope]; scope++) {
+	for(scope = 0; scope < scope_size; scope++) {
 		if(streq(argv[0], scopes[scope])) {
 			break;
 		}
@@ -235,24 +236,24 @@ static void config_finalize(void) {
 	free(cert_path);
 }
 
-command_func_ptr config_get_function(int key) {
+command_func_ptr config_get_function(enum scope scope, int key) {
 	assert(key < KEY_MAX);
 
-	if(!key_command_mapping[SCOPE_PLAYLIST][key].func) {
-		return key_command_mapping[SCOPE_GLOBAL][key].func;
+	if(!key_command_mapping[scope][key].func) {
+		return key_command_mapping[scope_global][key].func;
 	}
 
-	return key_command_mapping[SCOPE_PLAYLIST][key].func;
+	return key_command_mapping[scope][key].func;
 }
 
-const char* config_get_param(int key) {
+const char* config_get_param(enum scope scope, int key) {
 	assert(key < KEY_MAX);
 
-	if(!key_command_mapping[SCOPE_PLAYLIST][key].func) {
-		return key_command_mapping[SCOPE_GLOBAL][key].param;
+	if(!key_command_mapping[scope][key].func) {
+		return key_command_mapping[scope_global][key].param;
 	}
 
-	return key_command_mapping[SCOPE_PLAYLIST][key].param;
+	return key_command_mapping[scope][key].param;
 }
 
 size_t config_get_subscribe_count(void) { return config_subscribe_count; }
