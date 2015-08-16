@@ -21,8 +21,6 @@
  */
 
 #include <assert.h>
-#include <yajl/yajl_gen.h>
-#include <yajl/yajl_version.h>
 #include <yajl/yajl_tree.h>
 #include <string.h>
 
@@ -30,11 +28,15 @@
 #include "helper.h"
 #include "log.h"
 
-char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *path2) {
+static yajl_val yajl_helper_get_val(yajl_val parent, const char *path1, const char *path2, yajl_type type) {
 	assert(path1 && "no path if provided at all");
 	const char* path[] = {path1, path2, NULL};
 
-	yajl_val val = yajl_tree_get(parent, path, yajl_t_string);
+	return yajl_tree_get(parent, path, type);
+}
+
+char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *path2) {
+	yajl_val val = yajl_helper_get_val(parent, path1, path2, yajl_t_string);
 	if(val) {
 		char *str = YAJL_GET_STRING(val);
 		if(str) return lstrdup(str);
@@ -43,18 +45,12 @@ char* yajl_helper_get_string(yajl_val parent, const char *path1, const char *pat
 }
 
 int yajl_helper_get_int(yajl_val parent, const char *path1, const char *path2) {
-	assert(path1 && "no path if provided at all");
-	const char* path[] = {path1, path2, NULL};
-
-	yajl_val val = yajl_tree_get(parent, path, yajl_t_number);
+	yajl_val val = yajl_helper_get_val(parent, path1, path2, yajl_t_number);
 	return val ? YAJL_GET_INTEGER(val) : 0;
 }
 
 yajl_val yajl_helper_get_array(yajl_val parent, const char *path1, const char *path2) {
-	assert(path1 && "no path if provided at all");
-	const char* path[] = {path1, path2, NULL};
-
-	yajl_val val = yajl_tree_get(parent, path, yajl_t_array);
+	yajl_val val = yajl_helper_get_val(parent, path1, path2, yajl_t_array);
 	return YAJL_IS_ARRAY(val) ? val : NULL;
 }
 
