@@ -182,18 +182,6 @@ struct network_conn* tls_connect(char *server, int port) {
 		}
 	}
 
-	if( (ret = ssl_get_verify_result(&tls->ssl)) ) {
-		const char *reason = "unknown reason";
-		if(ret & BADCERT_EXPIRED)     reason = "server certificate has expired";
-		if(ret & BADCERT_REVOKED)     reason = "server certificate has been revoked";
-		if(ret & BADCERT_CN_MISMATCH) reason = "CN mismatch";
-		if(ret & BADCERT_NOT_TRUSTED) reason = "self-signed or not signed by a trusted CA";
-		_err("verification of certificate failed: %s; aborting connection to %s:%d", reason, server, port);
-
-		tls_disconnect(nwc);
-		return NULL;
-	}
-
 	/* Compare the certifiate supplied by the server to the one we know
 	 * from one of our previous connection attempts.
 	 */
