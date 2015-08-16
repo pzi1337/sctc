@@ -384,7 +384,7 @@ bool sound_play(struct track *track) {
 
 	if(state) sound_stop();
 
-	seek_to_pos = track->current_position ? track->current_position : SEEKPOS_NONE;
+	seek_to_pos = (0 != track->current_position) ? track->current_position : SEEKPOS_NONE;
 
 	struct mmapped_file cache_track = cache_track_get(track);
 	if(cache_track.data) {

@@ -375,7 +375,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 
 		played_chars = tui_track_print_played(played_chars, selected, tline_ctime, tline_ctime_played, tline_ctime_selected, "%0*c%s", 12 - time_len, ' ', time_buffer);
 	}
-	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c", (entry->current_position ? 0 : 12) + 3, ' ');
+	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%0*c", (0 != entry->current_position ? 0 : 12) + 3, ' ');
 
 	played_chars = tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_default_selected, "%s%s%s",
 		(FLAG_CACHED     & entry->flags) ? "C"      : " ",
