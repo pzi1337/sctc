@@ -79,6 +79,7 @@ struct network_conn* plain_connect(char *server, int port) {
 	}
 
 	struct addrinfo *ai;
+	char ip_buffer[INET6_ADDRSTRLEN] = { 0 };
 	for(ai = addr; ai; ai = ai->ai_next) {
 		int sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
 		if(-1 == sock) {
@@ -93,17 +94,23 @@ struct network_conn* plain_connect(char *server, int port) {
 		}
 
 		plain->fh = fdopen(sock, "a+");
+
+		ret = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip_buffer, sizeof(ip_buffer), 0, 0, NI_NUMERICHOST);
+		if(ret) {
+			_log("getnameinfo: %s", gai_strerror(ret));
+			strncpy(ip_buffer, "<error>", INET6_ADDRSTRLEN - 1);
+		}
+
 		break;
 	}
 
-	char ip_buffer[INET6_ADDRSTRLEN] = { 0 };
-	ret = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip_buffer, sizeof(ip_buffer), 0, 0, NI_NUMERICHOST);
-	if(ret) {
-		_log("getnameinfo: %s", gai_strerror(ret));
-		strncpy(ip_buffer, "<error>", INET6_ADDRSTRLEN - 1);
-	}
-
 	freeaddrinfo(addr);
+
+	if(!ai) {
+		_log("connection to '%s:%i' failed", server, port);
+		free(nwc);
+		return NULL;
+	}
 
 	_log("connected to %s:%d (%s) using PLAIN (NO ENCRYPTION)", server, port, ip_buffer);
 	return nwc;
