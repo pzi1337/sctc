@@ -131,7 +131,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 			break;
 		}
 	}
-	if(!scopes[scope]) {
+	if(scope_size == scope) {
 		_log("Unknown scope '%s', ommitting `map(\"%s\", \"%s\", \"%s\")`", argv[0], argv[0], argv[1], argv[2]);
 		return 0;
 	}
