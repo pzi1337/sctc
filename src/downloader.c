@@ -125,7 +125,7 @@ static void* _download_thread(void *unused UNUSED) {
 			while( remaining ){
 				int ret = resp_last->nwc->recv(resp_last->nwc, &((char*)my->buffer)[resp->content_length - remaining], remaining);
 				if(ret > 0) {
-					remaining -= ret;
+					remaining -= (unsigned int) ret;
 				}
 			}
 			_log("fetching of last 4096 bytes finished");
@@ -137,17 +137,17 @@ static void* _download_thread(void *unused UNUSED) {
 				if(my->target_file) {
 					int ret = nwc->recv(nwc, buffer, request_size);
 					if(ret > 0) {
-						remaining -= ret;
+						remaining -= (unsigned int) ret;
 						fwrite(buffer, 1, request_size, fh);
 						__sync_add_and_fetch(&my->state->bytes_recvd, ret);
 					}
 				} else {
 					int ret = nwc->recv(nwc, &((char*)my->buffer)[my->state->bytes_recvd], request_size);
 					if(ret > 0) {
-						remaining -= ret;
+						remaining -= (unsigned int) ret;
 
 						pthread_mutex_lock(&my->state->io_mutex);
-						my->state->bytes_recvd += ret;
+						my->state->bytes_recvd += (unsigned int) ret;
 						pthread_cond_signal(&my->state->io_cond);
 						pthread_mutex_unlock(&my->state->io_mutex);
 
