@@ -332,6 +332,16 @@ struct mmapped_file file_read_contents(char *path) {
 	return file;
 }
 
+size_t add_delta_within_limits(size_t base, int delta, size_t upper_limit) {
+	if(delta < 0) {
+		unsigned int udelta = (unsigned int) -delta;
+		return base < udelta ? 0 : base - udelta;
+	} else {
+		size_t res = base + (unsigned int) delta;
+		return res < upper_limit ? res : upper_limit;
+	}
+}
+
 // suppress warning regarding the cast (const void*) to (void*)
 // mmapped files are mapped ro, therefore a const can be used
 // to warn about writing to that memory.

@@ -211,4 +211,6 @@
 
 	struct mmapped_file file_read_contents(char *file);
 	void file_release_contents(struct mmapped_file file);
+
+	size_t add_delta_within_limits(size_t base, int delta, size_t upper_limit);
 #endif /* _HELPER_H */
