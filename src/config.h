@@ -19,11 +19,19 @@
 #ifndef _CONFIG_H
 	#define _CONFIG_H
 
-	#include <stdbool.h>
+	#include "_hard_config.h"               // for ATTR
 
 	enum scope {
-		scope_global, scope_playlist, scope_textbox, scope_size
+		scope_global,   ///< Key can be used globally, that is at **every location**
+		scope_playlist, ///< Key can be used on **playlist view**
+		scope_textbox,  ///< Key can be used on **textbox view** (e.g. the `Details`-Textbox)
+		scope_size      ///< The size of `enum scope`
 	};
+
+	//\cond
+	#include <stdbool.h>                    // for bool
+	#include <stddef.h>                     // for size_t
+	//\endcond
 
 	#include "command.h"                    // for command_func_ptr
 
@@ -47,27 +55,50 @@
 	 *
 	 *  \return  The number of subscriptions
 	 */
-	char* config_get_subscribe(int id);
+	char* config_get_subscribe(size_t id);
 
 	/** \brief Returns the command-function to be executed on keypress
+	 *
+	 *  At first the specified `scope` is searched.
+	 *  If the specified `scope` does not contain a mapped key the `global` scope is searched.
+	 *
+	 *  Consequently, if `NULL` was returned neither `scope` nor `scope_global` contain a mapping.
 	 *
 	 *  \param key  The key to find the function for
 	 *  \return     The function mapped to a specific key (of NULL if unmapped)
 	 */
 	command_func_ptr config_get_function(enum scope scope, int key);
 
+	/** \brief Returns the parameter to the command-function to be executed on keypress
+	 *
+	 *  For details on how the scopes are searched see `config_get_subscribe()`
+	 *
+	 *  \param key  The key to find the parameter for
+	 *  \return     The parameter for the function mapped to a specific key (of NULL if unmapped)
+	 *  \see config_get_subscribe()
+	 */
 	const char* config_get_param(enum scope scope, int key);
-	char* config_get_cache_path(void);
-	char* config_get_cert_path(void);
+
+	/** \brief Returns the path to the cache
+	 *
+	 *  \return Path to the cache (guaranteed to be non-`NULL`)
+	 */
+	char* config_get_cache_path(void) ATTR(returns_nonnull);
+
+	/** \brief Returns the path to the certificates
+	 *
+	 *  \return Path to the certificates (guaranteed to be non-`NULL`)
+	 */
+	char* config_get_cert_path (void) ATTR(returns_nonnull);
 
 	#define EQUALIZER_SIZE 32
 
 	/** \brief Returns the value for band `band`
 	 *
 	 *  \param band  The band to return the value for
-	 *  \return      The corresponding value, where `1` denotes `no change in volume`
+	 *  \return      The corresponding value, where `1.0` denotes `no change in volume`
 	 */
-	float config_get_equalizer(int band);
+	double config_get_equalizer(int band);
 
 #endif /* _CONFIG_H */
 

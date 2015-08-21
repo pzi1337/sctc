@@ -46,7 +46,7 @@
 static char** config_subscribe = NULL;
 static size_t config_subscribe_count = 0;
 
-static float config_equalizer[EQUALIZER_SIZE] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+static double config_equalizer[EQUALIZER_SIZE] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 static char* cert_path;
 static char* cache_path;
@@ -82,16 +82,16 @@ static int get_curses_ch(const char *str) {
 		return str[0];
 	}
 
-	if(!strcmp("KEY_ENTER",     str)) return KEY_ENTER;
-	if(!strcmp("KEY_UP",        str)) return KEY_UP;
-	if(!strcmp("KEY_DOWN",      str)) return KEY_DOWN;
-	if(!strcmp("KEY_LEFT",      str)) return KEY_LEFT;
-	if(!strcmp("KEY_RIGHT",     str)) return KEY_RIGHT;
-	if(!strcmp("KEY_BACKSPACE", str)) return KEY_BACKSPACE;
-	if(!strcmp("KEY_PPAGE",     str)) return KEY_PPAGE;
-	if(!strcmp("KEY_NPAGE",     str)) return KEY_NPAGE;
-	if(!strcmp("KEY_SLEFT",     str)) return KEY_SLEFT;
-	if(!strcmp("KEY_SRIGHT",    str)) return KEY_SRIGHT;
+	if(streq("KEY_ENTER",     str)) return KEY_ENTER;
+	if(streq("KEY_UP",        str)) return KEY_UP;
+	if(streq("KEY_DOWN",      str)) return KEY_DOWN;
+	if(streq("KEY_LEFT",      str)) return KEY_LEFT;
+	if(streq("KEY_RIGHT",     str)) return KEY_RIGHT;
+	if(streq("KEY_BACKSPACE", str)) return KEY_BACKSPACE;
+	if(streq("KEY_PPAGE",     str)) return KEY_PPAGE;
+	if(streq("KEY_NPAGE",     str)) return KEY_NPAGE;
+	if(streq("KEY_SLEFT",     str)) return KEY_SLEFT;
+	if(streq("KEY_SRIGHT",    str)) return KEY_SRIGHT;
 
 	return ERR;
 }
@@ -116,8 +116,16 @@ static const struct command* get_cmd_by_name(const char *input) {
 	return NULL;
 }
 
-
 static unsigned int kcm_count = 0;
+
+/** \brief Callback for `map()` used by libConfuse
+ *
+ *  \param cfg   Configuration file context (unused)
+ *  \param opt   The option (unused)
+ *  \param argc  The (actual) number of parameters to `map`
+ *  \param argv  The parameters themself
+ *  \return      `0` on success, non-`0` otherwise
+ */
 static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
 	if(3 != argc) {
 		_log("map() requires exactly 3 parameters!");
@@ -164,6 +172,15 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	return 0;
 }
 
+void config_error_function(cfg_t *cfg UNUSED, const char *fmt, va_list ap) {
+
+	const size_t buffer_size = 2048;
+	char buffer[buffer_size + 1];
+
+	vsnprintf(buffer, buffer_size, fmt, ap);
+	_err("%s", buffer);
+}
+
 bool config_init(void) {
 	cfg_opt_t opts[] = {
 		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
@@ -178,10 +195,28 @@ bool config_init(void) {
 	/* set default values for options */
 	cert_path   = lstrdup(CERT_DEFAULT_PATH);
 	cache_path  = lstrdup(CACHE_DEFAULT_PATH); // default subdir 'cache' in bin
-	cache_limit = -1;                  // default: no limit
+	if(!cert_path || !cache_path) {
+		return false;
+	}
+
+	cache_limit = -1; // default: no limit
 
 	cfg_t *cfg = cfg_init(opts, CFGF_NOCASE);
-	cfg_parse(cfg, SCTC_CONFIG_FILE);
+	cfg_set_error_function(cfg, config_error_function);
+
+	int parse_result = cfg_parse(cfg, SCTC_CONFIG_FILE);
+
+	if(CFG_FILE_ERROR == parse_result) {
+		_err("Failed to open config file `"SCTC_CONFIG_FILE"`");
+		cfg_free(cfg);
+		return false;
+	} else if(CFG_PARSE_ERROR == parse_result) {
+		_err("There was at least one parsing failure!");
+	} else if(CFG_SUCCESS != parse_result) {
+		_err("cfg_parse returned unexpected error code %i", parse_result);
+		cfg_free(cfg);
+		return false;
+	}
 
 	// verify required settings:
 	// at least one subscription
@@ -189,13 +224,11 @@ bool config_init(void) {
 	config_subscribe_count = cfg_size(cfg, OPTION_SUBSCRIBE);
 
 	if(!config_subscribe_count) {
-		_log("Have 0 subscriptions");
-		_log("To continue add at least one user");
+		_log("Have 0 subscriptions, to continue add at least one user");
 	}
 
 	if(!kcm_count) {
-		_log("Have 0 keymappings");
-		_log("By default you want to have quite a bunch of keymappings...");
+		_log("Have 0 keymappings, by default you want to have quite a bunch of keymappings...");
 	}
 
 	if(!config_subscribe_count || !kcm_count) {
@@ -204,7 +237,7 @@ bool config_init(void) {
 	}
 
 	config_subscribe = lcalloc(config_subscribe_count, sizeof(char*));
-	for(size_t i = 0; i < config_subscribe_count; i++) {
+	for(unsigned int i = 0; i < config_subscribe_count; i++) {
 		config_subscribe[i] = lstrdup(cfg_getnstr(cfg, OPTION_SUBSCRIBE, i));
 	}
 
@@ -233,6 +266,8 @@ bool config_init(void) {
 	return true;
 }
 
+/** \brief Cleanup data allocated during execution
+ */
 static void config_finalize(void) {
 	for(size_t i = 0; i < config_subscribe_count; i++) {
 		free(config_subscribe[i]);
@@ -262,8 +297,13 @@ const char* config_get_param(enum scope scope, int key) {
 	return key_command_mapping[scope][key].param;
 }
 
+char* config_get_subscribe(size_t id) {
+	assert(id < config_subscribe_count && "ERROR: id >= config_subscribe_count");
+
+	return config_subscribe[id];
+}
+
 size_t config_get_subscribe_count(void) { return config_subscribe_count; }
-char*  config_get_subscribe(int id)     { return config_subscribe[id]; }
 char*  config_get_cert_path(void)       { return cert_path; }
 char*  config_get_cache_path(void)      { return cache_path; }
-float  config_get_equalizer(int band)   { return config_equalizer[band]; }
+double config_get_equalizer(int band)   { return config_equalizer[band]; }
