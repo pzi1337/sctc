@@ -270,7 +270,7 @@ static void cmd_goto(const char *_hint) {
 
 	if(streq("", target)) {
 		if(state_get_current_playback_list() == state_get_current_list()) {
-			state_set_current_selected(state_get_current_list() - 1);
+			state_set_current_selected(state_get_current_playback_track());
 		}
 		state_set_status(cline_default, "");
 	} else if(streq("end", target)) {
