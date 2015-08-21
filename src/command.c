@@ -281,6 +281,7 @@ static void cmd_goto(const char *_hint) {
 	} else if('+' == *target || '-' == *target) {
 		int delta = 0;
 		bool valid = false;
+		struct track_list *list = state_get_list(state_get_current_list());
 
 		if(NULL != strchr(target, '.')) {
 			float pages = 0;
@@ -290,7 +291,10 @@ static void cmd_goto(const char *_hint) {
 		} else {
 			valid = (1 == sscanf(target, " %16d ", &delta));
 		}
-		if(valid) state_set_current_selected_rel(delta);
+		if(valid) {
+			size_t csel = state_get_current_selected();
+			state_set_current_selected(add_delta_within_limits(csel, delta, list->count - 1));
+		}
 	} else {
 		unsigned int pos;
 		if(1 == sscanf(target, " %8u ", &pos)) {
