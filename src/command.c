@@ -57,7 +57,7 @@
 
 #define MIN(x,y) (x < y ? x : y)
 
-static int command_dispatcher(char *command);
+static void command_dispatcher(char *command);
 static void search_direction(bool down);
 static void switch_to_list(unsigned int id);
 static bool handle_search(char *buffer, size_t buffer_size);
@@ -137,27 +137,30 @@ const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
  *  \todo Commands are, at this point, only usefull for the main interface (the list).
  *        As soon as we open any other window everything is hardcoded again!
  */
-static int command_dispatcher(char *command) {
+static void command_dispatcher(char *command) {
+
+	// try to find the command to execute within the list of known commands
 	for(int i = 0; commands[i].name; i++) {
 		const size_t ci_size = strlen(commands[i].name);
 
 		if(!strncmp(commands[i].name, command, ci_size)) {
 			if('\0' == command[ci_size] || ' ' == command[ci_size]) {
 				commands[i].func(&command[ci_size + 1]);
-				return -1;
+				return;
 			}
 		}
 	}
 
+	// the shortcut `:<number>` as known by px. vim
+	// strtol only used for check if :... is numeric, execution is done in cmd_goto
 	char *endptr;
-	long val = strtol(command, &endptr, 10);
+	(void) strtol(command, &endptr, 10);
 	if('\0' == *endptr) {
-		state_set_status(0, smprintf("Info: Jumping to %li", val));
-		return val;
+		cmd_goto(command);
+		return;
 	}
 
 	state_set_status(cline_warning, smprintf("Error: Unknown command "F_BOLD"%s"F_RESET, command));
-	return -1;
 }
 
 /** \todo a) does not belong here\n b) does not work */
@@ -492,11 +495,7 @@ static void cmd_command_input(const char *unused UNUSED) {
 	char *buffer = state_get_input();
 
 	if(handle_command(buffer, 127)) {
-		int jump_target = command_dispatcher(buffer);
-		if(-1 != jump_target) {
-			state_set_current_selected(jump_target);
-			state_set_status(cline_default, "");
-		}
+		command_dispatcher(buffer);
 	} else {
 		state_set_status(cline_default, "");
 	}
