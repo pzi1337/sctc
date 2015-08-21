@@ -53,7 +53,7 @@
 	/** \brief printf style function with automated allocation of buffer.
 	 *
 	 *  \param fmt  The formatstring, as known from `printf`, see `man 3 printf`
-	 *  \return     Pointer to allocated memory (needs to be `free`'d) or `NULL` if malloc failed
+	 *  \return     Pointer to allocated memory (needs to be `free`'d) or `NULL` if an error occured
 	 */
 	char* smprintf(char *fmt, ...) ATTR(format (printf, 1, 2), nonnull);
 

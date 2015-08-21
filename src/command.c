@@ -290,7 +290,7 @@ static void cmd_goto(const char *_hint) {
 			float pages = 0;
 			valid = (1 == sscanf(target, " %16f ", &pages));
 
-			delta = pages * (LINES - 2);
+			delta = (int) (pages * (float) (LINES - 2));
 		} else {
 			valid = (1 == sscanf(target, " %16d ", &delta));
 		}
@@ -350,7 +350,7 @@ static void cmd_scroll(const char *_hint) {
 			float pages = 0;
 			valid = (1 == sscanf(target, " %16f ", &pages));
 
-			delta = pages * (LINES - 8);
+			delta = (int) (pages * (float) (LINES - 8));
 		} else {
 			valid = (1 == sscanf(target, " %16d ", &delta));
 		}
@@ -576,7 +576,7 @@ static void cmd_details(const char *unused UNUSED) {
 
 static void update_flags_stop_playback(struct track_list *list, size_t tid) {
 	if(list && NO_TRACK != tid) {
-		TRACK(list, tid)->flags &= ~FLAG_PLAYING;
+		TRACK(list, tid)->flags &= (uint8_t)~FLAG_PLAYING;
 		if(TRACK(list, tid)->current_position) {
 			TRACK(list, tid)->flags |= FLAG_PAUSED;
 		}
@@ -625,7 +625,7 @@ static void cmd_play(const char *unused UNUSED) {
 	size_t playing = state_get_current_playback_track();
 
 	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer));
-	TRACK(list, current_selected)->flags = (TRACK(list, current_selected)->flags & ~FLAG_PAUSED) | FLAG_PLAYING;
+	TRACK(list, current_selected)->flags = (uint8_t) ( (TRACK(list, current_selected)->flags & ~FLAG_PAUSED) | FLAG_PLAYING );
 
 	tui_submit_action(update_list);
 
@@ -802,7 +802,7 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 					break;
 				}
 
-				for(int i = suggest_pos; matching_commands[i].name; i++) {
+				for(size_t i = suggest_pos; matching_commands[i].name; i++) {
 					if(!strncmp(matching_commands[i].name, buffer, strlen(buffer))) {
 						sprintf(buffer, "%s ", matching_commands[i].name);
 						pos = strlen(matching_commands[i].name) + 1;

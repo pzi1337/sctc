@@ -87,15 +87,13 @@ static enum tui_action_kind action;
 
 static void* _thread_tui_function(void *unused UNUSED) {
 	do {
-		int ret = sem_wait(&sem_have_action);
+		sem_wait(&sem_have_action);
 		if(whole_redraw_required) {
 			whole_redraw_required = false;
 
 			endwin();
 			refresh();
 			clear();
-
-			_log("doing the redraw, sem_wait returned %i, LINES = %d", ret, LINES);
 
 			tui_draw_title_line();  // redraw the title line
 			tui_draw_tab_bar();     // redraw the tab bar
@@ -356,7 +354,7 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 		addch(' ');
 	}
 
-	int played_chars = 0;
+	size_t played_chars = 0;
 	if(entry->current_position) {
 		float rel = (float)entry->current_position / entry->duration;
 		played_chars = rel * COLS;
@@ -601,47 +599,47 @@ bool tui_init(void) {
 		_log("color pair id in [1; %d]", COLOR_PAIRS - 1);
 
 	#define INIT_PAIR(CP, CF, CB) if(ERR == init_pair(CP, CF, CB)) { _log("init_pair("#CP", "#CF", "#CB") failed"); }
-		INIT_PAIR(sbar_default,                COLOR_WHITE,  COLOR_BLUE);
+		INIT_PAIR(sbar_default,               COLOR_WHITE,  COLOR_BLUE);
 
-		INIT_PAIR(cline_default,               COLOR_WHITE,  COLOR_BLUE);
-		INIT_PAIR(cline_cmd_char,              COLOR_RED,    COLOR_BLUE);
-		INIT_PAIR(cline_warning,               COLOR_RED,    COLOR_BLUE);
+		INIT_PAIR(cline_default,              COLOR_WHITE,  COLOR_BLUE);
+		INIT_PAIR(cline_cmd_char,             COLOR_RED,    COLOR_BLUE);
+		INIT_PAIR(cline_warning,              COLOR_RED,    COLOR_BLUE);
 
-		INIT_PAIR(tbar_default,                COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tbar_default,               COLOR_BLACK,  COLOR_WHITE);
 
-		INIT_PAIR(tbar_tab_selected,           COLOR_WHITE,  COLOR_BLACK);
-		INIT_PAIR(tbar_tab_nselected,          COLOR_WHITE,  COLOR_GRAY);
+		INIT_PAIR(tbar_tab_selected,          COLOR_WHITE,  COLOR_BLACK);
+		INIT_PAIR(tbar_tab_nselected,         COLOR_WHITE,  COLOR_GRAY);
 
-		INIT_PAIR(inp_cursor,                  COLOR_GRAY,   COLOR_GRAY);
+		INIT_PAIR(inp_cursor,                 COLOR_GRAY,   COLOR_GRAY);
 
-		INIT_PAIR(cmdlist_default,             COLOR_WHITE,  COLOR_BLACK);
-		INIT_PAIR(cmdlist_selected,            COLOR_WHITE,  COLOR_GRAY);
-		INIT_PAIR(cmdlist_desc,                COLOR_GREEN,  COLOR_BLACK);
-		INIT_PAIR(cmdlist_desc_selected,       COLOR_GREEN,  COLOR_GRAY);
-		INIT_PAIR(cmdlist_descparam,           COLOR_DGRAY,  COLOR_BLACK);
-		INIT_PAIR(cmdlist_descparam_selected,  COLOR_DGRAY,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_default,            COLOR_WHITE,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_selected,           COLOR_WHITE,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_desc,               COLOR_GREEN,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_desc_selected,      COLOR_GREEN,  COLOR_GRAY);
+		INIT_PAIR(cmdlist_descparam,          COLOR_DGRAY,  COLOR_BLACK);
+		INIT_PAIR(cmdlist_descparam_selected, COLOR_DGRAY,  COLOR_GRAY);
 
-		INIT_PAIR(tline_default,               COLOR_WHITE,  COLOR_SHELL);
-		INIT_PAIR(tline_default_selected,      COLOR_BLACK,  COLOR_WHITE);
-		INIT_PAIR(tline_default_played,        COLOR_WHITE,  COLOR_DGRAY);
+		INIT_PAIR(tline_default,              COLOR_WHITE,  COLOR_SHELL);
+		INIT_PAIR(tline_default_selected,     COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tline_default_played,       COLOR_WHITE,  COLOR_DGRAY);
 
-		INIT_PAIR(tline_status,                COLOR_RED,    COLOR_SHELL);
+		INIT_PAIR(tline_status,               COLOR_RED,    COLOR_SHELL);
 
-		INIT_PAIR(tline_date,                  COLOR_CYAN,   COLOR_SHELL);
-		INIT_PAIR(tline_date_played,           COLOR_CYAN,   COLOR_DGRAY);
-		INIT_PAIR(tline_date_selected,         COLOR_BLACK,  COLOR_CYAN);
+		INIT_PAIR(tline_date,                 COLOR_CYAN,   COLOR_SHELL);
+		INIT_PAIR(tline_date_played,          COLOR_CYAN,   COLOR_DGRAY);
+		INIT_PAIR(tline_date_selected,        COLOR_BLACK,  COLOR_CYAN);
 
-		INIT_PAIR(tline_user,                  COLOR_GREEN,  COLOR_SHELL);
-		INIT_PAIR(tline_user_played,           COLOR_GREEN,  COLOR_DGRAY);
-		INIT_PAIR(tline_user_selected,         COLOR_DGREEN, COLOR_WHITE);
+		INIT_PAIR(tline_user,                 COLOR_GREEN,  COLOR_SHELL);
+		INIT_PAIR(tline_user_played,          COLOR_GREEN,  COLOR_DGRAY);
+		INIT_PAIR(tline_user_selected,        COLOR_DGREEN, COLOR_WHITE);
 
-		INIT_PAIR(tline_ctime,                 COLOR_YELLOW, COLOR_SHELL);
-		INIT_PAIR(tline_ctime_played,          COLOR_YELLOW, COLOR_DGRAY);
-		INIT_PAIR(tline_ctime_selected,        COLOR_YELLOW, COLOR_WHITE);
+		INIT_PAIR(tline_ctime,                COLOR_YELLOW, COLOR_SHELL);
+		INIT_PAIR(tline_ctime_played,         COLOR_YELLOW, COLOR_DGRAY);
+		INIT_PAIR(tline_ctime_selected,       COLOR_YELLOW, COLOR_WHITE);
 
-		INIT_PAIR(tline_time,                  COLOR_WHITE,  COLOR_SHELL);
-		INIT_PAIR(tline_time_played,           COLOR_WHITE,  COLOR_DGRAY);
-		INIT_PAIR(tline_time_selected,         COLOR_BLACK,  COLOR_WHITE);
+		INIT_PAIR(tline_time,                 COLOR_WHITE,  COLOR_SHELL);
+		INIT_PAIR(tline_time_played,          COLOR_WHITE,  COLOR_DGRAY);
+		INIT_PAIR(tline_time_selected,        COLOR_BLACK,  COLOR_WHITE);
 	} else {
 		_log("terminal does not support colors at all(!)");
 	}

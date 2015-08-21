@@ -144,7 +144,7 @@ bool plain_send_fmt(struct network_conn *nwc, char *fmt, ...) {
  *  \param nwc         The connection to read from
  *  \param buffer      The buffer receiving the read data
  *  \param buffer_len  The size of the buffer
- *  \return     The byte or -1 on EOF
+ *  \return            The byte or `-1` on EOF
  */
 int plain_recv(struct network_conn *nwc, char *buffer, size_t buffer_len) {
 	struct plain_conn *plain = (struct plain_conn*) nwc->mdata;

@@ -19,6 +19,7 @@
 #ifndef _XSPF_H
 	#include <stdbool.h>
 
+	#include "_hard_config.h"
 	#include "track.h"
 
 	/** \brief Write a whole tracklist to file.
@@ -29,12 +30,15 @@
 	 */
 	bool jspf_write(char *file, struct track_list *list);
 
-	/** \brief Read a JSPF playlist to a track_list
+	/** \brief Read a JSPF playlist to a track_list.
 	 *
 	 *  \param file  The file to read from
-	 *  \return      The track_list containing data from `file` (or an empty list in case of error)
+	 *  \return
+	 *     * a `track_list` containing the data from `file`
+	 *     * an empty `track_list` if `file` cannot be read (p.x. missing)
+	 *     * `NULL`: if `malloc` failed
 	 */
-	struct track_list* jspf_read(char *file);
+	struct track_list* jspf_read(char *file) ATTR(nonnull);
 
 	/** \brief Return a descriptive message for the error occured in the last call to jspf_*
 	 *

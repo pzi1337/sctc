@@ -177,6 +177,7 @@ static void yajl_to_track(yajl_val parent, struct track *track) {
 struct track_list* jspf_read(char *path) {
 	struct track_list *list = lcalloc(1, sizeof(struct track_list));
 	if(!list) {
+		last_error = "*alloc failed";
 		return NULL;
 	}
 

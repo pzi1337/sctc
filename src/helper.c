@@ -45,10 +45,17 @@ char* smprintf(char *fmt, ...) {
 	int required_size = vsnprintf(NULL, 0, fmt, ap);
 	va_end(ap);
 
+	// check for output error
+	if(0 > required_size) {
+		return NULL;
+	}
+
+	size_t buffer_size = ((unsigned int) required_size) + 1;
+
 	va_list aq;
 	va_start(aq, fmt);
-	char *buffer = lcalloc(sizeof(char), required_size + 1);
-	vsnprintf(buffer, required_size + 1, fmt, aq);
+	char *buffer = lcalloc(sizeof(char), buffer_size);
+	vsnprintf(buffer, buffer_size, fmt, aq);
 	va_end(aq);
 
 	return buffer;
