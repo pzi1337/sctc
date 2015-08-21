@@ -49,14 +49,24 @@ void state_set_volume(unsigned int volume) { _volume = volume; CALL_CALLBACK(cbe
 
 static enum repeat  _repeat     = rep_none; ///< the repeat state, one out of (none, one, all)
 static char        *_title_text = NULL;
-static char        *_input = NULL;
+static char        *_input      = NULL;
 
-enum   repeat      state_get_repeat(void)        { return _repeat; }
-char*              state_get_title_text(void)    { return _title_text; }
-char*              state_get_input(void)         { return _input; }
+enum repeat state_get_repeat(void)     { return _repeat; }
+char*       state_get_title_text(void) { return _title_text; }
+char*       state_get_input(void)      { return _input; }
 
-void state_set_repeat(enum repeat repeat)       { _repeat       = repeat; CALL_CALLBACK(cbe_repeat_modified); }
-void state_set_title(char *text)                { _title_text   = text;   CALL_CALLBACK(cbe_titlebar_modified); }
+void state_set_repeat(enum repeat repeat) {
+	_repeat = repeat;
+	CALL_CALLBACK(cbe_repeat_modified);
+}
+
+void state_set_title(char *text) {
+	assert(text && "text must not be NULL");
+
+	_title_text = text;
+
+	CALL_CALLBACK(cbe_titlebar_modified);
+}
 
 /**************
 * SUGGESTIONS *
@@ -64,8 +74,8 @@ void state_set_title(char *text)                { _title_text   = text;   CALL_C
 struct command *_commands = NULL;
 static size_t   _sugg_selected = 0;
 
-struct command*    state_get_commands(void)      { return _commands; }
-size_t             state_get_sugg_selected(void) { return _sugg_selected; }
+struct command*  state_get_commands(void)      { return _commands; }
+size_t           state_get_sugg_selected(void) { return _sugg_selected; }
 
 void state_set_commands(struct command *commands) {
 	_commands = commands;
@@ -98,12 +108,7 @@ void state_set_tb_pos(size_t pos) {
 }
 
 void state_set_tb_pos_rel(int delta) {
-	if(delta < 0) {
-		textbox.pos = textbox.pos < (unsigned int) (-delta) ? 0 : textbox.pos + delta;
-	} else {
-		textbox.pos += delta;
-	}
-
+	textbox.pos = add_delta_within_limits(textbox.pos, delta, SIZE_MAX);
 	CALL_CALLBACK(cbe_textbox_modified);
 }
 
@@ -145,6 +150,8 @@ void state_set_current_list(size_t list) {
 }
 
 void state_add_list(struct track_list *_list) {
+	assert(_list && "_list must not be NULL");
+
 	size_t pos;
 	for(pos = 0; pos < MAX_LISTS && lists[pos].list; pos++);
 	if(MAX_LISTS == pos) return;
@@ -168,20 +175,6 @@ void state_set_current_position(size_t pos) {
 	lists[_current_list].position = pos;
 }
 
-void state_set_current_selected_rel(int delta) {
-	lists[_current_list].old_selected = lists[_current_list].selected;
-	if(delta < 0) {
-		lists[_current_list].selected = lists[_current_list].selected < (unsigned int) (-delta) ? 0 : lists[_current_list].selected + delta;
-	} else {
-		lists[_current_list].selected += delta;
-		if(lists[_current_list].selected >= lists[_current_list].list->count) {
-			lists[_current_list].selected = lists[_current_list].list->count - 1;
-		}
-	}
-
-	CALL_CALLBACK(cbe_list_modified);
-}
-
 /*******************
 * CURRENT PLAYBACK *
 *******************/
@@ -189,7 +182,7 @@ static struct current_playback {
 	size_t list;
 	size_t track;
 	size_t time;
-} current_playback = {.list = ~0, .track = ~0, .time = 0};
+} current_playback = {.list = (size_t) ~0l, .track = (size_t) ~0l, .time = (size_t) 0l};
 
 void state_set_current_playback(size_t list, size_t track) {
 	current_playback.list  = list;
@@ -211,6 +204,8 @@ static struct {
 } status_line = { NULL };
 
 void state_set_status(enum color color, char *text) {
+	assert(text && "text must not be NULL");
+
 	status_line.text  = text;
 	status_line.color = color;
 
@@ -224,6 +219,7 @@ enum color state_get_status_color(void) { return status_line.color; }
 * MISC *
 *******/
 void state_register_callback(enum callback_event evt, void (*cb)(void)) {
+	assert((evt < callback_event_size) && "ERROR: evt is not within valid range");
 	assert(!callbacks[evt] && "ERROR: trying to reregister a callback for an event");
 	callbacks[evt] = cb;
 }

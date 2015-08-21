@@ -25,29 +25,40 @@
 	#define LIST_STREAM    0
 	#define LIST_BOOKMARKS 1
 
+	/** \brief Enumeration holding the currently provided events callbacks can be registered for.
+	 *
+	 *  Whenever the internal state is modified (by calling one of the `state_set_*()` functions,
+	 *  any callbacks associated to the modified part of the state are called (if any).
+	 *
+	 *  In the most cases these functions do redrawing / updating the current screen in order to 
+	 *  provide the updated information.
+	 *
+	 *  \see `state_register_callback()`
+	 */
 	enum callback_event {
-		cbe_textbox_modified = 0,
-		cbe_repeat_modified, 
-		cbe_tabs_modified,
-		cbe_titlebar_modified,
-		cbe_statusbar_modified,
-		cbe_input_modified,
-		cbe_sugg_modified,
-		cbe_list_modified,
-		callback_event_size
+		cbe_textbox_modified = 0, ///< Event triggerd if a **textbox** was modified
+		cbe_repeat_modified,      ///< Event triggerd if the **repeat mode** was modified 
+		cbe_tabs_modified,        ///< Event triggerd if the **tabs** were modified (p.x. a new list, a list removed)
+		cbe_titlebar_modified,    ///< Event triggerd if the **titlebar** was modified
+		cbe_statusbar_modified,   ///< Event triggerd if the **statusbar** was modified
+		cbe_input_modified,       ///< Event triggerd if the **input** was modified
+		cbe_sugg_modified,        ///< Event triggerd if the **list of suggestions** was modified
+		cbe_list_modified,        ///< Event triggerd if the **contents of a list** were modified was modified
+		callback_event_size       ///< The number of elements within this enumeration
 	};
 
-	unsigned int state_get_volume(void);
-	void state_set_volume(unsigned int volume);
+	enum repeat {
+		rep_none, ///< Repeating is disabled
+		rep_one,  ///< Repeating the current track
+		rep_all   ///< Repeating the whole list
+	};
 
-	enum repeat {rep_none, rep_one, rep_all};
-
-	void state_add_list(struct track_list *_list);
-
-	/** \addtogroup state_get State: Getter
+	/** \brief Getter functions for the internal state.
+	 *  \name Getter
 	 *
-	 *  @{
+	 *  Functions returning the internal state, do not insist modifying memory returned by any of those functions.
 	 */
+	///@{
 	/** \brief Get the id of the currently displayed list
 	 *  \return id of the currently displayed list
 	 */
@@ -98,7 +109,8 @@
 	size_t             state_get_sugg_selected(void);
 	size_t             state_get_current_playback_list(void);
 	size_t             state_get_current_playback_track(void);
-	/** @}*/
+	unsigned int       state_get_volume(void);
+	///@}
 
 	/** \brief Global initialization of the internal state of SCTC.
 	 *
@@ -109,27 +121,133 @@
 	 */
 	bool state_init(void);
 
-	/** \addtogroup state_set State: Setter
+	/** \brief Setter functions for the internal state.
+	 *  \name Setter
 	 *
-	 *  @{
+	 *  These functions automatically call the associated callback, if registered via `state_register_callback()`.
+	 *  \see `enum callback_event`
+	 *  \see `state_register_callback()`
 	 */
-	void state_set_commands    (struct command *commands);
-	void state_set_current_list(size_t              list);
+	///@{
+
+	/** \brief Add a new tracklist to the currently visible lists
+	 *
+	 *  \warning This function may fail silently if already `MAX_LISTS` are shown.
+	 *  \see _hard_config.h
+	 *  \see `MAX_LISTS`
+	 *
+	 *  \todo Silent failing most probably no good idea...
+	 *
+	 *  \param _list  The list to add to the list of currently visible lists (may not be `NULL`)
+	 *
+	 *  \remark Triggers `cbe_tabs_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_add_list(struct track_list *_list) ATTR(nonnull);
+
+	/** \brief Set a list of currently applicable commands
+	 *
+	 *  \param commands  The list of commands, may be `NULL` if nothing should be shown
+	 *
+	 *  \remark Triggers `cbe_sugg_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_set_commands(struct command *commands);
+
+	/** \brief Set the id of the currently visible list
+	 *
+	 *  \param list  The id of the currently visible list
+	 *
+	 *  \remark Triggers `cbe_tabs_modified` **and** `cbe_list_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_set_current_list(size_t list);
+
+	/** \brief Sets the position (= the first track shown) within the current list
+	 *
+	 *  \param pos  The position within the list
+	 *
+	 *  \remark Triggers **nothing**
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
 	void state_set_current_position(size_t pos);
+
+	/** \brief Sets the currently selected track and updates the old_selected track
+	 *
+	 *  \param selected  The id of the currently seelcted track
+	 *
+	 *  \remark Triggers `cbe_list_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
 	void state_set_current_selected(size_t selected);
-	void state_set_current_selected_rel(int delta);
-	void state_set_repeat      (enum   repeat       repeat);
-	void state_set_title       (char *title_line_text);
-	void state_set_status      (enum color color, char *text);
-	void state_set_tb          (char *title, char *text);
+
+	/** \brief Set the current repeat state
+	 *
+	 *  \param repeat  The new repeat state
+	 *
+	 *  \remark Triggers `cbe_repeat_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_set_repeat(enum repeat repeat);
+
+	/** \brief Set the text shown in the titlebar
+	 *
+	 *  \param text  The new text to be shown in the titlebar (must not be `NULL`)
+	 *
+	 *  \remark Triggers `cbe_titlebar_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_set_title(char *text) ATTR(nonnull);
+
+	/** \brief Set the text shown in the statusbar
+	 *
+	 *  \param color  The color of the new text
+	 *  \param text   The new text to be shown in the titlebar (must not be `NULL`)
+	 *
+	 *  \remark Triggers `cbe_statusbar_modified`
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
+	void state_set_status(enum color color, char *text);
+
+	/** \brief Set the current playback time (of the current track)
+	 *
+	 *  \param time  The time
+	 *
+	 *  \remark Triggers **nothing**
+	 *  \see `state_register_callback()`
+	 *  \see `enum callback_event`
+	 */
 	void state_set_current_time(size_t time);
+
 	void state_set_sugg_selected(size_t selected);
+
+	void state_set_tb          (char *title, char *text);
 	void state_set_tb_pos      (size_t pos);
 	void state_set_tb_pos_rel  (int delta);
 	void state_set_current_playback(size_t list, size_t track);
-	/** @}*/
+	void state_set_volume(unsigned int volume);
+	///@}
 
-
+	/** \brief Register a callback for a specific event.
+	 *
+	 *  This function allows registration of a callback function for any callback events specified in
+	 *  `enum callback_event`.
+	 *
+	 *  **Do not try to call `state_register_callback()` a second time with the same callback event**
+	 *
+	 *  Once a callback is registered it cannot be modified or deleted.
+	 *
+	 *  \param evt  The event to register the callback for (`callback_event_size` is not valid here)
+	 *  \param cb   The function to be called in case of event
+	 */
 	void state_register_callback(enum callback_event evt, void (*cb)(void));
 
 	#define NOTHING_SELECTED ((unsigned int) ~0)
