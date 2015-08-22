@@ -240,6 +240,8 @@ bool downloader_init(void) {
 	return true;
 }
 
+/** \brief Shutdown the downloader.
+ */
 static void downloader_finalize(void) {
 	terminate = true;
 
