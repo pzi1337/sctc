@@ -420,7 +420,7 @@ static void search_direction(bool down) {
 	const int step = down ? 1 : -1;
 
 	size_t current = state_get_current_selected();
-	while(current > 0 && current < list->count - 1) {
+	while( (down && current < list->count - 1) || (!down && current > 0) ) {
 		current += step;
 
 		if(strcasestr(TRACK(list, current)->name, state_get_input())) {
