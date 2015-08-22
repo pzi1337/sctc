@@ -40,7 +40,9 @@
 
 static void downloader_finalize(void);
 
+static bool thread_valid[MAX_PARALLEL_DOWNLOADS] = {false};
 static pthread_t threads[MAX_PARALLEL_DOWNLOADS];
+
 static sem_t have_url;
 static sem_t sem_url_queue;
 
@@ -226,15 +228,44 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 }
 
 bool downloader_init(void) {
-	assert(!sem_init(&have_url, 0, 0));
-	assert(!sem_init(&sem_url_queue, 0, 1));
+	if(sem_init(&have_url, 0, 0)) {
+		_err("sem_init: %s", strerror(errno));
+		return false;
+	}
 
+	if(sem_init(&sem_url_queue, 0, 1)) {
+		_err("sem_init: %s", strerror(errno));
+		sem_destroy(&have_url);
+		return false;
+	}
+
+	// try to start MAX_PARALLEL_DOWNLOADS threads,
+	// but continue if at least one thread was started
+	size_t valid_thread_count = 0;
 	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++) {
-		pthread_create(&threads[i], NULL, _download_thread, NULL);
+		int err = pthread_create(&threads[i], NULL, _download_thread, NULL);
+		if(!err) {
+			thread_valid[i] = true;
+			valid_thread_count++;
+		} else {
+			_err("pthread_create: %s", strerror(err));
+		}
+	}
+
+	if(MAX_PARALLEL_DOWNLOADS != valid_thread_count) {
+		if(valid_thread_count) {
+			_log("tried to start %i threads, but only managed to start %zu threads", MAX_PARALLEL_DOWNLOADS, valid_thread_count);
+		} else {
+			_err("failed to start any threads...");
+			downloader_finalize();
+			return false;
+		}
 	}
 
 	if(atexit(downloader_finalize)) {
-		_log("atexit: %s", strerror(errno));
+		_err("atexit: %s", strerror(errno));
+		downloader_finalize();
+		return false;
 	}
 
 	return true;
@@ -245,11 +276,17 @@ bool downloader_init(void) {
 static void downloader_finalize(void) {
 	terminate = true;
 
-	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++)
-		sem_post(&have_url);
+	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++) {
+		if(thread_valid[i]) {
+			sem_post(&have_url);
+		}
+	}
 
-	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++)
-		pthread_join(threads[i], NULL);
+	for(size_t i = 0; i < MAX_PARALLEL_DOWNLOADS; i++) {
+		if(thread_valid[i]) {
+			pthread_join(threads[i], NULL);
+		}
+	}
 
 	sem_destroy(&have_url);
 	sem_destroy(&sem_url_queue);
