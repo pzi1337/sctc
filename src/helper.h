@@ -213,4 +213,28 @@
 	void file_release_contents(struct mmapped_file file);
 
 	size_t add_delta_within_limits(size_t base, int delta, size_t upper_limit);
+
+	/** \brief Parse a string containing a relative or absolute position
+	 *
+	 *  Parse a string containing a relative or absolute position.
+	 *
+	 *  Expected format for **relative positions**:
+	 *   - prefixed with either `+` or `-`
+	 *   - followed by:
+	 *     - a positive integer: returns pos_cur + integer (capped to `[0; pos_max]`)
+	 *     - a positive float: returns pos_cur + page_size * float (capped to `[0; pos_max]`)
+	 *
+	 *  Expected format for **absolute positions**:
+	 *   - any positive integer (will be capped to `[0; pos_max]`)
+	 *   - "end" (`pos_max` will be returned)
+	 *
+	 *  Any leading or trailing whitespaces will be ignored.
+	 *
+	 *  \param pos_req    The string to be parsed
+	 *  \param pos_cur    The current position (used as base for relative positions)
+	 *  \param pos_max    The maximum allowed position (to avoid going `behind` the list/...), `< SIZE_MAX`
+	 *  \param page_size  The size of one page (in case of a relative float position)
+	 *  \return           The resulting absolute position in [0; pos_max], or `SIZE_MAX` if parsing failed
+	 */
+	size_t parse_position(char *pos_req, size_t pos_cur, size_t pos_max, size_t page_size);
 #endif /* _HELPER_H */

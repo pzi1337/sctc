@@ -349,6 +349,41 @@ size_t add_delta_within_limits(size_t base, int delta, size_t upper_limit) {
 	}
 }
 
+size_t parse_position(char *pos_req, size_t pos_cur, size_t pos_max, size_t page_size) {
+	astrdup(pos, pos_req);
+	char *target = strstrp(pos);
+
+	assert(pos_max < SIZE_MAX && "ERROR: pos_max == SIZE_MAX");
+
+	if(streq("end", target)) {
+		// special position `end`: the end of list/text/whatever
+		return pos_max;
+	} else if('+' == *target || '-' == *target) {
+		// relative (to current position) position
+
+		if(NULL != strchr(target, '.')) {
+			float pages = 0;
+			if(1 == sscanf(target, " %16f ", &pages)) {
+				int delta = (int) (pages * (float) page_size);
+				return add_delta_within_limits(pos_cur, delta, pos_max);
+			}
+		} else {
+			int delta;
+			if(1 == sscanf(target, " %16d ", &delta)) {
+				return add_delta_within_limits(pos_cur, delta, pos_max);
+			}
+		}
+	} else {
+		// absolute position
+		size_t abs;
+		if(1 == sscanf(target, " %8zu ", &abs)) {
+			return abs;
+		}
+	}
+
+	return SIZE_MAX;
+}
+
 // suppress warning regarding the cast (const void*) to (void*)
 // mmapped files are mapped ro, therefore a const can be used
 // to warn about writing to that memory.
