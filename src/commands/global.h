@@ -16,33 +16,22 @@
 	along with this program.  If not, see <http://www.gnu.org/licenses/>
 */
 
-#ifndef _COMMAND_H
-	#define _COMMAND_H
+#ifndef _COMMANDS_GLOBAL_H
+	#define _COMMANDS_GLOBAL_H
 
-	//\cond
-	#include <stddef.h>                     // for size_t
-	//\endcond
+	#include "../_hard_config.h"
 
-	typedef void (*command_func_ptr)(const char*);
+	void cmd_volume(const char *_hint) ATTR(nonnull);
+	void cmd_pause(const char *unused UNUSED);
+	void cmd_stop(const char *unused UNUSED);
 
-	#include "config.h"
-
-	struct command {
-		const char  *name;
-		command_func_ptr func;
-		enum scope   valid_scope;
-		const char  *desc_param;
-		const char  *desc;
-	};
-
-	extern const struct command commands[];
-	extern const size_t command_count;
-
-	/** \brief Find the corresponding `struct command` for a given string
-	 *
-	 *  \param input  The string to search for
-	 *  \param scope  The scope to search in
-	 *  \return       The matching `struct command` (or `NULL` if nothing matches)
+	/** \brief Issue a redraw of the whole screen
 	 */
-	const struct command* command_search(const char *input, enum scope scope);
+	void cmd_redraw(const char *unused UNUSED);
+
+	/** \brief Set repeat to 'rep'
+	 *
+	 *  \param rep  The type of repeat to use (one in {none,one,all})
+	 */
+	void cmd_repeat(const char *_rep);
 #endif

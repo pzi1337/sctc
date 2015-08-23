@@ -31,6 +31,7 @@
 #include <ncurses.h>                    // for getch
 //\cond
 #include <stddef.h>                     // for NULL, size_t
+#include <string.h>
 //\endcond
 
 #include "commands/global.h"            // for cmd_pause, cmd_redraw, etc
@@ -75,6 +76,7 @@ const struct command commands[] = {
 	{"stop",          cmd_stop,           scope_global,   "<none/ignored>",                "Stop playback of current track"},
 	{"vol",           cmd_volume,         scope_global,   "<delta (in percent)>",          "modify playback volume by given percentage"},
 	{"write",         cmd_write_playlist, scope_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},
+	{"yank",          cmd_tb_yank,        scope_textbox,  "<none/ignored>",                "MISSING"},
 	{"yank",          cmd_yank,           scope_playlist, "<none/ignored>",                "Copy URL of currently selected track to clipboard"},
 	{NULL, NULL, 0, NULL, NULL}
 };
@@ -111,3 +113,21 @@ void handle_textbox(void) { // TODO
 	}
 }
 
+const struct command* command_search(const char *input, enum scope scope) {
+	const size_t in_len = strlen(input);
+
+	for(size_t i = 0; commands[i].name; i++) {
+		if(scope != commands[i].valid_scope && scope_global != commands[i].valid_scope) {
+			continue;
+		}
+
+		const size_t cmd_len = strlen(commands[i].name);
+
+		if(in_len >= cmd_len) {
+			if(!strncmp(commands[i].name, input, cmd_len)) {
+				return &commands[i];
+			}
+		}
+	}
+	return NULL;
+}

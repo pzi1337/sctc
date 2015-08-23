@@ -92,29 +92,12 @@ static int get_curses_ch(const char *str) {
 	if(streq("KEY_NPAGE",     str)) return KEY_NPAGE;
 	if(streq("KEY_SLEFT",     str)) return KEY_SLEFT;
 	if(streq("KEY_SRIGHT",    str)) return KEY_SRIGHT;
+	if(streq("KEY_HOME",      str)) return KEY_HOME;
+	if(streq("KEY_END",       str)) return KEY_END;
 
 	return ERR;
 }
 
-/** \brief Find the corresponding `struct command` for a given string
- *
- *  \param input  The string to search for
- *  \return       The matching `struct command` (or `NULL` if nothing matches)
- */
-static const struct command* get_cmd_by_name(const char *input) {
-	const size_t in_len = strlen(input);
-
-	for(size_t i = 0; commands[i].name; i++) {
-		const size_t cmd_len = strlen(commands[i].name);
-
-		if(in_len >= cmd_len) {
-			if(!strncmp(commands[i].name, input, cmd_len)) {
-				return &commands[i];
-			}
-		}
-	}
-	return NULL;
-}
 
 static unsigned int kcm_count = 0;
 
@@ -133,7 +116,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	}
 
 	// search for scope
-	unsigned int scope;
+	enum scope scope;
 	for(scope = 0; scope < scope_size; scope++) {
 		if(streq(argv[0], scopes[scope])) {
 			break;
@@ -152,14 +135,9 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	}
 
 	// search for function to call
-	const struct command *cmd = get_cmd_by_name(argv[2]);
+	const struct command *cmd = command_search(argv[2], scope);
 	if(!cmd) {
-		_log("Unknown command '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[1], argv[2]);
-		return 0;
-	}
-
-	if(cmd->valid_scope != scope && cmd->valid_scope != scope_global) {
-		_log("Command '%s' cannot be used in scope '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[1], argv[0], argv[0], argv[1], argv[2]);
+		_log("Command '%s' is not known in scope '%s', ommiting `map(\"%s\", \"%s\", \"%s\")`", argv[0], argv[1], argv[0], argv[1], argv[2]);
 		return 0;
 	}
 

@@ -216,8 +216,6 @@
 
 	/** \brief Parse a string containing a relative or absolute position
 	 *
-	 *  Parse a string containing a relative or absolute position.
-	 *
 	 *  Expected format for **relative positions**:
 	 *   - prefixed with either `+` or `-`
 	 *   - followed by:
