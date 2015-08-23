@@ -21,7 +21,6 @@
 
 	//\cond
 	#include <stddef.h>                     // for size_t
-	#include <stdint.h>
 	//\endcond
 
 	typedef void (*command_func_ptr)(const char*);
