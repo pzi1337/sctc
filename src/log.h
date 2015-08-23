@@ -72,7 +72,7 @@
 	 *  \param srcfile   The file executing the call to __log(); filled by macro _log(), do not use "by hand"
 	 *  \param srcline   The line in the file executing the call to __log(); filled by macro _log(), do not use "by hand"
 	 *  \param srcfunc   The function callint __log(); filled by macro _log(), do not use "by hand"
-	 *  \param is_error  If set to true, the message will be printed in read
+	 *  \param is_error  If set to true, the message will be printed in red
 	 *  \param fmt       The format used format the line, see man 3 printf for usage.
 	 */
 	void __log(const char *srcfile, int srcline, const char *srcfunc, bool is_error, const char *fmt, ...) ATTR(format (printf, 5, 6));
