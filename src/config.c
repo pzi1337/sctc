@@ -166,8 +166,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	kcm_count++;
 	_log("| * mapping key \"%s\"(%i) to command \"%s\" (param: \"%s\")", argv[1], key, argv[2], argv[2] + strlen(cmd->name));
 	key_command_mapping[scope][key].func  = cmd->func;
-	const char *param = argv[2] + strlen(cmd->name);
-	if(strcmp("", param)) key_command_mapping[scope][key].param = lstrdup(param);
+	key_command_mapping[scope][key].param = lstrdup( argv[2] + strlen(cmd->name) );
 
 	return 0;
 }
