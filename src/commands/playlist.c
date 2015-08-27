@@ -29,6 +29,7 @@
 #include <stdlib.h>                     // for NULL, free, exit, strtol, etc
 #include <string.h>                     // for strlen, strncmp, memcpy, etc
 //\endcond
+#include "textbox.h"
 #include "../command.h"                 // for command, commands, etc
 #include "../jspf.h"                    // for jspf_write, jspf_error
 #include "../log.h"                     // for _log
@@ -52,6 +53,7 @@ static void search_direction(bool down);
 static void command_dispatcher(char *command);
 static bool handle_command(char *buffer, size_t buffer_size);
 static size_t submit_updated_suggestion_list(struct command *buffer, char *filter);
+static void handle_textbox(void);
 
 /** \todo a) does not belong here\n b) does not work */
 void cmd_download(const char *unused UNUSED) { // TODO!
@@ -641,3 +643,33 @@ static bool handle_command(char *buffer, size_t buffer_size) {
 	return false; // never reached
 }
 
+/** \brief Handle input for a textbox
+ *
+ *  Handles user's input for a textbox, such as `scroll up`, `scroll down`
+ *  and `close textbox`.
+ */
+void handle_textbox(void) {
+	int c;
+	while( (c = getch()) ) {
+		command_func_ptr func = config_get_function(scope_textbox, c);
+		if(func) {
+			func(config_get_param(scope_textbox, c));
+			if(func == cmd_close) {
+				return;
+			}
+		} else {
+			if('0' <= c && c <= '9') {
+				unsigned int idx = c - '0';
+				struct track_list *list = state_get_list(state_get_current_list());
+				size_t current_selected = state_get_current_selected();
+
+				size_t url_count = TRACK(list, current_selected)->url_count;
+				char **urls = TRACK(list, current_selected)->urls;
+
+				if(idx < url_count) {
+					fork_and_run("xdg-open", urls[idx]);
+				}
+			}
+		}
+	}
+}

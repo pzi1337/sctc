@@ -42,8 +42,6 @@
 #include "state.h"                      // for state_get_current_list, etc
 #include "track.h"                      // for track, track_list, TRACK, etc
 
-void handle_textbox(void); // TODO
-
 /** \brief Array of all commands supported by SCTC.
  *
  *  Includes a description, which is, for instance, shown in the commandwindow, and the function to call in
@@ -81,37 +79,6 @@ const struct command commands[] = {
 	{NULL, NULL, 0, NULL, NULL}
 };
 const size_t command_count = sizeof(commands) / sizeof(struct command) - 1;
-
-/** \brief Handle input for a textbox
- *
- *  Handles user's input for a textbox, such as `scroll up`, `scroll down`
- *  and `close textbox`.
- */
-void handle_textbox(void) { // TODO
-	int c;
-	while( (c = getch()) ) {
-		command_func_ptr func = config_get_function(scope_textbox, c);
-		if(func) {
-			func(config_get_param(scope_textbox, c));
-			if(func == cmd_close) {
-				return;
-			}
-		} else {
-			if('0' <= c && c <= '9') {
-				unsigned int idx = c - '0';
-				struct track_list *list = state_get_list(state_get_current_list());
-				size_t current_selected = state_get_current_selected();
-
-				size_t url_count = TRACK(list, current_selected)->url_count;
-				char **urls = TRACK(list, current_selected)->urls;
-
-				if(idx < url_count) {
-					fork_and_run("xdg-open", urls[idx]);
-				}
-			}
-		}
-	}
-}
 
 const struct command* command_search(const char *input, enum scope scope) {
 	const size_t in_len = strlen(input);
