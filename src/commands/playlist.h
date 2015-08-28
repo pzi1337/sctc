@@ -21,23 +21,23 @@
 
 	#include "../_hard_config.h"
 
-	void cmd_add           (const char *_list) ATTR(nonnull);
-	void cmd_command_input (const char *unused UNUSED);
-	void cmd_play          (const char *unused UNUSED);
-	void cmd_goto          (const char *_hint) ATTR(nonnull);
-	void cmd_del           (const char *unused UNUSED);
-	void cmd_details       (const char *unused UNUSED);
-	void cmd_search_next   (const char *unused UNUSED);
-	void cmd_search_prev   (const char *unused UNUSED);
-	void cmd_search_start  (const char *unused UNUSED);
-	void cmd_open_user     (const char *_user) ATTR(nonnull);
+	void cmd_pl_add           (const char *_list) ATTR(nonnull);
+	void cmd_pl_command_input (const char *unused UNUSED);
+	void cmd_pl_play          (const char *unused UNUSED);
+	void cmd_pl_goto          (const char *_hint) ATTR(nonnull);
+	void cmd_pl_del           (const char *unused UNUSED);
+	void cmd_pl_details       (const char *unused UNUSED);
+	void cmd_pl_search_next   (const char *unused UNUSED);
+	void cmd_pl_search_prev   (const char *unused UNUSED);
+	void cmd_pl_search_start  (const char *unused UNUSED);
+	void cmd_pl_open_user     (const char *_user) ATTR(nonnull);
 
-	void cmd_list_new      (const char *_name) ATTR(nonnull);
-	void cmd_write_playlist(const char *_file) ATTR(nonnull);
-	void cmd_list          (const char *list)  ATTR(nonnull);
-	void cmd_seek          (const char *time)  ATTR(nonnull);
-	void cmd_download      (const char *unused UNUSED);
-	void cmd_exit          (const char *unused UNUSED) ATTR(noreturn);
-	void cmd_help          (const char *unused UNUSED);
-	void cmd_yank          (const char *unused UNUSED);
+	void cmd_pl_list_new      (const char *_name) ATTR(nonnull);
+	void cmd_pl_write_playlist(const char *_file) ATTR(nonnull);
+	void cmd_pl_list          (const char *list)  ATTR(nonnull);
+	void cmd_pl_seek          (const char *time)  ATTR(nonnull);
+	void cmd_pl_download      (const char *unused UNUSED);
+	void cmd_pl_exit          (const char *unused UNUSED) ATTR(noreturn);
+	void cmd_pl_help          (const char *unused UNUSED);
+	void cmd_pl_yank          (const char *unused UNUSED);
 #endif

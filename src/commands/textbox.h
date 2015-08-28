@@ -25,13 +25,13 @@
 	 * 
 	 *  \param unused  Ignored/Unused parameter (due to interface)
 	 */
-	void cmd_close(const char *unused UNUSED) ATTR(nonnull);
+	void cmd_tb_close(const char *unused UNUSED) ATTR(nonnull);
 
 	/** \brief Scroll a textbox (up or down)
 	 * 
 	 *  \param 
 	 */
-	void cmd_scroll(const char *_hint) ATTR(nonnull);
+	void cmd_tb_scroll(const char *_hint) ATTR(nonnull);
 
 	/** \brief
 	 * 

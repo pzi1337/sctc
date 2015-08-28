@@ -21,17 +21,17 @@
 
 	#include "../_hard_config.h"
 
-	void cmd_volume(const char *_hint) ATTR(nonnull);
-	void cmd_pause(const char *unused UNUSED);
-	void cmd_stop(const char *unused UNUSED);
+	void cmd_gl_volume(const char *_hint) ATTR(nonnull);
+	void cmd_gl_pause(const char *unused UNUSED);
+	void cmd_gl_stop(const char *unused UNUSED);
 
 	/** \brief Issue a redraw of the whole screen
 	 */
-	void cmd_redraw(const char *unused UNUSED);
+	void cmd_gl_redraw(const char *unused UNUSED);
 
 	/** \brief Set repeat to 'rep'
 	 *
 	 *  \param rep  The type of repeat to use (one in {none,one,all})
 	 */
-	void cmd_repeat(const char *_rep);
+	void cmd_gl_repeat(const char *_rep);
 #endif

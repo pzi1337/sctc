@@ -45,7 +45,7 @@ void cmd_tb_yank(const char *_hint) {
 	}
 }
 
-void cmd_scroll(const char *pos) {
+void cmd_tb_scroll(const char *pos) {
 	astrdup(_pos, pos);
 	char *target = strstrp(_pos);
 
@@ -59,7 +59,7 @@ void cmd_scroll(const char *pos) {
 	}
 }
 
-void cmd_close(const char *unused UNUSED) {
+void cmd_tb_close(const char *unused UNUSED) {
 	state_set_tb_pos(0);
 	state_set_tb(NULL, NULL);
 }

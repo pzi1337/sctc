@@ -56,11 +56,11 @@ static size_t submit_updated_suggestion_list(struct command *buffer, char *filte
 static void handle_textbox(void);
 
 /** \todo a) does not belong here\n b) does not work */
-void cmd_download(const char *unused UNUSED) { // TODO!
+void cmd_pl_download(const char *unused UNUSED) { // TODO!
 	state_set_status(cline_warning, "Error: Downloading not yet implemented");
 }
 
-void cmd_list_new(const char *_name) {
+void cmd_pl_list_new(const char *_name) {
 	astrdup(tname, _name);
 	char *name = strstrp(tname);
 
@@ -72,7 +72,7 @@ void cmd_list_new(const char *_name) {
 	}
 }
 
-void cmd_write_playlist(const char *_file) {
+void cmd_pl_write_playlist(const char *_file) {
 	astrdup(tfile, _file);
 	char *file = strstrp(tfile);
 	struct track_list *list = state_get_list(state_get_current_list());
@@ -89,7 +89,7 @@ void cmd_write_playlist(const char *_file) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-void cmd_exit(const char *unused UNUSED) {
+void cmd_pl_exit(const char *unused UNUSED) {
 	jspf_write(BOOKMARK_FILE, state_get_list(LIST_BOOKMARKS));
 
 	char *cache_path = config_get_cache_path();
@@ -116,14 +116,14 @@ void cmd_exit(const char *unused UNUSED) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-void cmd_help(const char *unused UNUSED) {
+void cmd_pl_help(const char *unused UNUSED) {
 	char *help_msg = LOGO_PART PARAGRAPH_PART DESCRIPTION_PART PARAGRAPH_PART ALPHA_PART PARAGRAPH_PART FEATURE_PART PARAGRAPH_PART NONFEATURE_PART PARAGRAPH_PART KNOWN_BUGS_PART PARAGRAPH_PART LICENSE_PART;
 
 	state_set_tb("Help / About", help_msg);
 	handle_textbox();
 }
 
-void cmd_yank(const char *unused UNUSED) {
+void cmd_pl_yank(const char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
@@ -154,7 +154,7 @@ static void switch_to_list(unsigned int id) {
  *
  *  \param list  The id of the playlist to switch to
  */
-void cmd_list(const char *list) {
+void cmd_pl_list(const char *list) {
 	unsigned int list_id;
 
 	if(1 == sscanf(list, " %8u ", &list_id)) {
@@ -164,7 +164,7 @@ void cmd_list(const char *list) {
 	}
 }
 
-void cmd_add(const char *_list) {
+void cmd_pl_add(const char *_list) {
 	unsigned int list_id = NONE;
 	if(1 != sscanf(_list, " %8u ", &list_id)) {
 		state_set_status(cline_warning, smprintf("Error: "F_BOLD"%s"F_RESET" is not numeric, expecting ID of playlist", _list));
@@ -201,7 +201,7 @@ void cmd_add(const char *_list) {
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
-void cmd_seek(const char *_time) {
+void cmd_pl_seek(const char *_time) {
 	astrdup(time, _time);
 	char *seekto = strstrp(time);
 	unsigned int new_abs = INVALID_TIME;
@@ -230,7 +230,7 @@ void cmd_seek(const char *_time) {
 }
 
 
-void cmd_open_user(const char *_user) {
+void cmd_pl_open_user(const char *_user) {
 	astrdup(tuser, _user);
 	char *user = strstrp(tuser);
 	state_set_status(cline_default, smprintf("Info: Switching to "F_BOLD"%s"F_RESET"'s channel\n", user));
@@ -253,7 +253,7 @@ void cmd_open_user(const char *_user) {
  *
  *  \param unused  Unused parameter, required due to interface of cmd_* functions
  */
-void cmd_command_input(const char *unused UNUSED) {
+void cmd_pl_command_input(const char *unused UNUSED) {
 	state_set_status(cline_cmd_char, strdup(F_BOLD":"F_RESET));
 
 	char *buffer = state_get_input();
@@ -276,7 +276,7 @@ static void update_flags_stop_playback(struct track_list *list, size_t tid) {
 	}
 }
 
-void cmd_goto(const char *_hint) {
+void cmd_pl_goto(const char *_hint) {
 	astrdup(hint, _hint);
 	char *target = strstrp(hint);
 
@@ -315,7 +315,7 @@ void cmd_goto(const char *_hint) {
 	}
 }
 
-void cmd_del(const char *unused UNUSED) {
+void cmd_pl_del(const char *unused UNUSED) {
 	if(!state_get_current_list()) {
 		state_set_status(cline_warning, "Error: Cannot delete tracks from "F_BOLD"Stream"F_RESET);
 		return;
@@ -337,7 +337,7 @@ void cmd_del(const char *unused UNUSED) {
 }
 
 
-void cmd_play(const char *unused UNUSED) {
+void cmd_pl_play(const char *unused UNUSED) {
 	size_t current_selected = state_get_current_selected();
 	struct track_list *list = state_get_list(state_get_current_list());
 
@@ -417,17 +417,17 @@ static bool handle_search(char *buffer, size_t buffer_size) {
 	return false; // never reached
 }
 
-void cmd_search_next(const char *unused UNUSED) { search_direction(true);  }
-void cmd_search_prev(const char *unused UNUSED) { search_direction(false); }
+void cmd_pl_search_next(const char *unused UNUSED) { search_direction(true);  }
+void cmd_pl_search_prev(const char *unused UNUSED) { search_direction(false); }
 
-void cmd_search_start(const char *unused UNUSED) {
+void cmd_pl_search_start(const char *unused UNUSED) {
 	state_set_status(cline_cmd_char, F_BOLD"/"F_RESET);
 	handle_search(state_get_input(), 127);
 
-	cmd_search_next(NULL);
+	cmd_pl_search_next(NULL);
 }
 
-void cmd_details(const char *unused UNUSED) {
+void cmd_pl_details(const char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
 
@@ -500,7 +500,7 @@ static void command_dispatcher(char *command) {
 	char *endptr;
 	(void) strtol(command, &endptr, 10);
 	if('\0' == *endptr) {
-		cmd_goto(command);
+		cmd_pl_goto(command);
 		return;
 	}
 
@@ -654,7 +654,7 @@ void handle_textbox(void) {
 		command_func_ptr func = config_get_function(scope_textbox, c);
 		if(func) {
 			func(config_get_param(scope_textbox, c));
-			if(func == cmd_close) {
+			if(func == cmd_tb_close) {
 				return;
 			}
 		} else {

@@ -77,10 +77,10 @@ static void stop_playback(bool reset) {
 	}
 }
 
-void cmd_pause(const char *unused UNUSED) { stop_playback(false); }
-void cmd_stop (const char *unused UNUSED) { stop_playback(true);  }
+void cmd_gl_pause(const char *unused UNUSED) { stop_playback(false); }
+void cmd_gl_stop (const char *unused UNUSED) { stop_playback(true);  }
 
-void cmd_volume(const char *_hint) {
+void cmd_gl_volume(const char *_hint) {
 	astrdup(hint, _hint);
 	char *delta_str = strstrp(hint);
 	int delta;
@@ -92,7 +92,7 @@ void cmd_volume(const char *_hint) {
 	}
 }
 
-void cmd_redraw(const char *unused UNUSED) {
+void cmd_gl_redraw(const char *unused UNUSED) {
 	tui_submit_action(redraw);
 }
 
@@ -100,15 +100,15 @@ void cmd_redraw(const char *unused UNUSED) {
  *
  *  \param rep  The type of repeat to use (one in {none,one,all})
  */
-void cmd_repeat(const char *_rep) {
+void cmd_gl_repeat(const char *_rep) {
 	astrdup(trep, _rep);
 	char *rep = strstrp(trep);
 
 	if(streq("", rep)) {
 		switch(state_get_repeat()) {
-			case rep_none: cmd_repeat("one");  break;
-			case rep_one:  cmd_repeat("all");  break;
-			case rep_all:  cmd_repeat("none"); break;
+			case rep_none: cmd_gl_repeat("one");  break;
+			case rep_one:  cmd_gl_repeat("all");  break;
+			case rep_all:  cmd_gl_repeat("none"); break;
 
 			/* no error-handling default case here, `enum repeat` only has 3 values */
 			default: break;
