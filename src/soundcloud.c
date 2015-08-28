@@ -77,6 +77,53 @@ struct track_list* soundcloud_get_stream(void) {
 	return list;
 }
 
+static struct track_list* parse_single_response(char *resp_body, char **href) {
+	yajl_val node = yajl_helper_parse(resp_body);
+
+	struct track_list *list = lcalloc(1, sizeof(struct track_list));
+	if(!list) {
+		return NULL;
+	}
+
+	yajl_val array = yajl_helper_get_array(node, "collection", NULL);
+	if(array) {
+		list->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
+		list->count   = array->u.array.len;
+		for(size_t i = 0; i < array->u.array.len; i++) {
+
+			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
+			list->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "stream_url",    NULL);
+			list->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);
+			list->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "permalink_url", NULL);
+			list->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "user", "username");
+			list->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "description",   NULL);
+
+			list->entries[i].user_id       = yajl_helper_get_int   (array->u.array.values[i], "user", "id");
+			list->entries[i].track_id      = yajl_helper_get_int   (array->u.array.values[i], "id", NULL);
+
+			list->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration", NULL) / 1000;
+
+			list->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
+
+			char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
+			if(date_str) {
+				struct tm ctime;
+				strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &ctime);
+				list->entries[i].created_at = mktime(&ctime);
+				free(date_str);
+			}
+
+			list->entries[i].flags |= FLAG_NEW;
+		}
+	}
+
+	*href = yajl_helper_get_string(node, "next_href", NULL);
+
+	yajl_tree_free(node);
+
+	return list;
+}
+
 struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) {
 	char *cache_path = config_get_cache_path();
 	char cache_file[strlen(cache_path) + 1 + strlen(CACHE_LIST_FOLDER) + 1 + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
@@ -118,48 +165,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 				break;
 			}
 
-			yajl_val node = yajl_helper_parse(resp->body);
-
-			struct track_list *next_part = lcalloc(1, sizeof(struct track_list));
-			if(!next_part) {
-				return NULL;
-			}
-
-			yajl_val array = yajl_helper_get_array(node, "collection", NULL);
-			if(array) {
-				next_part->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
-				next_part->count   = array->u.array.len;
-				for(size_t i = 0; i < array->u.array.len; i++) {
-
-					next_part->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
-					next_part->entries[i].stream_url    = yajl_helper_get_string(array->u.array.values[i], "stream_url",    NULL);
-					next_part->entries[i].download_url  = yajl_helper_get_string(array->u.array.values[i], "download_url",  NULL);
-					next_part->entries[i].permalink_url = yajl_helper_get_string(array->u.array.values[i], "permalink_url", NULL);
-					next_part->entries[i].username      = yajl_helper_get_string(array->u.array.values[i], "user", "username");
-					next_part->entries[i].description   = yajl_helper_get_string(array->u.array.values[i], "description",   NULL);
-
-					next_part->entries[i].user_id       = yajl_helper_get_int   (array->u.array.values[i], "user", "id");
-					next_part->entries[i].track_id      = yajl_helper_get_int   (array->u.array.values[i], "id", NULL);
-
-					next_part->entries[i].duration      = yajl_helper_get_int   (array->u.array.values[i], "duration", NULL) / 1000;
-
-					next_part->entries[i].url_count     = URL_COUNT_UNINITIALIZED;
-
-					char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
-					if(date_str) {
-						struct tm ctime;
-						strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &ctime);
-						next_part->entries[i].created_at = mktime(&ctime);
-						free(date_str);
-					}
-
-					next_part->entries[i].flags |= FLAG_NEW;
-				}
-			}
-
-			href = yajl_helper_get_string(node, "next_href", NULL);
-
-			yajl_tree_free(node);
+			struct track_list *next_part = parse_single_response(resp->body, &href);
 
 			http_response_destroy(resp);
 
