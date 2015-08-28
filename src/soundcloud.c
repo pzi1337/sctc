@@ -77,18 +77,35 @@ struct track_list* soundcloud_get_stream(void) {
 	return list;
 }
 
-static struct track_list* parse_single_response(char *resp_body, char **href) {
-	yajl_val node = yajl_helper_parse(resp_body);
+/** \brief Parse a single part of a response from soundcloud.com
+ *
+ *  \param [in]  resp  The response to be parsed (expected to be valid JSON)
+ *  \param [out] href  A pointer to a string containing the URL of the subsequent http request
+ *  \returns           A list containing all the tracks from `resp` or `NULL` if an allocation failes
+ */
+static struct track_list* parse_single_response(char *resp, char **href) {
+	// in case any allocation failes we do not have any reference
+	*href = NULL;
+
+	yajl_val node = yajl_helper_parse(resp);
+	if(!node) return NULL;
 
 	struct track_list *list = lcalloc(1, sizeof(struct track_list));
 	if(!list) {
+		yajl_tree_free(node);
 		return NULL;
 	}
 
 	yajl_val array = yajl_helper_get_array(node, "collection", NULL);
 	if(array) {
-		list->entries = lcalloc(array->u.array.len + 1, sizeof(struct track));
-		list->count   = array->u.array.len;
+		list->count = array->u.array.len;
+		list->entries = lcalloc(list->count + 1, sizeof(struct track));
+		if(!list->entries) {
+			free(list);
+			yajl_tree_free(node);
+			return NULL;
+		}
+
 		for(size_t i = 0; i < array->u.array.len; i++) {
 
 			list->entries[i].name          = yajl_helper_get_string(array->u.array.values[i], "title",         NULL);
@@ -120,7 +137,6 @@ static struct track_list* parse_single_response(char *resp_body, char **href) {
 	*href = yajl_helper_get_string(node, "next_href", NULL);
 
 	yajl_tree_free(node);
-
 	return list;
 }
 
