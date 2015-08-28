@@ -336,25 +336,28 @@ void cmd_pl_del(const char *unused UNUSED) {
 	tui_submit_action(update_list);
 }
 
-
 void cmd_pl_play(const char *unused UNUSED) {
 	size_t current_selected = state_get_current_selected();
 	struct track_list *list = state_get_list(state_get_current_list());
 
-	char time_buffer[TIME_BUFFER_SIZE];
-	snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, current_selected)->duration);
+	struct track *track = TRACK(list, current_selected);
+	if(track->stream_url) {
+		char time_buffer[TIME_BUFFER_SIZE];
+		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, track->duration);
 
-	update_flags_stop_playback(state_get_list(state_get_current_playback_list()), state_get_current_playback_track());
+		update_flags_stop_playback(state_get_list(state_get_current_playback_list()), state_get_current_playback_track());
 
-	state_set_current_playback(state_get_current_list(), current_selected);
-	size_t playing = state_get_current_playback_track();
+		state_set_current_playback(state_get_current_list(), current_selected);
 
-	state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer));
-	TRACK(list, current_selected)->flags = (uint8_t) ( (TRACK(list, current_selected)->flags & ~FLAG_PAUSED) | FLAG_PLAYING );
+		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", track->name, track->username, time_buffer));
+		track->flags = (uint8_t) ( (track->flags & ~FLAG_PAUSED) | FLAG_PLAYING );
 
-	tui_submit_action(update_list);
+		tui_submit_action(update_list);
 
-	sound_play(TRACK(list, current_selected));
+		sound_play(track);
+	} else {
+		state_set_status(cline_warning, smprintf("Error: Can't play "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET": Missing Stream URL", track->name, track->username));
+	}
 }
 
 static void search_direction(bool down) {
