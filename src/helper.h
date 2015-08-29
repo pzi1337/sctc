@@ -153,7 +153,7 @@
 	 *  \param srcfunc  The function calling _lmalloc(); filled by macro lmalloc(), do not use "by hand"
 	 *  \param size     The number of bytes to be allocated
 	 */
-	void* _lmalloc (char *srcfile, int srcline, const char *srcfunc, size_t size);
+	void* _lmalloc (char *srcfile, int srcline, const char *srcfunc, size_t size) ATTR(warn_unused_result);
 
 	/** The internal implementation for lcalloc.
 	 *
@@ -166,7 +166,7 @@
 	 *  \param nmemb    The number of elements to be allocated
 	 *  \param size     The size of each single element to be allocated
 	 */
-	void* _lcalloc (char *srcfile, int srcline, const char *srcfunc, size_t nmemb, size_t size);
+	void* _lcalloc (char *srcfile, int srcline, const char *srcfunc, size_t nmemb, size_t size) ATTR(warn_unused_result);
 
 	/** The internal implementation for lrealloc.
 	 *
@@ -179,7 +179,7 @@
 	 *  \param ptr      Pointer to the memory to resize
 	 *  \param size     The number of bytes to be reallocated
 	 */
-	void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size_t size);
+	void* _lrealloc(char *srcfile, int srcline, const char *srcfunc, void *ptr, size_t size) ATTR(warn_unused_result);
 
 	/** \brief Logging wrapper for strdup().
 	 *
@@ -200,7 +200,7 @@
 	 *  \param srcfunc  The function calling _lstrdup(); filled by macro lstrdup(), do not use "by hand"
 	 *  \param s        The string to be duplicated
 	 */
-	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull);
+	char *_lstrdup(char *srcfile, int srcline, const char *srcfunc, const char *s) ATTR(nonnull, warn_unused_result);
 
 	ONLY_DEBUG( void dump_alloc_counter(void); )
 
