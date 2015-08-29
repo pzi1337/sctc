@@ -25,6 +25,8 @@
 	void cmd_gl_pause(const char *unused UNUSED);
 	void cmd_gl_stop(const char *unused UNUSED);
 
+	void cmd_gl_seek(const char *time)  ATTR(nonnull);
+
 	/** \brief Issue a redraw of the whole screen
 	 */
 	void cmd_gl_redraw(const char *unused UNUSED);

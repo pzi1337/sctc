@@ -35,7 +35,6 @@
 	void cmd_pl_list_new      (const char *_name) ATTR(nonnull);
 	void cmd_pl_write_playlist(const char *_file) ATTR(nonnull);
 	void cmd_pl_list          (const char *list)  ATTR(nonnull);
-	void cmd_pl_seek          (const char *time)  ATTR(nonnull);
 	void cmd_pl_download      (const char *unused UNUSED);
 	void cmd_pl_exit          (const char *unused UNUSED) ATTR(noreturn);
 	void cmd_pl_help          (const char *unused UNUSED);

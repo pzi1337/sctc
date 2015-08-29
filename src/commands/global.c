@@ -125,4 +125,31 @@ void cmd_gl_repeat(const char *_rep) {
 	}
 }
 
+void cmd_gl_seek(const char *_time) {
+	astrdup(time, _time);
+	char *seekto = strstrp(time);
+	unsigned int new_abs = INVALID_TIME;
+
+	if('+' == *seekto || '-' == *seekto) {
+		// relative offset to current position
+		unsigned int delta = parse_time_to_sec(seekto + 1);
+		if(INVALID_TIME != delta) {
+			new_abs = state_get_current_playback_time();
+			if('+' == *seekto) {
+				new_abs += delta;
+			} else {
+				new_abs = delta < new_abs ? (new_abs - delta) : 0;
+			}
+		}
+	} else {
+		// absolute
+		new_abs = parse_time_to_sec(seekto);
+	}
+
+	if(INVALID_TIME == new_abs) {
+		_log("seeking aborted due to input error");
+	} else {
+		sound_seek(new_abs);
+	}
+}
 

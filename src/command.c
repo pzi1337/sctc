@@ -70,7 +70,7 @@ const struct command commands[] = {
 	{"search-start",  cmd_pl_search_start,   scope_playlist, "<none/ignored>",                "Start searching (open input field)"},
 	{"search-next",   cmd_pl_search_next,    scope_playlist, "<none/ignored>",                "Continue search downwards"},
 	{"search-prev",   cmd_pl_search_prev,    scope_playlist, "<none/ignored>",                "Continue search upwards"},
-	{"seek",          cmd_pl_seek,           scope_playlist, "<time to seek to>",             "Seek to specified time in current track"},
+	{"seek",          cmd_gl_seek,           scope_global,   "<time to seek to>",             "Seek to specified time in current track"},
 	{"stop",          cmd_gl_stop,           scope_global,   "<none/ignored>",                "Stop playback of current track"},
 	{"vol",           cmd_gl_volume,         scope_global,   "<delta (in percent)>",          "modify playback volume by given percentage"},
 	{"write",         cmd_pl_write_playlist, scope_playlist, "<filename>",                    "Write current playlist to file (.jspf)"},

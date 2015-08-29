@@ -201,35 +201,6 @@ void cmd_pl_add(const char *_list) {
 	state_set_status(cline_default, smprintf("Info: Added "F_BOLD"%s"F_RESET" to %s", TRACK(clist, state_get_current_selected())->name, list->name));
 }
 
-void cmd_pl_seek(const char *_time) {
-	astrdup(time, _time);
-	char *seekto = strstrp(time);
-	unsigned int new_abs = INVALID_TIME;
-
-	if('+' == *seekto || '-' == *seekto) {
-		// relative offset to current position
-		unsigned int delta = parse_time_to_sec(seekto + 1);
-		if(INVALID_TIME != delta) {
-			new_abs = state_get_current_playback_time();
-			if('+' == *seekto) {
-				new_abs += delta;
-			} else {
-				new_abs = delta < new_abs ? (new_abs - delta) : 0;
-			}
-		}
-	} else {
-		// absolute
-		new_abs = parse_time_to_sec(seekto);
-	}
-
-	if(INVALID_TIME == new_abs) {
-		_log("seeking aborted due to input error");
-	} else {
-		sound_seek(new_abs);
-	}
-}
-
-
 void cmd_pl_open_user(const char *_user) {
 	astrdup(tuser, _user);
 	char *user = strstrp(tuser);
