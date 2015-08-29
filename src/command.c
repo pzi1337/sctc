@@ -28,19 +28,14 @@
 #include "_hard_config.h"
 #include "command.h"
 
-#include <ncurses.h>                    // for getch
 //\cond
 #include <stddef.h>                     // for NULL, size_t
-#include <string.h>
+#include <string.h>                     // for strlen, strncmp
 //\endcond
-
-#include "commands/global.h"            // for cmd_pause, cmd_redraw, etc
-#include "commands/playlist.h"          // for cmd_add, cmd_command_input, etc
-#include "commands/textbox.h"           // for cmd_close, cmd_scroll
+#include "commands/global.h"            // for cmd_gl_pause, cmd_gl_redraw, etc
+#include "commands/playlist.h"          // for cmd_pl_add, etc
+#include "commands/textbox.h"           // for cmd_tb_close, cmd_tb_scroll, etc
 #include "config.h"                     // for scope::scope_playlist, etc
-#include "helper.h"                     // for fork_and_run
-#include "state.h"                      // for state_get_current_list, etc
-#include "track.h"                      // for track, track_list, TRACK, etc
 
 /** \brief Array of all commands supported by SCTC.
  *
