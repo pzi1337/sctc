@@ -101,6 +101,8 @@
 	 */
 	#define SC_API_KEY "848ee866ea93c21373f6a8b61772b412"
 
+	#define REGEX_URL "((http(|s)://|@|#|www\\.)[a-Z0-9\\.#?&/+-_]+|[a-Z0-9\\.#?&/+-_]+\\.(com|de|co\\.uk))[a-Z0-9\\.#?&/+-_]*"
+
 	#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections
 
 	#define BENCH_START(ID) \

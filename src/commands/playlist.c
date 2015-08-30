@@ -22,6 +22,7 @@
 #include <ncurses.h>                    // for KEY_BACKSPACE, KEY_ENTER, etc
 
 //\cond
+#include <assert.h>
 #include <stdbool.h>                    // for false, bool, true
 #include <stddef.h>                     // for size_t
 #include <stdint.h>                     // for uint8_t
@@ -211,14 +212,13 @@ void cmd_pl_open_user(const char *_user) {
 	nwc->disconnect(nwc);
 
 	if(list->count) {
-		list->name = TRACK(list, 0)->username;
+		list->name = lstrdup(TRACK(list, 0)->username);
 		state_add_list(list);
 	} else {
 		state_set_status(cline_warning, smprintf("Info: Cannot switch to "F_BOLD"%s"F_RESET"'s channel: No tracks found!\n", user));
 		track_list_destroy(list, true);
 	}
 }
-
 
 /** \brief Initiate a command input
  *
@@ -401,6 +401,68 @@ void cmd_pl_search_start(const char *unused UNUSED) {
 	cmd_pl_search_next(NULL);
 }
 
+static size_t description_prepare_urls(char *string, char **new_desc, char ***urls_out) {
+
+	regex_t preg;
+	int err = lregcomp(&preg, REGEX_URL, REG_EXTENDED | REG_ICASE);
+	if(err) return 0;
+
+	size_t url_count = 42;
+	size_t prep_size = strlen(string) + (2 + 16) * url_count + 1;
+	size_t prep_used = 0;
+	char  *prep      = lcalloc(prep_size, sizeof(char));
+
+	char **urls = NULL;
+	size_t urls_size = 0;
+
+	size_t urls_pos  = 0;
+
+	char *rem_str = string;
+
+	size_t nmatch = 1;
+	regmatch_t pmatch[1];
+	while(REG_NOMATCH != regexec(&preg, rem_str, nmatch, pmatch, 0)) {
+		size_t offset_end   = pmatch[0].rm_eo;
+		size_t offset_start = pmatch[0].rm_so;
+
+		char char_backup = rem_str[offset_start];
+		rem_str[offset_start] = '\0';
+		assert(prep_size >= prep_used);
+		prep_used += snprintf(&prep[prep_used], prep_size - prep_used, "%s", rem_str);
+		rem_str[offset_start] = char_backup;
+
+		char_backup = rem_str[offset_end];
+		rem_str[offset_end] = '\0';
+		assert(prep_size >= prep_used);
+		prep_used += snprintf(&prep[prep_used], prep_size - prep_used, F_UNDERLINE"%s [%zu]"F_RESET, &rem_str[offset_start], urls_pos);
+
+		char *url_start = &rem_str[offset_start];
+		if(urls_pos >= urls_size) {
+			urls_size += 16;
+			urls = lrealloc(urls, urls_size * sizeof(char*));
+		}
+
+		if('@' == *url_start) {
+			urls[urls_pos] = smprintf("https://soundcloud.com/%s", &url_start[1]);
+		} else if('#' == *url_start) {
+			urls[urls_pos] = smprintf("https://soundcloud.com/tags/%s", &url_start[1]);
+		} else {
+			urls[urls_pos] = strdup(url_start);
+		}
+		urls_pos++;
+
+		rem_str[offset_end] = char_backup;
+		rem_str = &rem_str[offset_end];
+	}
+	snprintf(&prep[prep_used], prep_size - prep_used, "%s", rem_str);
+
+	*urls_out = urls;
+	*new_desc = prep;
+
+	regfree(&preg);
+	return urls_pos;
+}
+
 void cmd_pl_details(const char *unused UNUSED) {
 	struct track_list *list = state_get_list(state_get_current_list());
 	size_t current_selected = state_get_current_selected();
@@ -409,14 +471,15 @@ void cmd_pl_details(const char *unused UNUSED) {
 	char **urls      = TRACK(list, current_selected)->urls;
 
 	if(URL_COUNT_UNINITIALIZED == url_count) {
-		url_count = string_find_urls(TRACK(list, current_selected)->description, &urls);
-		TRACK(list, current_selected)->url_count = url_count;
-		TRACK(list, current_selected)->urls = urls;
-
+		char *new_desc;
 		char *old_desc = TRACK(list, current_selected)->description;
-		char *new_desc = string_prepare_urls_for_display(old_desc, url_count);
-		free(old_desc);
+		url_count = description_prepare_urls(old_desc, &new_desc, &urls);
+
+		TRACK(list, current_selected)->url_count   = url_count;
+		TRACK(list, current_selected)->urls        = urls;
 		TRACK(list, current_selected)->description = new_desc;
+
+		free(old_desc);
 	}
 
 	char *title = smprintf("%s by %s", TRACK(list, current_selected)->name, TRACK(list, current_selected)->username);

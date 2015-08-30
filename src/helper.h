@@ -28,6 +28,7 @@
 	//\cond
 	#include <stdbool.h>                    // for bool
 	#include <stddef.h>                     // for size_t
+	#include <regex.h>
 	//\endcond
 
 	#ifdef NDEBUG
@@ -92,9 +93,6 @@
 	 *  \return       `true` on success, `false` otherwise
 	 */
 	bool fork_and_run(char *cmd, char *param);
-
-	size_t string_find_urls(char *string, char ***urls_out);
-	char* string_prepare_urls_for_display(char *string, size_t url_count);
 
 	/** \brief Yank the provided text
 	 *
@@ -211,6 +209,8 @@
 
 	struct mmapped_file file_read_contents(char *file);
 	void file_release_contents(struct mmapped_file file);
+
+	int lregcomp(regex_t *preg, const char *regex, int cflags);
 
 	size_t add_delta_within_limits(size_t base, int delta, size_t upper_limit);
 
