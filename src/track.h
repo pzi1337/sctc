@@ -148,6 +148,7 @@
 	/** \brief Free the memory occupied by a track_list.
 	 *
 	 *  Do not use the list after calling this function. Do not use any of the tracks within the list if `free_trackdata` is set to true.
+	 *  When NULL is passed nothing happens.
 	 *
 	 *  \param list            the list to free
 	 *  \param free_trackdata  if true every single track within the list will be freed too

@@ -189,6 +189,8 @@ struct http_response* http_request_get(struct network_conn *nwc, char *url, char
 }
 
 void http_response_destroy(struct http_response *resp) {
-	free(resp->buffer);
-	free(resp);
+	if(resp) {
+		free(resp->buffer);
+		free(resp);
+	}
 }

@@ -142,6 +142,8 @@ void track_destroy(struct track *track) {
 }
 
 void track_list_destroy(struct track_list *list, bool free_trackdata) {
+	if(!list) return;
+
 	if(free_trackdata) {
 		for(size_t i = 0; i < list->count; i++) {
 			track_destroy(&list->entries[i]);

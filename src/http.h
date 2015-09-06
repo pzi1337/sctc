@@ -69,6 +69,7 @@
 	/** \brief Free any data associated to the http_response
 	 *
 	 *  This function only frees data, it does **not** free the connection `nwc` itself.
+	 *  When NULL is passed, nothing will be done.
 	 *
 	 *  \param resp  The http_response to free
 	 */
