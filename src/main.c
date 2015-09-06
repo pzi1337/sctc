@@ -36,29 +36,32 @@
  *  This project is released under the GNU General Public License version 3.
  */
 
-//\cond
-#include <ctype.h>                      // for isdigit
-#include <dirent.h>
-#include <locale.h>                     // for setlocale, LC_CTYPE
-#include <stddef.h>                     // for NULL, size_t
-#include <stdlib.h>                     // for EXIT_FAILURE
-#include <string.h>
-#include <time.h>                       // for timespec, clock_gettime
-//\endcond
+#include "_hard_config.h"               // for SCTC_LOG_FILE, etc
 
+//\cond
+#include <dirent.h>                     // for dirent, closedir, opendir, etc
+#include <errno.h>                      // for errno
+#include <locale.h>                     // for NULL, setlocale, LC_CTYPE
 #include <ncurses.h>                    // for getch
+#include <signal.h>                     // for sigaction, SIGINT, etc
+#include <stddef.h>                     // for size_t
+#include <stdio.h>                      // for fprintf, sprintf, stderr
+#include <stdlib.h>                     // for EXIT_FAILURE
+#include <string.h>                     // for strlen, strdup, strcmp, etc
+#include <time.h>                       // for timespec
+//\endcond
 
 #include "cache.h"                      // for cache_track_exists
 #include "command.h"                    // for command_func_ptr
-#include "config.h"                     // for config_get_subscribe_count, etc
-#include "downloader.h"
-#include "helper.h"                     // for smprintf, snprint_ftime
+#include "config.h"                     // for config_get_cache_path, etc
+#include "downloader.h"                 // for downloader_init
+#include "helper.h"                     // for smprintf, snprint_ftime, etc
 #include "jspf.h"                       // for jspf_read
-#include "log.h"                        // for _log, log_init
-#include "network/tls.h"                // for tls_connect, tls_init
+#include "log.h"                        // for _log, log_init, _err
+#include "network/tls.h"                // for tls_init
 #include "sound.h"                      // for sound_init, sound_play
-#include "soundcloud.h"                 // for soundcloud_get_entries
-#include "state.h"                      // for LIST_STREAM, etc
+#include "soundcloud.h"                 // for soundcloud_get_stream
+#include "state.h"                      // for state_add_list, etc
 #include "track.h"                      // for track, track_list, etc
 #include "tui.h"                        // for tui_submit_action, F_BOLD, etc
 
@@ -109,11 +112,21 @@ static void tui_update_time(int time) {
 	}
 }
 
+static void signal_handler(int signo) {
+	_log("got signal %i", signo);
+}
+
 int main(int argc UNUSED, char **argv) {
 	// initialize the modules
 	log_init(SCTC_LOG_FILE);
 
 	setlocale(LC_CTYPE, "C-UTF-8");
+
+	const struct sigaction sa_signal = {.sa_handler = signal_handler};
+	if(sigaction(SIGINT, &sa_signal, NULL)) {
+		_err("failed to install sighandler: %s", strerror(errno));
+		_err("going on, but SIGINTs will cause termination of SCTC");
+	}
 
 	state_init();
 	if(!config_init()) {
