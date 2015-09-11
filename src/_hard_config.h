@@ -23,6 +23,7 @@
 #ifndef __HARD_CONFIG_H
 	#define __HARD_CONFIG_H
 
+	/** \brief Name of the file containing the bookmarks */
 	#define BOOKMARK_FILE ".bookmarks.jspf"
 
 	#define SERVER_PORT 443
@@ -31,16 +32,27 @@
 	#define USERLIST_FOLDER "custom_lists"
 	#define USERLIST_EXT ".jspf"
 
+	/** \brief The height of the suggestion list (in entries/lines)
+	 *  \todo Move to configuration file sctc.conf
+	 */
 	#define SUGGESTION_LIST_HEIGHT 15
 
 	#define MAX_LISTS 16
 
+	/** \brief Wrapper for __attribute__
+	 *
+	 *  Simple wrapper for __attribute__, may be used to get rid of attributes in a simple manner
+	 *  if the target compiler does not support them.
+	 *  Attributes are, in general, mandatory, but removing them might result in reduced amount 
+	 *  of warnings issued by the compiler or static analysis tools.
+	 */
 	#define ATTR(...) __attribute__((__VA_ARGS__))
 	#define UNUSED __attribute__((__unused__))
 
 	/** \brief The default path to the ca-certificates file
 	 *
 	 *  Should point to the system wide list of trusted certificates.
+	 *  Keep in mind this is a default value and might be overwritten by the users sctc.conf
 	 */
 	#define CERT_DEFAULT_PATH "/etc/ssl/certs/ca-certificates.crt"
 
@@ -89,6 +101,11 @@
 	 */
 	#define CACHE_LIST_EXT ".jspf"
 
+	/** \brief Maximum download size for tracks
+	 *
+	 *  Limits the maximum size of track.
+	 *  256MB seems to be a reasonable limit (translates to ~>4h at 128kbits)
+	 */
 	#define DOWNLOAD_MAX_SIZE ( 256 * 1024 * 1024 )
 
 	/** \brief The soundcloud.com API key
@@ -101,6 +118,15 @@
 	 */
 	#define SC_API_KEY "848ee866ea93c21373f6a8b61772b412"
 
+	/** \brief RegEx to search for within the description of a track
+	 *
+	 *  Tries to match:
+	 *   - ordinary URLs starting with http/https ( https://soundclound.com )
+	 *   - ordinary URLs NOT starting with http/https
+	 *     \todo It is pretty clear that many of these URLs might not be matched this way
+	 *   - @<user> ( translates to https://soundcloud.com/<user> )
+	 *   - #<tag>  ( translates to https://soundcloud.com/tags/<tag> )
+	 */
 	#define REGEX_URL "((http(|s)://|@|#|www\\.)[a-Z0-9\\.#?&/+-_]+|[a-Z0-9\\.#?&/+-_]+\\.(com|de|co\\.uk))[a-Z0-9\\.#?&/+-_]*"
 
 	#define CERT_BRAIN_FOLDER "./remembered_certs/" ///< Folder containing the fingerprints of the certificates used by the servers in one of the previous connections
@@ -115,6 +141,7 @@
 			_log("%s took %ldms", DESC, (bench_end.tv_sec - bench_start##ID.tv_sec) * 1000 + (bench_end.tv_nsec - bench_start##ID.tv_nsec) / (1000 * 1000)); \
 		}
 
+	/** \brief The SCTC logo as used in cmd_details */
 	#define LOGO_PART "   ____________________\n"\
 	"  / __/ ___/_  __/ ___/\n"\
 	" _\\ \\/ /__  / / / /__  \n"\
