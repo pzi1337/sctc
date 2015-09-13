@@ -151,7 +151,7 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 		time_t t = cache_tracks->entries[0].created_at + 1;
 
 		strftime(created_at_from_string, sizeof(created_at_from_string), "%Y-%m-%d%%20%T", localtime(&t)); // TODO: localtime!?
-		//_log("most recent track created at %s", created_at_from_string);
+		//_log("most recent track created at %s (user: `%s`)", created_at_from_string, user);
 	}
 
 	struct track_list *list = NULL;
@@ -169,30 +169,39 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 			struct http_response *resp = http_request_get(nwc, u->request, u->host);
 			url_destroy(u);
 
-			/* free any href, which is not the initial request url (strdup'd below, the initial request url is on stack) */
+			// free any href, which is not the initial request url (strdup'd below, the initial request url is on stack)
 			if(href != request_url) {
 				free(href);
 			}
 
-			if(200 != resp->http_status) {
-				_log("server returned unexpected http status code %i", resp->http_status);
-				_log("make sure the user you subscribed to is valid!");
-				list = NULL; // TODO: free the existing part!
-				break;
-			}
+			// set href to NULL to allow proper termination of loop
+			href = NULL;
 
-			struct track_list *next_part = parse_single_response(resp->body, &href);
+			if(!resp) { // check if communication succeeded (sc.com down / no network)
+				_err("communication failed");
+
+				track_list_destroy(list, true);
+				list = NULL;
+			} else if(200 != resp->http_status) { // check HTTP-status code
+				_err("server returned unexpected http status code %i", resp->http_status);
+				_err("make sure the user you subscribed to is valid!");
+
+				track_list_destroy(list, true);
+				list = NULL;
+			} else {
+				struct track_list *next_part = parse_single_response(resp->body, &href);
+
+				if(list) {
+					track_list_append(list, next_part);
+				} else {
+					list = next_part;
+				}
+			}
 
 			http_response_destroy(resp);
-
-			if(list) {
-				track_list_append(list, next_part);
-			} else {
-				list = next_part;
-			}
 		} while(href);
 	}
-	
+
 	_log("%4zu/%4zu tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : 0, user);
 
 	/* only return the tracks received from the cache in case of an error in the request to soundcloud.com */
