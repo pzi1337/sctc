@@ -69,7 +69,7 @@
 
 /** \brief Update the current playback time.
  *
- *  If time equals -1, then the next track is selected (if any) and playback initiated. (\todo not yet working!)
+ *  If time equals -1, then the next track is selected (if any) and playback initiated.
  *
  *  \param time  The time in seconds to print to the screen
  */
@@ -91,11 +91,19 @@ static void tui_update_time(int time) {
 
 		// select track based on `repeat` state
 		enum repeat rep = state_get_repeat();
+		if(playing >= list->count - 1 && rep_none == rep) {
+			// stop at end of list if repeat is set to `none`
+			tui_submit_action(update_list);
+			_log("stopping playback (end of list)");
+			return;
+		}
+
 		if(rep_one != rep) {
-			playing++;
 			if(playing >= list->count) {
-				if(rep_none == rep) return;
 				playing = 0;
+				_log("continuing playback at top of list");
+			} else {
+				playing++;
 			}
 		}
 
