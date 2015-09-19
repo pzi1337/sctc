@@ -67,4 +67,11 @@
 	 */
 	struct http_response* soundcloud_connect_track(struct track *track, char *range);
 
+	/** \brief Get a list of subscriptions for a specific user
+	 *
+	 *  \param user  The user to retrieve the subscriptions for
+	 *  \return      An array containing the subscribed usernames, or `NULL` in case of failure.
+	 */
+	char** soundcloud_get_subscriptions(char *user);
+
 #endif /* _SOUNDCLOUD_H */

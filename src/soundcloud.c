@@ -40,8 +40,9 @@
 #include "state.h"
 #include "yajl_helper.h"                // for yajl_helper_get_string, etc
 
-#define CLIENTID_GET "client_id="SC_API_KEY
-#define GET_RQ_FULL "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
+#define CLIENTID_GET    "client_id="SC_API_KEY
+#define GET_RQ_FULL     "https://api.soundcloud.com/users/%s/tracks.json?limit=200&linked_partitioning=1&"CLIENTID_GET
+#define GET_RQ_SUBSCRIB "https://api.soundcloud.com/users/%s/followings.json?"CLIENTID_GET
 
 struct track_list* soundcloud_get_stream(void) {
 	state_set_status(cline_default, "Info: Connecting to soundcloud.com");
@@ -137,6 +138,43 @@ static struct track_list* parse_single_response(char *resp, char **href) {
 	*href = yajl_helper_get_string(node, "next_href", NULL);
 
 	yajl_tree_free(node);
+	return list;
+}
+
+char** soundcloud_get_subscriptions(char *user) {
+	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
+
+	char **list = NULL;
+	if(nwc) {
+		char request_url[strlen(GET_RQ_SUBSCRIB) + strlen(user) + 256 + 1];
+		sprintf(request_url, GET_RQ_SUBSCRIB, user);
+
+		struct url *u = url_parse_string(request_url);
+		struct http_response *resp = http_request_get(nwc, u->request, u->host);
+		url_destroy(u);
+
+		if(!resp) {
+			nwc->disconnect(nwc);
+			return NULL;
+		}
+
+		if(200 != resp->http_status) {
+			_err("server returned unexpected http status code %i", resp->http_status);
+			_err("make sure the user you subscribed to is valid!");
+		} else {
+			yajl_val node = yajl_helper_parse(resp->body);
+			if(YAJL_IS_ARRAY(node)) {
+				list = lcalloc(sizeof(char*), node->u.array.len + 1);
+
+				for(size_t i = 0; i < node->u.array.len; i++) {
+					list[i] = yajl_helper_get_string(node->u.array.values[i], "permalink", NULL);
+				}
+			}
+
+			http_response_destroy(resp);
+		}
+	}
+
 	return list;
 }
 
