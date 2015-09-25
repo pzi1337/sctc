@@ -7,6 +7,12 @@
 
 #include "../src/helper.h"
 
+#define TEST_STRSTRP(IN, EXP) { \
+	char *_in  = strdup(IN); \
+	TEST_RES(!strcmp(EXP, strstrp(_in))); \
+	free(_in); \
+}
+
 bool test_helper() {
 	TEST_INIT();
 	fprintf(stderr, "helper.o");
@@ -35,39 +41,11 @@ bool test_helper() {
 
 
 	TEST_FUNC_START(strstrp)
-	{
-		char *_in  = strdup(" X ");
-		char *_out = strstrp(_in);
-		TEST_RES(!strcmp("X", _out));
-		free(_in);
-	}
-
-	{
-		char *_in  = strdup("    X    ");
-		char *_out = strstrp(_in);
-		TEST_RES(!strcmp("X", _out));
-		free(_in);
-	}
-	{
-		char *_in  = strdup(" X      X ");
-		char *_out = strstrp(_in);
-		TEST_RES(!strcmp("X      X", _out));
-		free(_in);
-	}
-
-	{
-		char *_in  = strdup("     ");
-		char *_out = strstrp(_in);
-		TEST_RES(!strcmp("", _out));
-		free(_in);
-	}
-
-	{
-		char *_in  = strdup("");
-		char *_out = strstrp(_in);
-		TEST_RES(!strcmp("", _out));
-		free(_in);
-	}
+	TEST_STRSTRP(" X ",        "X"       )
+	TEST_STRSTRP("    X    ",  "X"       )
+	TEST_STRSTRP(" X      X ", "X      X")
+	TEST_STRSTRP("     ",      ""        )
+	TEST_STRSTRP("",           ""        )
 	TEST_FUNC_END();
 
 
