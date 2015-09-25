@@ -64,6 +64,7 @@
 }
 
 static void tls_finalize(void);
+static void tls_destroy(struct network_conn *nwc);
 
 static x509_crt cacerts;
 
@@ -156,7 +157,7 @@ struct network_conn* tls_connect(char *server, int port) {
 	nwc->mdata = tls;
 
 	if(!tls_init_tls_conn(tls)) {
-		free(nwc);
+		free(nwc); // \todo TODO: might leak, missing deallocation in tls_init_tls_conn
 		return NULL;
 	}
 
@@ -164,7 +165,7 @@ struct network_conn* tls_connect(char *server, int port) {
 	int ret = net_connect(&tls->fd, server, port);
 	if(ret) {
 		POLARSSL_ERROR(ret, "connection to '%s:%d' cannot be established", server, port);
-		free(nwc);
+		tls_destroy(nwc);
 		return NULL;
 	}
 
@@ -327,6 +328,13 @@ void tls_disconnect(struct network_conn *nwc) {
 	if(-1 != tls->fd) {
 		net_close(tls->fd);
 	}
+
+	tls_destroy(nwc);
+}
+
+static void tls_destroy(struct network_conn *nwc) {
+	struct tls_conn *tls = (struct tls_conn*) nwc->mdata;
+	assert(TLS_CONN_MAGIC == tls->magic);
 
 	ssl_free     (&tls->ssl);
 	ctr_drbg_free(&tls->ctr_drbg);
