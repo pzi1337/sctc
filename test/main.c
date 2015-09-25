@@ -7,6 +7,7 @@
 #include "url.h"
 #include "plain.h"
 #include "tls.h"
+#include "http.h"
 
 #define BUFFER_SIZE 1024 * 512
 
@@ -17,10 +18,11 @@ int main(int argc, char **argv) {
 	log_init("run_tests.log");
 	config_init();
 
-	if(!test_helper())     failed_tcs++;
-	if(!test_url())        failed_tcs++;
-	if(!test_plain())      failed_tcs++;
-	if(!test_tls())        failed_tcs++;
+	if(!test_helper()) failed_tcs++;
+	if(!test_url())    failed_tcs++;
+	if(!test_plain())  failed_tcs++;
+	if(!test_tls())    failed_tcs++;
+	if(!test_http())   failed_tcs++;
 
 	if(failed_tcs) {
 		fprintf(stderr, "\n\nRESULT: FOUND ERRORS IN %lu MODULES\n", failed_tcs);

@@ -32,6 +32,7 @@ bool test_downloader() {
 
 	TEST_FUNC("downloader_init");
 	TEST_RES(downloader_init());
+	TEST_FUNC_RESULT(is_ok);
 
 	TEST_FUNC("downloader_queue_buffer");
 	{
@@ -64,6 +65,7 @@ bool test_downloader() {
 		free(buffer_http);
 		free(buffer_https);
 	}
+	TEST_FUNC_RESULT(is_ok);
 
 	downloader_finalize();
 	tls_finalize();

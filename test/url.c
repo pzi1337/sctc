@@ -9,9 +9,7 @@
 
 #define CSTR(X, Y) (X == NULL ? !Y : !strcmp(X, Y))
 
-static bool is_ok;
-
-static void test_url_parse(char *str, char *scheme, char *user, char *pass, char *host, int port, char *request) {
+static void test_url_parse(TEST_PARAM, char *str, char *scheme, char *user, char *pass, char *host, int port, char *request) {
 	struct url *u = url_parse_string(str);
 
 	TEST_RES( !strcmp(scheme,  u->scheme)
@@ -25,18 +23,19 @@ static void test_url_parse(char *str, char *scheme, char *user, char *pass, char
 }
 
 bool test_url() {
+	TEST_INIT();
+
 	fprintf(stderr, "\n\nurl.o");
 
-	is_ok = true;
+	TEST_FUNC_START(url_parse_string)
+	test_url_parse(TEST_PARAM_ACTUAL, "http://narbo.de/",                      "http",  NULL,    NULL,   "narbo.de",   80, "/");
+	test_url_parse(TEST_PARAM_ACTUAL, "https://narbo.de/",                     "https", NULL,    NULL,   "narbo.de",  443, "/");
 
-	TEST_FUNC("url_parse_string")
-	test_url_parse("http://narbo.de/",                      "http",  NULL,    NULL,   "narbo.de",   80, "/");
-	test_url_parse("https://narbo.de/",                     "https", NULL,    NULL,   "narbo.de",  443, "/");
+	test_url_parse(TEST_PARAM_ACTUAL, "http://narbo.de:1337/",                 "http",  NULL,    NULL,   "narbo.de", 1337, "/");
+	test_url_parse(TEST_PARAM_ACTUAL, "http://chris:test@narbo.de:1337/kekse", "http",  "chris", "test", "narbo.de", 1337, "/kekse");
+	test_url_parse(TEST_PARAM_ACTUAL, "http://chris@narbo.de:1337/kekse",      "http",  "chris", NULL,   "narbo.de", 1337, "/kekse");
+	test_url_parse(TEST_PARAM_ACTUAL, "http://chris:test@narbo.de/kekse",      "http",  "chris", "test", "narbo.de",   80, "/kekse");
+	TEST_FUNC_END();
 
-	test_url_parse("http://narbo.de:1337/",                 "http",  NULL,    NULL,   "narbo.de", 1337, "/");
-	test_url_parse("http://chris:test@narbo.de:1337/kekse", "http",  "chris", "test", "narbo.de", 1337, "/kekse");
-	test_url_parse("http://chris@narbo.de:1337/kekse",      "http",  "chris", NULL,   "narbo.de", 1337, "/kekse");
-	test_url_parse("http://chris:test@narbo.de/kekse",      "http",  "chris", "test", "narbo.de",   80, "/kekse");
-
-	return is_ok;
+	TEST_END();
 }

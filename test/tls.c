@@ -11,20 +11,18 @@
 #include "../src/log.h"
 
 bool test_tls() {
+	TEST_INIT();
 	fprintf(stderr, "\n\ntls.o");
 
-	bool is_ok = true;
-
-	TEST_FUNC("tls_init");
+	TEST_FUNC_START(tls_init);
 	TEST_RES(tls_init());
+	TEST_FUNC_END();
 
-	TEST_FUNC("tls_connect");
-	{
-		TEST_RES(!tls_connect("", 42));             // invalid server, valid port
-		TEST_RES(!tls_connect("narbo.de", 100000)); // valid server, invalid port
-		TEST_RES(!tls_connect("narbo.de", 80));     // valid server & port, but no ssl
-		TEST_RES(!tls_connect("narbo.de", 64738));  // valid server & port, ssl with self-signed cert
-	}
+	TEST_FUNC_START(tls_connect);
+	TEST_RES(!tls_connect("", 42));             // invalid server, valid port
+	TEST_RES(!tls_connect("narbo.de", 100000)); // valid server, invalid port
+	TEST_RES(!tls_connect("narbo.de", 80));     // valid server & port, but no ssl
+	TEST_RES(!tls_connect("narbo.de", 64738));  // valid server & port, ssl with self-signed cert
 
 	{
 		// valid server & port, ssl with valid cert (requires CAcert.org to be trusted)
@@ -32,6 +30,7 @@ bool test_tls() {
 		TEST_RES(nwc);
 		nwc->disconnect(nwc);
 	}
+	TEST_FUNC_END();
 
-	return is_ok;
+	TEST_END();
 }
