@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../src/log.h"
 #include "../src/config.h"
 
 #include "helper.h"

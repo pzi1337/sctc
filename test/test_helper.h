@@ -1,3 +1,6 @@
+#include <assert.h>
+#include <stdlib.h>
+
 #define TEST_INIT() \
 	bool _all_ok = true; \
 	bool *all_ok = &_all_ok;
@@ -26,3 +29,20 @@
 
 #define TEST_PARAM bool *all_ok, bool *is_ok
 #define TEST_PARAM_ACTUAL all_ok, is_ok
+
+static inline char* string_mutate(char *input, int severity) {
+	assert(input && "input must not be NULL");
+	assert(0 <= severity && severity <= 100 && "severity is required to be within [0; 100]");
+
+	char *output  = strdup(input);
+	size_t length = strlen(input);
+
+	size_t mutation_count = (severity * length) / 100;
+
+	for(size_t i = 0; i < mutation_count; i++) {
+		size_t idx = rand() % length;
+		output[idx] += rand() % 0xFF;
+	}
+
+	return output;
+}

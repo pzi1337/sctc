@@ -46,6 +46,24 @@ bool test_helper() {
 	TEST_STRSTRP(" X      X ", "X      X")
 	TEST_STRSTRP("     ",      ""        )
 	TEST_STRSTRP("",           ""        )
+
+	bool complex_ok = true;
+	for(size_t i = 0; i < 25000; i++) {
+		char *input   = "                                                                                                                                                                                   ";
+		char *mutated = string_mutate(input, i % 101);
+		char *output  = strstrp(mutated);
+
+		size_t output_len = strlen(output);
+		if(output_len > 0) {
+			if(' ' == output[0] || ' ' == output[output_len - 1]) {
+				complex_ok = false;
+			}
+		}
+
+		free(mutated);
+	}
+	TEST_RES(complex_ok);
+
 	TEST_FUNC_END();
 
 
