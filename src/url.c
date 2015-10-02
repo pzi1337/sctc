@@ -34,20 +34,25 @@ struct url* url_parse_string(char *str) {
 	char *str_clone = lstrdup(str);
 	str = str_clone;
 
-	struct url *u = lcalloc(1, sizeof(struct url));
-
 	char *hit = strchr(str, ':');
 	if(!hit) {
-		_log("URL seems invalid, cannot find ':'");
+		_err("URL seems invalid, cannot find ':'");
 		free(str);
-		free(u);
-
 		return NULL;
 	}
+
+	if(strncmp("://", hit, 3)) {
+		_err("Protocol in URL is not followed by `://`: %s", hit);
+		free(str);
+		return NULL;
+	}
+
 	*hit = '\0';
 
+	struct url *u = lcalloc(1, sizeof(struct url));
 	u->scheme = lstrdup(str);
 
+	// str now contains the part after `http://`
 	str = hit + 1 + 2;
 
 	const size_t str_len = strlen(str);
@@ -123,7 +128,7 @@ struct url* url_parse_string(char *str) {
 		} else if(streq(u->scheme, "https")) {
 			u->port = 443;
 		} else {
-			fprintf(stderr, "Invalid URL '%s', unknown scheme '%s'\n", str, u->scheme);
+			_err("Invalid URL '%s', unknown scheme '%s'", str, u->scheme);
 		}
 	}
 
