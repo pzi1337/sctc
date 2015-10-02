@@ -35,7 +35,6 @@
 	 */
 	bool sound_init(void (*time_callback)(int));
 
-
 	/** \brief Start playback of track
 	 *
 	 *  This function is required to be called prior to the first call sound_play() and does several internal
@@ -46,8 +45,18 @@
 	 */
 	bool sound_play(struct track *track);
 
+	/** \brief Seek to a specific position within the currently playing track.
+	 *
+	 *  \param pos  The position (in seconds) to seek to
+	 */
 	void sound_seek(unsigned int pos);
 
+	/** \brief Changes the volume by a given delta (in the range of [0; 100])
+	 *
+	 *  \param delta  The delta to be added to the current volume
+	 *
+	 *  \return The volume after the change (in [0; 100]), -1 if changing volume is not supported
+	 */
 	int sound_change_volume(off_t delta);
 
 	/** \brief Stop playback of current track
@@ -56,6 +65,12 @@
 	 */
 	bool sound_stop(void);
 
+	/** \brief Get the last error
+	 *
+	 *  The char* returned is allocated statically and thus may neither be modified or freed.
+	 *
+	 *  \return  A char* containing a description of the last error.
+	 */
 	const char* sound_error(void);
 
 #endif /* _SOUND_H */
