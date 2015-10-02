@@ -157,12 +157,12 @@ static void _io_cleanup(void *iohandle) {
 static mpg123_handle* mpg123_init_playback(struct download_state *download_state) {
 	mpg123_handle *mh = mpg123_new(NULL, NULL);
 	if(!mh) {
-		_log("mpg123_new failed");
+		_err("mpg123_new");
 		return NULL;
 	}
 
 	if(MPG123_OK != mpg123_replace_reader_handle(mh, _io_read, _io_seek, _io_cleanup)) {
-		_log("mpg123_replace_reader_handle: %s", mpg123_strerror(mh));
+		_err("mpg123_replace_reader_handle: %s", mpg123_strerror(mh));
 		return NULL;
 	}
 
@@ -171,13 +171,13 @@ static mpg123_handle* mpg123_init_playback(struct download_state *download_state
 	iohandle->download_state = download_state;
 
 	if(MPG123_OK != mpg123_open_handle(mh, iohandle)) {
-		_log("mpg123_open_handle: %s", mpg123_strerror(mh));
+		_err("mpg123_open_handle: %s", mpg123_strerror(mh));
 		free(iohandle);
 		return NULL;
 	}
 
 	if(MPG123_OK != mpg123_param(mh, MPG123_FLAGS, MPG123_QUIET, 0.0)) {
-		_log("mpg123_param: %s", mpg123_strerror(mh));
+		_err("mpg123_param: %s", mpg123_strerror(mh));
 		free(iohandle);
 		return NULL;
 	}
@@ -266,11 +266,11 @@ static void* _thread_play_function(void *unused UNUSED) {
 			if(SEEKPOS_NONE != seek_to_pos) {
 				off_t target_frame_off = mpg123_timeframe(mh, seek_to_pos);
 				if(0 > target_frame_off) {
-					_log("cannot get offset for time %us: %s", seek_to_pos, mpg123_strerror(mh));
+					_err("cannot get offset for time %us: %s", seek_to_pos, mpg123_strerror(mh));
 				} else {
 					_log("requested seek to %us, frame at %zi", seek_to_pos, target_frame_off);
 					if(0 > mpg123_seek_frame(mh, target_frame_off, SEEK_SET)) {
-						_log("mpg123_seek_frame: %s", mpg123_strerror(mh));
+						_err("mpg123_seek_frame: %s", mpg123_strerror(mh));
 					}
 				}
 
@@ -300,7 +300,7 @@ bool sound_init(void (*_time_callback)(int)) {
 	}
 
 	if(!audio_init) {
-		_log("failed to load any soundsystem");
+		_err("failed to load any soundsystem");
 		return false;
 	}
 
@@ -313,7 +313,7 @@ bool sound_init(void (*_time_callback)(int)) {
 	mpg123_init();
 
 	if(sem_init(&sem_play, 0, 0)) {
-		_log("sem_init failed: %s", strerror(errno));
+		_err("sem_init: %s", strerror(errno));
 		return false;
 	}
 
@@ -322,7 +322,7 @@ bool sound_init(void (*_time_callback)(int)) {
 	pthread_create(&thread_play, NULL, _thread_play_function, NULL);
 
 	if(atexit(sound_finalize)) {
-		_log("atexit: %s", strerror(errno));
+		_err("atexit: %s", strerror(errno));
 	}
 
 	return true;
