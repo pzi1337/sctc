@@ -27,6 +27,13 @@
 	#include "track.h"
 	#include "http.h"
 
+	#define FLAG_SUBSCRIBED 1
+
+	struct subscription {
+		char    *name;
+		uint8_t  flags;
+	};
+
 	/** \brief Retrieve the whole stream from soundcloud.com/cache (all users specified in sctc.conf)
 	 *
 	 *  The `track_list` returned is allocated via `malloc` and therefore needs to be freed / passed to `track_list_destroy()`.
@@ -72,6 +79,6 @@
 	 *  \param user  The user to retrieve the subscriptions for
 	 *  \return      An array containing the subscribed usernames, or `NULL` in case of failure.
 	 */
-	char** soundcloud_get_subscriptions(char *user);
+	struct subscription* soundcloud_get_subscriptions(char *user);
 
 #endif /* _SOUNDCLOUD_H */

@@ -141,10 +141,10 @@ static struct track_list* parse_single_response(char *resp, char **href) {
 	return list;
 }
 
-char** soundcloud_get_subscriptions(char *user) {
+struct subscription* soundcloud_get_subscriptions(char *user) {
 	struct network_conn *nwc = tls_connect(SERVER_NAME, SERVER_PORT);
 
-	char **list = NULL;
+	struct subscription *list = NULL;
 	if(nwc) {
 		char request_url[strlen(GET_RQ_SUBSCRIB) + strlen(user) + 256 + 1];
 		sprintf(request_url, GET_RQ_SUBSCRIB, user);
@@ -164,10 +164,11 @@ char** soundcloud_get_subscriptions(char *user) {
 		} else {
 			yajl_val node = yajl_helper_parse(resp->body);
 			if(YAJL_IS_ARRAY(node)) {
-				list = lcalloc(sizeof(char*), node->u.array.len + 1);
+				list = lcalloc(sizeof(struct subscription), node->u.array.len + 1);
 
 				for(size_t i = 0; i < node->u.array.len; i++) {
-					list[i] = yajl_helper_get_string(node->u.array.values[i], "permalink", NULL);
+					list[i].name  = yajl_helper_get_string(node->u.array.values[i], "permalink", NULL);
+					list[i].flags = 0;
 				}
 			}
 
