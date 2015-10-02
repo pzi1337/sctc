@@ -68,6 +68,8 @@
 	 */
 	#define SCTC_CONFIG_FILE "sctc.conf"
 
+	#define SCTC_DYNAMIC_CONFIG_FILE "sctc.dynamic.conf"
+
 	/** \brief The default cache path
 	 *
 	 *  Keep in mind: this is a default value, which can be modified by the user.

@@ -28,6 +28,7 @@
 #include <stddef.h>                     // for size_t
 #include <stdlib.h>                     // for free, NULL
 #include <string.h>                     // for strcmp, strlen, strncmp
+#include <search.h>
 //\endcond
 
 #include <confuse.h>                    // for cfg_free, cfg_getnstr, etc
@@ -51,6 +52,8 @@ static double config_equalizer[EQUALIZER_SIZE] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 static char* cert_path;
 static char* cache_path;
 static int   cache_limit;
+
+static cfg_t *dynamic_cfg = NULL;
 
 static void config_finalize(void);
 
@@ -98,7 +101,6 @@ static int get_curses_ch(const char *str) {
 	return ERR;
 }
 
-
 static unsigned int kcm_count = 0;
 
 /** \brief Callback for `map()` used by libConfuse
@@ -109,7 +111,7 @@ static unsigned int kcm_count = 0;
  *  \param argv  The parameters themself
  *  \return      `0` on success, non-`0` otherwise
  */
-static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
+static int config_map_command(cfg_t *unused UNUSED, cfg_opt_t *opt UNUSED, int argc, const char **argv) {
 	if(3 != argc) {
 		_log("map() requires exactly 3 parameters!");
 		return -1;
@@ -149,7 +151,7 @@ static int config_map_command(cfg_t *cfg UNUSED, cfg_opt_t *opt UNUSED, int argc
 	return 0;
 }
 
-void config_error_function(cfg_t *cfg UNUSED, const char *fmt, va_list ap) {
+void config_error_function(cfg_t *unused UNUSED, const char *fmt, va_list ap) {
 
 	const size_t buffer_size = 2048;
 	char buffer[buffer_size + 1];
@@ -159,8 +161,10 @@ void config_error_function(cfg_t *cfg UNUSED, const char *fmt, va_list ap) {
 }
 
 bool config_init(void) {
+	// read the static configuration:
+	//  - mappings
+	//  - system config (TLS certs)
 	cfg_opt_t opts[] = {
-		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
 		CFG_FLOAT_LIST(OPTION_EQUALIZER, "{}", CFGF_NONE),
 		CFG_SIMPLE_STR(OPTION_CERT_PATH,   &cert_path),
 		CFG_SIMPLE_STR(OPTION_CACHE_PATH,  &cache_path),
@@ -185,6 +189,7 @@ bool config_init(void) {
 
 	if(CFG_FILE_ERROR == parse_result) {
 		_err("Failed to open config file `"SCTC_CONFIG_FILE"`");
+		config_finalize();
 		cfg_free(cfg);
 		return false;
 	} else if(CFG_PARSE_ERROR == parse_result) {
@@ -195,27 +200,11 @@ bool config_init(void) {
 		return false;
 	}
 
-	// verify required settings:
-	// at least one subscription
-	// at least one key mapped
-	config_subscribe_count = cfg_size(cfg, OPTION_SUBSCRIBE);
-
-	if(!config_subscribe_count) {
-		_log("Have 0 subscriptions, to continue add at least one user");
-	}
-
+	// verify required settings: at least one key mapped
 	if(!kcm_count) {
 		_log("Have 0 keymappings, by default you want to have quite a bunch of keymappings...");
-	}
-
-	if(!config_subscribe_count || !kcm_count) {
 		cfg_free(cfg);
 		return false;
-	}
-
-	config_subscribe = lcalloc(config_subscribe_count, sizeof(char*));
-	for(unsigned int i = 0; i < config_subscribe_count; i++) {
-		config_subscribe[i] = lstrdup(cfg_getnstr(cfg, OPTION_SUBSCRIBE, i));
 	}
 
 	unsigned int config_equalizer_count = cfg_size(cfg, OPTION_EQUALIZER);
@@ -227,8 +216,25 @@ bool config_init(void) {
 		_log("invalid values for equalizer!");
 	}
 
-	cfg_free(cfg);
+	// read the dynamic configuration:
+	//  - subscriptions
+	cfg_opt_t dynamic_opts[] = {
+		CFG_STR_LIST(OPTION_SUBSCRIBE, "{}", CFGF_NONE), // the list of subscribed users
+		CFG_END()
+	};
 
+	dynamic_cfg = cfg_init(dynamic_opts, CFGF_NOCASE);
+	cfg_set_error_function(dynamic_cfg, config_error_function);
+
+	cfg_parse(dynamic_cfg, SCTC_DYNAMIC_CONFIG_FILE); // TODO \todo
+
+	config_subscribe_count = cfg_size(dynamic_cfg, OPTION_SUBSCRIBE);
+	config_subscribe = lcalloc(config_subscribe_count, sizeof(char*));
+	for(unsigned int i = 0; i < config_subscribe_count; i++) {
+		config_subscribe[i] = lstrdup(cfg_getnstr(dynamic_cfg, OPTION_SUBSCRIBE, i));
+	}
+
+	// write stuff to log file (for debugging ;) )
 	_log("config initialized, have values:");
 	_log("| subscriptions:");
 	for(size_t i = 0; i < config_subscribe_count; i++) {
@@ -274,6 +280,14 @@ const char* config_get_param(enum scope scope, int key) {
 	return key_command_mapping[scope][key].param;
 }
 
+static int compare_strings(const void *s1, const void *s2) {
+	return strcmp((const char*) s1, *(const char**) s2);
+}
+
+bool config_has_subscription(char *subscr) {
+	return lfind(subscr, config_subscribe, &config_subscribe_count, sizeof(char*), compare_strings) ? true : false;
+}
+
 char* config_get_subscribe(size_t id) {
 	assert(id < config_subscribe_count && "ERROR: id >= config_subscribe_count");
 
@@ -284,3 +298,32 @@ size_t config_get_subscribe_count(void) { return config_subscribe_count; }
 char*  config_get_cert_path(void)       { return cert_path; }
 char*  config_get_cache_path(void)      { return cache_path; }
 double config_get_equalizer(int band)   { return config_equalizer[band]; }
+
+void config_add_subscription(char *user) {
+	cfg_addlist(dynamic_cfg, OPTION_SUBSCRIBE, 1, user);
+
+	// update dynamic configuration file
+	FILE *fh = fopen(SCTC_DYNAMIC_CONFIG_FILE, "w");
+
+	if(!fh) {
+		_err("fopen: %s", strerror(errno));
+	} else {
+		fprintf(fh, "########################################\n");
+		fprintf(fh, "# DO NOT EDIT THIS FILE BY HAND        #\n");
+		fprintf(fh, "# CONTENTS WILL BE OVERWRITTEN BY SCTC #\n");
+		fprintf(fh, "########################################\n");
+
+		cfg_print(dynamic_cfg, fh);
+		fclose(fh);
+	}
+
+	config_subscribe_count++;
+	char **new_config_subscribe = lrealloc(config_subscribe, config_subscribe_count * sizeof(char*));
+	if(new_config_subscribe) {
+		config_subscribe = new_config_subscribe;
+		config_subscribe[config_subscribe_count - 1] = lstrdup(user);
+	} else {
+		config_subscribe_count--;
+	}
+}
+

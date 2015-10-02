@@ -100,5 +100,18 @@
 	 */
 	double config_get_equalizer(int band);
 
+	/** \brief Add subscription to configuration file
+	 *
+	 *  \param user  The user to be added to the configuration
+	 */
+	void config_add_subscription(char *user);
+
+	/** \brief Check if a subscription is already within in the configuration
+	 *
+	 *  \param subscr  The subscription to search for
+	 *
+	 *  \return `true` if `subscr` is already stored, `false` otherwise
+	 */
+	bool config_has_subscription(char *subscr);
 #endif /* _CONFIG_H */
 
