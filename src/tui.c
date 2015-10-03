@@ -57,7 +57,7 @@ static void tui_track_list_print(void);
 static size_t tui_track_focus(void);
 static void tui_update_suggestion_list(void);
 
-static void tui_update_textbox(void);
+static void tui_update_textbox(bool items_modified);
 
 /* functions handling (re)drawing of (parts of) screen */
 static void tui_draw_title_line(void);
@@ -101,7 +101,7 @@ static void* _thread_tui_function(void *unused UNUSED) {
 			tui_track_list_print();
 
 			if(state_get_tb_title()) {
-				tui_update_textbox();
+				tui_update_textbox(false);
 			}
 
 			tui_draw_status_line(); // redraw the status line
@@ -138,12 +138,13 @@ static void* _thread_tui_function(void *unused UNUSED) {
 					break;
 				}
 
-				case update_list:        tui_track_list_print();       break;
-				case titlebar_modified:  tui_draw_title_line();        break;
-				case tabbar_modified:    tui_draw_tab_bar();           break;
-				case textbox_modified:   tui_update_textbox();         break;
-				case sugg_modified:      tui_update_suggestion_list(); break;
-				case statusbar_modified: tui_draw_status_line();       break;
+				case update_list:            tui_track_list_print();       break;
+				case titlebar_modified:      tui_draw_title_line();        break;
+				case tabbar_modified:        tui_draw_tab_bar();           break;
+				case textbox_modified:       tui_update_textbox(false);    break;
+				case textbox_items_modified: tui_update_textbox(true);     break;
+				case sugg_modified:          tui_update_suggestion_list(); break;
+				case statusbar_modified:     tui_draw_status_line();       break;
 
 				case list_modified:
 					tui_track_focus();
@@ -503,12 +504,14 @@ static WINDOW* tui_draw_text(char *text, const unsigned int max_width) {
 	return pad;
 }
 
-static void tui_update_textbox(void) {
+static void tui_update_textbox(bool items_modified) {
 	const int height = LINES - 8;
 	const int width = COLS - 8;
 
 	/* create new textbox if there is none, but a title was supplied */
-	if(!textbox_window.win && state_get_tb_title()) {
+	if(( !textbox_window.win || items_modified ) && state_get_tb_title()) {
+		_log("redrawing pad");
+
 		textbox_window.win = newwin(height, width, 4, 4);
 		box(textbox_window.win, 0, 0);
 
@@ -517,6 +520,31 @@ static void tui_update_textbox(void) {
 		wattroff(textbox_window.win, A_BOLD);
 
 		textbox_window.pad = tui_draw_text(state_get_tb_text(), width - 10);
+
+		struct subscription *items = state_get_tb_items();
+
+		// take care here, getmaxyx is a macro and modifies x and y
+		int x, y;
+		getmaxyx(textbox_window.pad, y, x);
+		wresize(textbox_window.pad, y + 200, x); // TODO
+
+		y++;
+		size_t selected = state_get_tb_selected();
+		for(size_t i = 0; items && items[i].name; i++) {
+			y++;
+
+			wmove(textbox_window.pad, y, 4);
+
+			tui_print(textbox_window.pad, "[");
+			if(i == selected) {
+				wcolor_set(textbox_window.pad, sbar_default, NULL);
+			}
+
+			tui_print(textbox_window.pad, FLAG_SUBSCRIBED & items[i].flags ? "X" : " ");
+
+			wcolor_set(textbox_window.pad, 0, NULL); // TODO
+			tui_print(textbox_window.pad, "] %s", items[i].name);
+		}
 
 		wrefresh(textbox_window.win);
 		prefresh(textbox_window.pad, 0, 0, 5, 5, LINES - 8 - 1, width - 1);
@@ -549,6 +577,7 @@ void tui_submit_action(enum tui_action_kind _action) {
 }
 
 static void tui_callback_textbox_modifed(void)    { tui_submit_action(textbox_modified);   }
+static void tui_callback_textbox_items_modifed(void)    { tui_submit_action(textbox_items_modified);   }
 static void tui_callback_tabbar_modified(void)    { tui_submit_action(tabbar_modified);    }
 static void tui_callback_titlebar_modified(void)  { tui_submit_action(titlebar_modified);  }
 static void tui_callback_statusbar_modified(void) { tui_submit_action(statusbar_modified); }
@@ -645,6 +674,7 @@ bool tui_init(void) {
 	}
 
 	state_register_callback(cbe_textbox_modified,   tui_callback_textbox_modifed);
+	state_register_callback(cbe_textbox_items_modified,   tui_callback_textbox_items_modifed); // TODO
 	state_register_callback(cbe_repeat_modified,    tui_callback_tabbar_modified);
 	state_register_callback(cbe_tabs_modified,      tui_callback_tabbar_modified);
 	state_register_callback(cbe_titlebar_modified,  tui_callback_titlebar_modified);

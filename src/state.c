@@ -95,12 +95,21 @@ void state_set_sugg_selected(size_t selected) {
 static struct {
 	char   *title; ///< Title of the currently visible textbox
 	char   *text;  ///< Contents of the currently visible textbox
+	struct subscription *items;
 	size_t  pos;   ///< Position (uppermost line shown)
-} textbox = { NULL, NULL, 0 };
+	size_t selected;
+} textbox = { NULL, NULL, NULL, 0, 0 };
 
-char*  state_get_tb_text(void)  { return textbox.text;  }
-char*  state_get_tb_title(void) { return textbox.title; }
-size_t state_get_tb_pos(void)   { return textbox.pos;   }
+char*  state_get_tb_text(void)                { return textbox.text;     }
+char*  state_get_tb_title(void)               { return textbox.title;    }
+size_t state_get_tb_pos(void)                 { return textbox.pos;      }
+struct subscription* state_get_tb_items(void) { return textbox.items;    }
+size_t state_get_tb_selected(void)            { return textbox.selected; }
+
+void state_set_tb_selected(size_t selected) {
+	textbox.selected = selected;
+	CALL_CALLBACK(cbe_textbox_items_modified);
+}
 
 void state_set_tb_pos(size_t pos) {
 	textbox.pos = pos;
@@ -117,6 +126,11 @@ void state_set_tb(char *title, char *text) {
 	textbox.text  = text;
 
 	CALL_CALLBACK(cbe_textbox_modified);
+}
+
+void state_set_tb_items(struct subscription *items) {
+	textbox.items = items;
+	CALL_CALLBACK(cbe_textbox_items_modified);
 }
 
 /*************

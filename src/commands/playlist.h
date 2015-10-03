@@ -39,4 +39,5 @@
 	void cmd_pl_exit          (const char *unused UNUSED) ATTR(noreturn);
 	void cmd_pl_help          (const char *unused UNUSED);
 	void cmd_pl_yank          (const char *unused UNUSED);
+	void cmd_pl_subscriptions (const char *_user);
 #endif

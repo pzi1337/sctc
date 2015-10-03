@@ -710,3 +710,39 @@ void handle_textbox(void) {
 		}
 	}
 }
+
+void cmd_pl_subscriptions(const char *_user) {
+	astrdup(tuser, _user);
+	char *user = strstrp(tuser);
+
+	struct subscription *list = soundcloud_get_subscriptions(user);
+
+	for(size_t i = 0; list[i].name; i++) {
+		if(config_has_subscription(list[i].name)) list[i].flags |= FLAG_SUBSCRIBED;
+	}
+
+	state_set_tb("Subscriptions", smprintf("User `%s` has subscribed to the following users:", user));
+	state_set_tb_items(list);
+	handle_textbox();
+}
+
+/** \brief Sets the checked-state for all items in a textbox
+ *
+ *  \param checked  If set to `true` all items will be checked, otherwise all items will be unchecked
+ */
+static void set_all_checked(bool checked) {
+	struct subscription *list = state_get_tb_items();
+	for(size_t i = 0; list[i].name; i++) {
+		if(checked) list[i].flags |=  FLAG_SUBSCRIBED;
+		else        list[i].flags &= ~FLAG_SUBSCRIBED;
+	}
+	state_set_tb_items(list);
+}
+
+void cmd_tb_select_all(const char *unused UNUSED) {
+	set_all_checked(true);
+}
+
+void cmd_tb_select_none(const char *unused UNUSED) {
+	set_all_checked(false);
+}

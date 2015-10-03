@@ -65,6 +65,7 @@
 		none,                ///< "do nothing"
 		redraw,              ///< redraw the whole screen
 		textbox_modified,    ///< redraw the textbox with new data
+		textbox_items_modified,
 		tabbar_modified,     ///< the tabbar was modified
 		titlebar_modified,   ///< the titlebar was modified
 		statusbar_modified,  ///< the statusbar was modified

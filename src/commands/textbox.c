@@ -25,6 +25,7 @@
 #include <string.h>                     // for strchr
 //\endcond
 
+#include "../config.h"
 #include "../helper.h"                  // for strstrp, astrdup
 #include "../log.h"
 #include "../state.h"                   // for state_set_tb, etc
@@ -64,3 +65,31 @@ void cmd_tb_close(const char *unused UNUSED) {
 	state_set_tb(NULL, NULL);
 }
 
+void cmd_tb_goto(const char *_hint) {
+	astrdup(hint, _hint);
+	char *target = strstrp(hint);
+
+	if('+' == *target || '-' == *target) {
+		bool valid = false;
+		int delta;
+
+		valid = (1 == sscanf(target, " %16d ", &delta));
+		if(valid) {
+			size_t csel = state_get_tb_selected();
+			size_t nsel = add_delta_within_limits(csel, delta, 555); // \todo TODO: limit
+			state_set_tb_selected(nsel);
+		}
+	}
+}
+
+void cmd_tb_toggle(const char *unused UNUSED) {
+	size_t csel = state_get_tb_selected();
+	struct subscription *list = state_get_tb_items();
+	_log("toggling selection for %s", list[csel].name);
+
+	if(FLAG_SUBSCRIBED & list[csel].flags) list[csel].flags &= ~FLAG_SUBSCRIBED;
+	else list[csel].flags |= FLAG_SUBSCRIBED;
+
+	config_add_subscription(list[csel].name);
+	state_set_tb_items(list);
+}

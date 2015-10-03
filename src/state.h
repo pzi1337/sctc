@@ -21,6 +21,7 @@
 
 	#include "track.h"
 	#include "tui.h"
+	#include "soundcloud.h"
 
 	#define LIST_STREAM    0
 	#define LIST_BOOKMARKS 1
@@ -37,6 +38,7 @@
 	 */
 	enum callback_event {
 		cbe_textbox_modified = 0, ///< Event triggerd if a **textbox** was modified
+		cbe_textbox_items_modified,
 		cbe_repeat_modified,      ///< Event triggerd if the **repeat mode** was modified 
 		cbe_tabs_modified,        ///< Event triggerd if the **tabs** were modified (p.x. a new list, a list removed)
 		cbe_titlebar_modified,    ///< Event triggerd if the **titlebar** was modified
@@ -98,6 +100,9 @@
 	 *  \return the title of the currently visible textbox, `NULL` if no textbox is shown
 	 */
 	char*              state_get_tb_title(void);
+	struct subscription* state_get_tb_items(void);
+	size_t             state_get_tb_selected(void);
+	void               state_set_tb_selected(size_t selected);
 	char*              state_get_input(void);
 	struct command*    state_get_commands(void);
 	size_t             state_get_current_playback_time(void);
@@ -234,6 +239,7 @@
 	void state_set_tb_pos_rel  (int delta);
 	void state_set_current_playback(size_t list, size_t track);
 	void state_set_volume(unsigned int volume);
+	void state_set_tb_items(struct subscription *items);
 	///@}
 
 	/** \brief Register a callback for a specific event.

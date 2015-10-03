@@ -38,4 +38,9 @@
 	 *  \param 
 	 */
 	void cmd_tb_yank(const char *_hint) ATTR(nonnull);
+
+	void cmd_tb_goto(const char *_hint);
+	void cmd_tb_toggle(const char *unused UNUSED);
+	void cmd_tb_select_all(const char *unused UNUSED);
+	void cmd_tb_select_none(const char *unused UNUSED);
 #endif
