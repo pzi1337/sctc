@@ -22,7 +22,7 @@ CC=gcc
 CFLAGS=-D_GNU_SOURCE `pkg-config --cflags yajl ncursesw libconfuse libmpg123` -std=gnu11 $(CCWARN) -fPIC -fdiagnostics-color=auto $(CCOPT)
 LDFLAGS=`pkg-config --libs yajl ncursesw libconfuse libmpg123` -lpolarssl -ldl -lpthread $(LDOPT)
 
-CFILES_MAIN=soundcloud.c cache.c command.c commands/global.c commands/playlist.c commands/textbox.c downloader.c state.c sound.c main.c helper.c log.c config.c http.c jspf.c track.c tui.c url.c yajl_helper.c audio/ao_module.c network/tls.c network/plain.c
+CFILES_MAIN=soundcloud.c cache.c command.c commands/global.c commands/playlist.c commands/textbox.c downloader.c state.c sound.c main.c helper.c log.c config.c http.c jspf.c track.c tui.c url.c yajl_helper.c audio/ao_module.c network/tls.c network/plain.c generic/rc_string.c
 OFILES_MAIN=$(CFILES_MAIN:.c=.o)
 CFILES_AO=audio/ao.c
 OFILES_AO=$(CFILES_AO:.c=.o)
