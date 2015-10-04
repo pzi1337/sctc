@@ -216,6 +216,8 @@ bool config_init(void) {
 		_log("invalid values for equalizer!");
 	}
 
+	cfg_free(cfg);
+
 	// read the dynamic configuration:
 	//  - subscriptions
 	cfg_opt_t dynamic_opts[] = {
@@ -258,6 +260,8 @@ static void config_finalize(void) {
 	free(config_subscribe);
 	free(cache_path);
 	free(cert_path);
+
+	cfg_free(dynamic_cfg);
 }
 
 command_func_ptr config_get_function(enum scope scope, int key) {
