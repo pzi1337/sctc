@@ -125,8 +125,12 @@ static struct track_list* parse_single_response(char *resp, char **href) {
 
 			char *date_str = yajl_helper_get_string(array->u.array.values[i], "created_at", NULL);
 			if(date_str) {
-				struct tm ctime;
-				strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &ctime);
+				struct tm ctime = { 0 };
+				char *remaining = strptime(date_str, "%Y/%m/%d %H:%M:%S %z", &ctime);
+				if(NULL == remaining || '\0' == *remaining) {
+					_err("strptime: %s", (NULL == remaining ? "have remaining string" : strerror(errno)));
+				}
+
 				list->entries[i].created_at = mktime(&ctime);
 				free(date_str);
 			}
