@@ -26,6 +26,7 @@
 #include "_hard_config.h"
 
 #include "state.h"
+#include "generic/rc_string.h"
 
 //\cond
 #include <assert.h>
@@ -48,11 +49,11 @@ unsigned int state_get_volume(void) { return _volume; }
 void state_set_volume(unsigned int volume) { _volume = volume; CALL_CALLBACK(cbe_tabs_modified); }
 
 static enum repeat  _repeat     = rep_none; ///< the repeat state, one out of (none, one, all)
-static char        *_title_text = NULL;
+static struct rc_string *_title_text = NULL;
 static char        *_input      = NULL;
 
 enum repeat state_get_repeat(void)     { return _repeat; }
-char*       state_get_title_text(void) { return _title_text; }
+struct rc_string* state_get_title_text(void) { return _title_text; }
 char*       state_get_input(void)      { return _input; }
 
 void state_set_repeat(enum repeat repeat) {
@@ -60,10 +61,15 @@ void state_set_repeat(enum repeat repeat) {
 	CALL_CALLBACK(cbe_repeat_modified);
 }
 
-void state_set_title(char *text) {
+void state_set_title(struct rc_string *text) {
 	assert(text && "text must not be NULL");
 
+	if(_title_text) {
+		rcs_unref(_title_text);
+	}
+
 	_title_text = text;
+	rcs_ref(_title_text);
 
 	CALL_CALLBACK(cbe_titlebar_modified);
 }

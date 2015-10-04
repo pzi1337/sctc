@@ -112,7 +112,9 @@ static void tui_update_time(int time) {
 		char time_buffer[TIME_BUFFER_SIZE];
 		snprint_ftime(time_buffer, TIME_BUFFER_SIZE, TRACK(list, playing)->duration);
 
-		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer));
+		struct rc_string *new_title = rcs_format("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", TRACK(list, playing)->name, TRACK(list, playing)->username, time_buffer);
+		state_set_title(new_title);
+		rcs_unref(new_title);
 
 		state_set_current_playback(state_get_current_playback_list(), playing);
 		tui_submit_action(update_list);
@@ -151,7 +153,10 @@ int main(int argc UNUSED, char **argv) {
 
 	// start drawing on screen
 	state_set_status(cline_default, "");
-	state_set_title("");
+
+	struct rc_string *new_title = rcs_format("");
+	state_set_title(new_title);
+	rcs_unref(new_title);
 
 	struct track_list *list_stream = soundcloud_get_stream();
 	list_stream->name = strdup("Stream");

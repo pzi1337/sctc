@@ -22,6 +22,7 @@
 	#include "track.h"
 	#include "tui.h"
 	#include "soundcloud.h"
+	#include "generic/rc_string.h"
 
 	#define LIST_STREAM    0
 	#define LIST_BOOKMARKS 1
@@ -79,7 +80,7 @@
 	/** \brief Get the current text in the title bar
 	 *  \return The current text in the title bar
 	 */
-	char*              state_get_title_text(void);
+	struct rc_string*  state_get_title_text(void);
 
 	/** \brief Get the current text in the status bar
 	 *  \return The current text in the status bar
@@ -209,7 +210,7 @@
 	 *  \see `state_register_callback()`
 	 *  \see `enum callback_event`
 	 */
-	void state_set_title(char *text) ATTR(nonnull);
+	void state_set_title(struct rc_string *text) ATTR(nonnull);
 
 	/** \brief Set the text shown in the statusbar
 	 *

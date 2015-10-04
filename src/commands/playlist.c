@@ -43,6 +43,7 @@
 #include "../helper.h"                  // for smprintf, strstrp, astrdup, etc
 #include "../track.h"                   // for track, track_list, TRACK, etc
 #include "../tui.h"                     // for tui_submit_action, F_BOLD, etc
+#include "../generic/rc_string.h"
 
 #define NONE ((unsigned int) ~0)
 #define TIME_BUFFER_SIZE 64
@@ -320,7 +321,10 @@ void cmd_pl_play(const char *unused UNUSED) {
 
 		state_set_current_playback(state_get_current_list(), current_selected);
 
-		state_set_title(smprintf("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", track->name, track->username, time_buffer));
+		struct rc_string *new_title = rcs_format("Now playing "F_BOLD"%s"F_RESET" by "F_BOLD"%s"F_RESET" (%s)", track->name, track->username, time_buffer);
+		state_set_title(new_title);
+		rcs_unref(new_title);
+
 		track->flags = (uint8_t) ( (track->flags & ~FLAG_PAUSED) | FLAG_PLAYING );
 
 		tui_submit_action(update_list);

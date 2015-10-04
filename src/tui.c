@@ -41,6 +41,7 @@
 #include "state.h"                      // for state_get_current_list, etc
 #include "track.h"                      // for track, track_list, etc
 #include "command.h"
+#include "generic/rc_string.h"
 
 /* user defined colors */
 #define COLOR_SHELL  -1 /* the default color used by the shell, required to be -1 */
@@ -168,8 +169,12 @@ static void* _thread_tui_function(void *unused UNUSED) {
 static void tui_draw_title_line(void) {
 	color_set(sbar_default, NULL);
 
+	struct rc_string *title = state_get_title_text();
+	rcs_ref(title);
+
 	move(0, 0);
-	tui_print(stdscr, "%s%0*c", state_get_title_text(), COLS - strlen(state_get_title_text()), ' ');
+	tui_print(stdscr, "%s%0*c", rcs_value(title), COLS - strlen(rcs_value(title)), ' ');
+	rcs_unref(title);
 	refresh();
 }
 
