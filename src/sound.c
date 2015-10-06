@@ -279,12 +279,13 @@ static void* _thread_play_function(void *unused UNUSED) {
 			}
 		}
 
+		if(mh) {
+			mpg123_close(mh);
+			mpg123_delete(mh);
+		}
+		mh = NULL;
+
 		if(stopped) {
-			if(mh) {
-				mpg123_close(mh);
-				mpg123_delete(mh);
-			}
-			mh = NULL;
 			sem_post(&sem_stopped);
 		}
 	} while(!terminate);

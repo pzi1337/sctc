@@ -130,6 +130,7 @@ static void* _download_thread(void *unused UNUSED) {
 					remaining -= (unsigned int) ret;
 				}
 			}
+			resp_last->nwc->disconnect(resp_last->nwc);
 			_log("fetching of last 4096 bytes finished");
 
 			remaining = resp->content_length;

@@ -64,10 +64,7 @@ void state_set_repeat(enum repeat repeat) {
 void state_set_title(struct rc_string *text) {
 	assert(text && "text must not be NULL");
 
-	if(_title_text) {
-		rcs_unref(_title_text);
-	}
-
+	rcs_unref(_title_text);
 	_title_text = text;
 	rcs_ref(_title_text);
 
@@ -261,4 +258,5 @@ bool state_init(void) {
  */
 static void state_finalize(void) {
 	free(_input);
+	rcs_unref(_title_text);
 }

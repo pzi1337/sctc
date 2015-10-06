@@ -42,9 +42,11 @@ struct rc_string* rcs_format(char *format, ...) {
 }
 
 void rcs_unref(struct rc_string *rcs) {
-	assert(rcs->rc && "rcs must have an rc >0");
-	if(0 == __sync_sub_and_fetch(&rcs->rc, 1)) {
-		free(rcs);
+	if(rcs) {
+		assert(rcs->rc && "rcs must have an rc >0");
+		if(0 == __sync_sub_and_fetch(&rcs->rc, 1)) {
+			free(rcs);
+		}
 	}
 }
 

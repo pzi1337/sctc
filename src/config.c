@@ -254,6 +254,12 @@ bool config_init(void) {
 /** \brief Cleanup data allocated during execution
  */
 static void config_finalize(void) {
+	for(size_t scope = 0; scope < sizeof(scopes) / sizeof(scopes[0]); scope++) {
+		for(size_t i = 0; i < KEY_MAX; i++) {
+			free( (void*) key_command_mapping[scope][i].param);
+		}
+	}
+
 	for(size_t i = 0; i < config_subscribe_count; i++) {
 		free(config_subscribe[i]);
 	}
