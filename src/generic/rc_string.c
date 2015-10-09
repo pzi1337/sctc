@@ -1,9 +1,11 @@
 #include "rc_string.h"
 
+//\cond
 #include <assert.h>     // for assert
 #include <stdarg.h>     // for va_list
 #include <stdio.h>      // for NULL, vsnprintf
 #include <stdlib.h>     // for free
+//\endcond
 
 #include "../helper.h"  // for lcalloc
 
@@ -24,9 +26,6 @@ struct rc_string* rcs_format(char *format, ...) {
 	}
 
 	size_t buffer_size = ((unsigned int) required_size) + 1;
-
-	va_list aq;
-	va_start(aq, format);
 	struct rc_string *new_rcs = lcalloc(sizeof(char), sizeof(struct rc_string) + buffer_size);
 	if(!new_rcs) {
 		return NULL;
@@ -35,6 +34,8 @@ struct rc_string* rcs_format(char *format, ...) {
 	new_rcs->value = (char*) &new_rcs[1];
 	new_rcs->rc    = 1;
 
+	va_list aq;
+	va_start(aq, format);
 	vsnprintf(new_rcs->value, buffer_size, format, aq);
 	va_end(aq);
 
