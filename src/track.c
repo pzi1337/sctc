@@ -138,6 +138,8 @@ void track_destroy(struct track *track) {
 		free(track->permalink_url);
 		free(track->username);
 		free(track->description);
+
+		free(track->urls);
 	}
 }
 
