@@ -119,11 +119,6 @@ void state_set_tb_pos(size_t pos) {
 	CALL_CALLBACK(cbe_textbox_modified);
 }
 
-void state_set_tb_pos_rel(int delta) {
-	textbox.pos = add_delta_within_limits(textbox.pos, delta, SIZE_MAX);
-	CALL_CALLBACK(cbe_textbox_modified);
-}
-
 void state_set_tb(char *title, char *text) {
 	textbox.title = title;
 	textbox.text  = text;

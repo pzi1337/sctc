@@ -237,7 +237,6 @@
 
 	void state_set_tb          (char *title, char *text);
 	void state_set_tb_pos      (size_t pos);
-	void state_set_tb_pos_rel  (int delta);
 	void state_set_current_playback(size_t list, size_t track);
 	void state_set_volume(unsigned int volume);
 	void state_set_tb_items(struct subscription *items);
