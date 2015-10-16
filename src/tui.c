@@ -37,6 +37,7 @@
 #include <term.h>                       // for del_curterm, cur_term
 
 #include "helper.h"                     // for snprint_ftime, strcrep
+#include "helper/curses.h"
 #include "log.h"                        // for _log
 #include "state.h"                      // for state_get_current_list, etc
 #include "track.h"                      // for track, track_list, etc
@@ -53,7 +54,6 @@
 
 static void tui_track_print_line(struct track* entry, bool selected, int line);
 
-static void tui_print(WINDOW *win, char *fmt, ...);
 static void tui_track_list_print(void);
 static size_t tui_track_focus(void);
 static void tui_update_suggestion_list(void);
@@ -66,8 +66,6 @@ static void tui_draw_tab_bar(void);
 static void tui_draw_status_line(void);
 
 static void tui_finalize(void);
-
-#define wcsps(S) mbstowcs(NULL, S, 0)
 
 static pthread_t thread_tui;
 static bool terminate = false;
@@ -98,8 +96,7 @@ static void* _thread_tui_function(void *unused UNUSED) {
 
 			tui_draw_title_line();  // redraw the title line
 			tui_draw_tab_bar();     // redraw the tab bar
-
-			tui_track_list_print();
+			tui_track_list_print(); // redraw the track_list
 
 			if(state_get_tb_title()) {
 				tui_update_textbox(false);
@@ -112,32 +109,19 @@ static void* _thread_tui_function(void *unused UNUSED) {
 				case none: break; // FIXME
 
 				case set_sbar_time: {
-					color_set(sbar_default, NULL);
-
 					char time_buffer[TIME_BUFFER_SIZE];
 					int time_len = snprint_ftime(time_buffer, TIME_BUFFER_SIZE, state_get_current_playback_time());
-					mvprintw(0, COLS - time_len, "%s", time_buffer);
+					hc_print_mv(stdscr, COLS - time_len, 0, F_COLOR"%s", time_buffer, sbar_default);
 
 					refresh();
 					break;
 				}
 
-				case input_modify_text: {
-					const int x = 1;
-					const int y = LINES - 1;
-
-					color_set(cline_default, NULL);
-					move(y, x);
-					tui_print(stdscr, "%s", state_get_input());
-
-					color_set(inp_cursor, NULL);
-					printw(" ");
-
-					color_set(cline_default, NULL);
-					mvprintw(y, x + wcsps(state_get_input()) + 1, "%0*c", COLS - (x + wcsps(state_get_input()) + 1), ' ');
-
+				case input_modify_text:
+					hc_print_mv(stdscr, 1, LINES - 1, F_COLOR"%s"F_COLOR" "F_COLOR"%0*c", 
+						/* args   */ state_get_input(), COLS - (1 + wcsps(state_get_input()) + 1), ' ', 
+						/* colors */ cline_default, inp_cursor, cline_default);
 					break;
-				}
 
 				case update_list:            tui_track_list_print();       break;
 				case titlebar_modified:      tui_draw_title_line();        break;
@@ -153,8 +137,11 @@ static void* _thread_tui_function(void *unused UNUSED) {
 					break;
 
 				case redraw: // TODO
-				default:
-					_log("currently not implemented action-kind %d", action);
+					whole_redraw_required = true;
+					sem_post(&sem_have_action);
+					break;
+
+				default: assert(false && "INTERNAL ERROR: got unknown value for `action`");
 			}
 			action = none;
 		}
@@ -166,23 +153,17 @@ static void* _thread_tui_function(void *unused UNUSED) {
 	return NULL;
 }
 
+/** \brief Draw the titleline */
 static void tui_draw_title_line(void) {
-	color_set(sbar_default, NULL);
-
 	struct rc_string *title = state_get_title_text();
 	rcs_ref(title);
-
-	move(0, 0);
-	tui_print(stdscr, "%s%0*c", rcs_value(title), COLS - strlen(rcs_value(title)), ' ');
+	hc_print_mv(stdscr, 0, 0, F_COLOR"%s%0*c", rcs_value(title), COLS - strlen(rcs_value(title)), ' ', sbar_default);
 	rcs_unref(title);
 	refresh();
 }
 
 static void tui_draw_status_line(void) {
-	color_set(state_get_status_color(), NULL);
-
-	move(LINES - 1, 0);
-	tui_print(stdscr, "%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ');
+	hc_print_mv(stdscr, 0, LINES - 1, F_COLOR"%s%0*c", state_get_status_text(), COLS - strlen(state_get_status_text()), ' ', state_get_status_color());
 	refresh();
 }
 
@@ -192,8 +173,8 @@ static void tui_update_suggestion_list(void) {
 	if(!sugg_cmds) {
 		// remove suggestion_window if commands are not set
 		// expects an existing suggestion_window
+		assert(suggestion_window && "INTERNAL ERROR: suggestion window does not exist, but trying to close it");
 
-		assert(suggestion_window);
 		delwin(suggestion_window);
 		suggestion_window = NULL;
 
@@ -215,15 +196,22 @@ static void tui_update_suggestion_list(void) {
 
 		size_t line;
 		for(line = 0; line < SUGGESTION_LIST_HEIGHT && sugg_cmds[start + line].name; line++) {
-			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_selected : cmdlist_default, NULL);
-			mvwprintw (suggestion_window, line, 0, "%0*c", COLS, ' ');
-			mvwprintw (suggestion_window, line, 1, "%s", sugg_cmds[start + line].name);
+			bool selected = (line + start == sugg_selected);
 
-			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_descparam_selected : cmdlist_descparam, NULL);
-			mvwprintw (suggestion_window, line, 20, "%s", sugg_cmds[start + line].desc_param);
+			// clear the whole line
+			hc_print_mv(suggestion_window, 0, line, F_COLOR"%0*c", COLS, ' ', 
+				/* colors */ selected ? cmdlist_selected : cmdlist_default);
 
-			wcolor_set(suggestion_window, line + start == sugg_selected ? cmdlist_desc_selected : cmdlist_desc, NULL);
-			mvwprintw (suggestion_window, line, COLS / 2, sugg_cmds[start + line].desc);
+			// draw name
+			hc_print_mv(suggestion_window, 1, line, "%s", sugg_cmds[start + line].name);
+
+			// draw parameters
+			hc_print_mv(suggestion_window, 20, line, F_COLOR"%s", sugg_cmds[start + line].desc_param,
+				/* colors */ selected ? cmdlist_descparam_selected : cmdlist_descparam);
+
+			// draw description
+			hc_print_mv(suggestion_window, COLS / 2, line, F_COLOR"%s", sugg_cmds[start + line].desc, 
+				/* colors */ selected ? cmdlist_desc_selected : cmdlist_desc);
 		}
 
 		wcolor_set(suggestion_window, cmdlist_default, NULL);
@@ -282,21 +270,15 @@ static size_t tui_track_focus(void) {
 }
 
 static void tui_draw_tab_bar(void) {
-	color_set(tbar_default, NULL);
-	mvprintw(1, 0, "%0*c", COLS, ' ');
+	hc_print_mv(stdscr, 0, 1, F_COLOR"%0*c", COLS, ' ', tbar_default); // draw empty line (whole width)
 
 	move(1, 0);
 	for(size_t i = 0; state_get_list(i); i++) {
-		color_set(i == state_get_current_list() ? tbar_tab_selected : tbar_tab_nselected, NULL);
-
-		if(i == state_get_current_list()) attron(A_BOLD);
-		printw(" [%i] %s ", i + 1, state_get_list(i)->name);
-		if(i == state_get_current_list()) attroff(A_BOLD);
+		if(i == state_get_current_list()) hc_print(stdscr, F_COLOR F_BOLD" [%i] %s "F_RESET, i + 1, state_get_list(i)->name, tbar_tab_selected );
+		else                              hc_print(stdscr, F_COLOR       " [%i] %s ",        i + 1, state_get_list(i)->name, tbar_tab_nselected);
 	}
 
-	move(1, COLS - 12);
-	color_set(tbar_default, NULL);
-	printw("\u266A %u%%", state_get_volume());
+	hc_print_mv(stdscr, COLS - 12, 1, F_COLOR"\u266A %u%%", state_get_volume(), tbar_default);
 
 	move(1, COLS - 3);
 	switch(state_get_repeat()) {
@@ -308,6 +290,18 @@ static void tui_draw_tab_bar(void) {
 	}
 }
 
+/** \brief 
+ *
+ *  \param remaining       The number of chars printed in `color_played`
+ *  \param selected
+ *  \param color           The default color (neither played, nor selected)
+ *  \param color_played    The color used for the `played` part
+ *  \param color_selected  The color used in case the whole line is selected
+ *  \param format          asdf
+ *  \param ...             asdf
+ *
+ *  \return 
+ */
 static size_t tui_track_print_played(size_t remaining, bool selected, enum color color, enum color color_played, enum color color_selected, char *format, ...) {
 	if(selected) {
 		color        = color_selected;
@@ -316,49 +310,17 @@ static size_t tui_track_print_played(size_t remaining, bool selected, enum color
 
 	va_list va;
 	va_start(va, format);
-	int required_buffer = vsnprintf(NULL, 0, format, va);
+	remaining = hc_print_2c_va(remaining, color_played, color, format, va);
 	va_end(va);
-
-	va_start(va, format);
-	char string[required_buffer + 1];
-	vsnprintf(string, required_buffer + 1, format, va);
-	va_end(va);
-
-	if(remaining) {
-		// print min(remaining, strlen(string)) using 'color_played'
-		color_set(color_played, NULL);
-
-		int printed = 0;
-		printw("%.*s%n", remaining, string, &printed);
-		remaining -= printed;
-
-		if(!remaining) {
-			color_set(color, NULL);
-			printw("%s", string + printed);
-		}
-	} else {
-		// no 'played' chars remaining, just print the string using 'color'
-		color_set(color, NULL);
-		printw("%s", string);
-	}
 
 	return remaining;
 }
 
 static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	move(line, 0);
-	if(entry->flags & FLAG_PLAYING) {
-		color_set(tline_status, NULL);
-		addstr("\u25B8");
-	} else if(entry->flags & FLAG_PAUSED) {
-		color_set(tline_status, NULL);
-		attron(A_BOLD);
-		addch('=');
-		attroff(A_BOLD);
-	} else {
-		color_set(tline_default, NULL);
-		addch(' ');
-	}
+	if(entry->flags & FLAG_PLAYING)     hc_print(stdscr, F_COLOR"\u25B8",          tline_status );
+	else if(entry->flags & FLAG_PAUSED) hc_print(stdscr, F_BOLD F_COLOR"="F_RESET, tline_status );
+	else                                hc_print(stdscr, F_COLOR" ",               tline_default);
 
 	size_t played_chars = 0;
 	if(entry->current_position) {
@@ -391,6 +353,10 @@ static void tui_track_print_line(struct track* entry, bool selected, int line) {
 	tui_track_print_played(played_chars, selected, tline_default, tline_default_played, tline_time_selected, "%0*c%s", 9 - time_len, ' ', time_buffer);
 }
 
+/** \brief Draw the current track_list at the current position to the screen
+ *
+ *  Only lines not covered by a textbox or the suggestion list are drawn.
+ */
 static void tui_track_list_print(void) {
 	struct track_list *list = state_get_list(state_get_current_list());
 
@@ -399,20 +365,16 @@ static void tui_track_list_print(void) {
 		return;
 	}
 
-	// if a textbox is shown, then do not write over it
-	int y = 2;
-	for(size_t i = state_get_current_position(); i < list->count && y < LINES - 2; i++) {
-		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
-			if( y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window) {
-				tui_track_print_line(TRACK(list, i), i == state_get_current_selected(), y);
-			}
-		}
-		y++;
-	}
+	const size_t first_track = state_get_current_position();
+	for(int y = 2; y < LINES - 2; y++) {
+		if( ((y < 4 || y > LINES - 4)                || !textbox_window.win)     // do not draw over a textbox
+		&&   (y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window ) ) { // do not draw over the suggestion list
 
-	for(; y < LINES - 2; y++) {
-		if( (y < 4 || y > LINES - 4) || !textbox_window.win ) {
-			if( y < LINES - SUGGESTION_LIST_HEIGHT - 1 || !suggestion_window) {
+			const size_t this_track = first_track + y - 2;
+
+			if(this_track < list->count) {
+				tui_track_print_line(TRACK(list, this_track), this_track == state_get_current_selected(), y);
+			} else {
 				move(y, 0);
 				clrtoeol();
 			}
@@ -422,133 +384,42 @@ static void tui_track_list_print(void) {
 	refresh();
 }
 
-static size_t next_control_char(char *string) {
-	size_t idx;
-	for(idx = 0; string[idx]; idx++) {
-		if(F_BOLD[0]      == string[idx]
-		|| F_UNDERLINE[0] == string[idx]
-		|| F_RESET[0]     == string[idx]) {
-			return idx;
-		}
-	}
-	return idx;
-}
-
-static void tui_print(WINDOW *win, char *fmt, ...) {
-	va_list va;
-	va_start(va, fmt);
-
-	char buffer[512];
-	vsnprintf(buffer, sizeof(buffer), fmt, va);
-
-	va_end(va);
-
-	char* buf = buffer;
-
-	size_t cc_pos = next_control_char(buf);
-	while('\0' != buf[cc_pos]) {
-		char cc = buf[cc_pos];
-
-		buf[cc_pos] = '\0';
-		wprintw(win, "%s", buf);
-
-		if(F_BOLD[0] == cc) {
-			wattron(win, A_BOLD);
-		} else if(F_UNDERLINE[0] == cc) {
-			wattron(win, A_UNDERLINE);
-		} else if(F_RESET[0] == cc) {
-			wattroff(win, A_BOLD);
-			wattroff(win, A_UNDERLINE);
-		}
-
-		buf = &buf[cc_pos + 1];
-		cc_pos = next_control_char(buf);
-	}
-
-	wprintw(win, "%s", buf);
-}
-
-static WINDOW* tui_draw_text(char *text, const unsigned int max_width) {
-	text = strdup(text);
-	strcrep(text, '\r', ' ');
-
-	size_t pad_height = 1;
-	WINDOW *pad = newpad(pad_height, max_width);
-
-	size_t y = 0;
-	char *tok = strtok(text, "\n");
-	while(tok) {
-		// split the current line, if it is too long
-		while(wcsps(tok) > max_width) {
-			// search for any space to avoid breaking within words
-			int line_len = max_width;
-			for(size_t i = 0; i < max_width / 8; i++) {
-				if(' ' == tok[max_width - 1 - i]) {
-					line_len = max_width - i;
-					break;
-				}
-			}
-
-			wmove(pad, y, 2);
-			tui_print(pad, "%.*s", line_len, tok);
-			wresize(pad, ++pad_height, max_width);
-
-			y++;
-			tok += line_len;
-		}
-
-		wmove(pad, y, 2);
-		tui_print(pad, "%s%0*c", tok, max_width - wcsps(tok), ' ');
-		wresize(pad, ++pad_height, max_width);
-
-		y++;
-		tok = strtok(NULL, "\n");
-	}
-
-	free(text);
-	return pad;
-}
-
+/** \brief Update the current/Create a textbox
+ *
+ *  \param items_modified  If set to `true` the underlying pad will be redrawed, otherwise the pad will only be drawn to the screen
+ */
 static void tui_update_textbox(bool items_modified) {
 	const int height = LINES - 8;
-	const int width = COLS - 8;
+	const int width  = COLS  - 8;
+	const int distance_text_items = 2;
 
 	/* create new textbox if there is none, but a title was supplied */
 	if(( !textbox_window.win || items_modified ) && state_get_tb_title()) {
-		_log("redrawing pad");
-
 		textbox_window.win = newwin(height, width, 4, 4);
 		box(textbox_window.win, 0, 0);
 
-		wattron(textbox_window.win, A_BOLD);
-		mvwprintw(textbox_window.win, 0, 2, " %s ", state_get_tb_title());
-		wattroff(textbox_window.win, A_BOLD);
+		hc_print_mv(textbox_window.win, 2, 0, F_BOLD" %s "F_RESET, state_get_tb_title());
 
-		textbox_window.pad = tui_draw_text(state_get_tb_text(), width - 10);
+		textbox_window.pad = hc_pad_print(state_get_tb_text(), width - 10);
 
 		struct subscription *items = state_get_tb_items();
+		size_t items_size = 0;
+		for(; items && items[items_size].name; items_size++) {}
 
 		// take care here, getmaxyx is a macro and modifies x and y
 		int x, y;
 		getmaxyx(textbox_window.pad, y, x);
-		wresize(textbox_window.pad, y + 200, x); // TODO
+		wresize(textbox_window.pad, y + distance_text_items + items_size, x);
 
-		y++;
+		y += distance_text_items;
 		size_t selected = state_get_tb_selected();
 		for(size_t i = 0; items && items[i].name; i++) {
+			// TODO: color 0?!
+			hc_print_mv(textbox_window.pad, 4, y, "["F_COLOR"%c"F_COLOR"] %s", 
+				/* args   */ (FLAG_SUBSCRIBED & items[i].flags) ? 'X' : ' ', items[i].name,
+				/* colors */ i == selected ? inp_cursor : 0, 0);
+
 			y++;
-
-			wmove(textbox_window.pad, y, 4);
-
-			tui_print(textbox_window.pad, "[");
-			if(i == selected) {
-				wcolor_set(textbox_window.pad, sbar_default, NULL);
-			}
-
-			tui_print(textbox_window.pad, FLAG_SUBSCRIBED & items[i].flags ? "X" : " ");
-
-			wcolor_set(textbox_window.pad, 0, NULL); // TODO
-			tui_print(textbox_window.pad, "] %s", items[i].name);
 		}
 
 		wrefresh(textbox_window.win);
@@ -581,13 +452,13 @@ void tui_submit_action(enum tui_action_kind _action) {
 	sem_post(&sem_wait_action);
 }
 
-static void tui_callback_textbox_modifed(void)    { tui_submit_action(textbox_modified);   }
-static void tui_callback_textbox_items_modifed(void)    { tui_submit_action(textbox_items_modified);   }
-static void tui_callback_tabbar_modified(void)    { tui_submit_action(tabbar_modified);    }
-static void tui_callback_titlebar_modified(void)  { tui_submit_action(titlebar_modified);  }
-static void tui_callback_statusbar_modified(void) { tui_submit_action(statusbar_modified); }
-static void tui_callback_list_modified(void)      { tui_submit_action(list_modified);      }
-static void tui_callback_sugg_modified(void)      { tui_submit_action(sugg_modified);      }
+static void tui_callback_textbox_modifed(void)       { tui_submit_action(textbox_modified);       }
+static void tui_callback_textbox_items_modifed(void) { tui_submit_action(textbox_items_modified); }
+static void tui_callback_tabbar_modified(void)       { tui_submit_action(tabbar_modified);        }
+static void tui_callback_titlebar_modified(void)     { tui_submit_action(titlebar_modified);      }
+static void tui_callback_statusbar_modified(void)    { tui_submit_action(statusbar_modified);     }
+static void tui_callback_list_modified(void)         { tui_submit_action(list_modified);          }
+static void tui_callback_sugg_modified(void)         { tui_submit_action(sugg_modified);          }
 
 /* signal handler, exectued in case of resize of terminal
    to avoid race conditions no drawing is done here */
@@ -678,19 +549,29 @@ bool tui_init(void) {
 		_log("terminal does not support colors at all(!)");
 	}
 
-	state_register_callback(cbe_textbox_modified,   tui_callback_textbox_modifed);
-	state_register_callback(cbe_textbox_items_modified,   tui_callback_textbox_items_modifed); // TODO
-	state_register_callback(cbe_repeat_modified,    tui_callback_tabbar_modified);
-	state_register_callback(cbe_tabs_modified,      tui_callback_tabbar_modified);
-	state_register_callback(cbe_titlebar_modified,  tui_callback_titlebar_modified);
-	state_register_callback(cbe_statusbar_modified, tui_callback_statusbar_modified);
-	state_register_callback(cbe_list_modified,      tui_callback_list_modified);
-	state_register_callback(cbe_sugg_modified,      tui_callback_sugg_modified);
+	state_register_callback(cbe_textbox_modified,       tui_callback_textbox_modifed      );
+	state_register_callback(cbe_textbox_items_modified, tui_callback_textbox_items_modifed);
+	state_register_callback(cbe_repeat_modified,        tui_callback_tabbar_modified      );
+	state_register_callback(cbe_tabs_modified,          tui_callback_tabbar_modified      );
+	state_register_callback(cbe_titlebar_modified,      tui_callback_titlebar_modified    );
+	state_register_callback(cbe_statusbar_modified,     tui_callback_statusbar_modified   );
+	state_register_callback(cbe_list_modified,          tui_callback_list_modified        );
+	state_register_callback(cbe_sugg_modified,          tui_callback_sugg_modified        );
 
-	pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
+	int err = pthread_create(&thread_tui, NULL, _thread_tui_function, NULL);
+	if(err) {
+		_err("pthread_create: %s", strerror(err));
+
+		delwin(stdscr);
+		endwin();
+		del_curterm(cur_term);
+
+		return false;
+	}
 
 	if(atexit(tui_finalize)) {
-		_log("atexit: %s", strerror(errno));
+		_err("atexit: %s", strerror(errno));
+		_err("going on, but cleanup at exit will not be executed...");
 	}
 
 	return true;
