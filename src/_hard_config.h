@@ -106,9 +106,9 @@
 	/** \brief Maximum download size for tracks
 	 *
 	 *  Limits the maximum size of track.
-	 *  256MB seems to be a reasonable limit (translates to ~>4h at 128kbits)
+	 *  512MB seems to be a reasonable limit (translates to ~>8h at 128kbits)
 	 */
-	#define DOWNLOAD_MAX_SIZE ( 256 * 1024 * 1024 )
+	#define DOWNLOAD_MAX_SIZE ( 512 * 1024 * 1024 )
 
 	/** \brief The soundcloud.com API key
 	 *
