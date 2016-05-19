@@ -132,6 +132,7 @@ struct http_response* http_request_get_only_header(struct network_conn *nwc, cha
 			struct url *u = url_parse_string(resp->location);
 
 			http_response_destroy(resp);
+			nwc->disconnect(nwc);
 
 			if(u) {
 				url_connect(u);

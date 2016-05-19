@@ -139,6 +139,11 @@ void track_destroy(struct track *track) {
 		free(track->username);
 		free(track->description);
 
+		if(track->urls) {
+			for(size_t i = 0; i < track->url_count; i++) {
+				free(track->urls[i]);
+			}
+		}
 		free(track->urls);
 	}
 }

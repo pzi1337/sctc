@@ -177,6 +177,8 @@ bool config_init(void) {
 	cert_path   = lstrdup(CERT_DEFAULT_PATH);
 	cache_path  = lstrdup(CACHE_DEFAULT_PATH); // default subdir 'cache' in bin
 	if(!cert_path || !cache_path) {
+		free(cert_path);
+		free(cache_path);
 		return false;
 	}
 
@@ -203,6 +205,8 @@ bool config_init(void) {
 	// verify required settings: at least one key mapped
 	if(!kcm_count) {
 		_log("Have 0 keymappings, by default you want to have quite a bunch of keymappings...");
+		free(cert_path);
+		free(cache_path);
 		cfg_free(cfg);
 		return false;
 	}

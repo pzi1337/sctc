@@ -34,19 +34,22 @@
 	//\endcond
 
 	/// this track is currently being played
-	#define FLAG_PLAYING    1
+	#define FLAG_PLAYING      1
 
 	/// this track is currently pause
-	#define FLAG_PAUSED     2
+	#define FLAG_PAUSED       2
 
 	/// this track is bookmarked
-	#define FLAG_BOOKMARKED 4
+	#define FLAG_BOOKMARKED   4
 
 	/// this track is 'new'
-	#define FLAG_NEW        8
+	#define FLAG_NEW          8
 
 	/// this track is within the cache
-	#define FLAG_CACHED    16
+	#define FLAG_CACHED      16
+
+	/// this track is currently being downloaded
+	#define FLAG_DOWNLOADING 32
 
 	#define URL_COUNT_UNINITIALIZED ( (size_t) -1 )
 

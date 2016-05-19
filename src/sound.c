@@ -369,7 +369,9 @@ bool sound_stop(void) {
 		sem_wait(&sem_stopped);
 	}
 
-	// TODO: free state here?
+	if(! (state->track->flags & FLAG_DOWNLOADING)) {
+		free(state);
+	}
 	state = NULL;
 
 	stopped = false;

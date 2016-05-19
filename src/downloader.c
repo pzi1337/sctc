@@ -131,6 +131,7 @@ static void* _download_thread(void *unused UNUSED) {
 				}
 			}
 			resp_last->nwc->disconnect(resp_last->nwc);
+			http_response_destroy(resp_last);
 			_log("fetching of last 4096 bytes finished");
 
 			remaining = resp->content_length;
@@ -161,6 +162,8 @@ static void* _download_thread(void *unused UNUSED) {
 
 			nwc->disconnect(nwc);
 			http_response_destroy(resp);
+
+			my->state->track->flags &= ~FLAG_DOWNLOADING;
 
 			if(my->target_file) fclose(fh);
 		} else {
@@ -216,6 +219,8 @@ struct download_state* downloader_queue_buffer(struct track *track, void (*callb
 		free(new_dl);
 		return NULL;
 	}
+
+	track->flags |= FLAG_DOWNLOADING;
 
 	new_dl->target_file = false;
 	new_dl->buffer      = NULL;
