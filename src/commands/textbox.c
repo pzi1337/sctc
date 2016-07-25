@@ -70,11 +70,8 @@ void cmd_tb_goto(const char *_hint) {
 	char *target = strstrp(hint);
 
 	if('+' == *target || '-' == *target) {
-		bool valid = false;
 		int delta;
-
-		valid = (1 == sscanf(target, " %16d ", &delta));
-		if(valid) {
+		if(1 == sscanf(target, " %16d ", &delta)) {
 			size_t csel = state_get_tb_selected();
 			size_t nsel = add_delta_within_limits(csel, delta, 555); // \todo TODO: limit
 			state_set_tb_selected(nsel);

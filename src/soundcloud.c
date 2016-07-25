@@ -21,6 +21,7 @@
 #include "soundcloud.h"
 
 //\cond
+#include <assert.h>
 #include <errno.h>                      // for errno
 #include <stdbool.h>                    // for false
 #include <stdio.h>                      // for NULL, sprintf
@@ -184,6 +185,9 @@ struct subscription* soundcloud_get_subscriptions(char *user) {
 }
 
 struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) {
+	assert(NULL != nwc  && "nwc may not be null here");
+	assert(NULL != user && "user may not be null here");
+
 	char *cache_path = config_get_cache_path();
 	char cache_file[strlen(cache_path) + 1 + strlen(CACHE_LIST_FOLDER) + 1 + strlen(user) + strlen(CACHE_LIST_EXT) + 1];
 	sprintf(cache_file, "%s/"CACHE_LIST_FOLDER"/%s"CACHE_LIST_EXT, cache_path, user);
@@ -198,52 +202,50 @@ struct track_list* soundcloud_get_entries(struct network_conn *nwc, char *user) 
 	}
 
 	struct track_list *list = NULL;
-	if(nwc) {
-		char request_url[strlen(GET_RQ_FULL) + strlen(user) + 256 + strlen(created_at_from_string) + 1];
-		if(cache_tracks->count) {
-			sprintf(request_url, GET_RQ_FULL"&created_at[from]=%s", user, created_at_from_string);
-		} else {
-			sprintf(request_url, GET_RQ_FULL, user);
+	char request_url[strlen(GET_RQ_FULL) + strlen(user) + 256 + strlen(created_at_from_string) + 1];
+	if(cache_tracks->count) {
+		sprintf(request_url, GET_RQ_FULL"&created_at[from]=%s", user, created_at_from_string);
+	} else {
+		sprintf(request_url, GET_RQ_FULL, user);
+	}
+
+	char *href = request_url;
+	do {
+		struct url *u = url_parse_string(href);
+		struct http_response *resp = http_request_get(nwc, u->request, u->host);
+		url_destroy(u);
+
+		// free any href, which is not the initial request url (strdup'd below, the initial request url is on stack)
+		if(href != request_url) {
+			free(href);
 		}
 
-		char *href = request_url;
-		do {
-			struct url *u = url_parse_string(href);
-			struct http_response *resp = http_request_get(nwc, u->request, u->host);
-			url_destroy(u);
+		// set href to NULL to allow proper termination of loop
+		href = NULL;
 
-			// free any href, which is not the initial request url (strdup'd below, the initial request url is on stack)
-			if(href != request_url) {
-				free(href);
-			}
+		if(!resp) { // check if communication succeeded (sc.com down / no network)
+			_err("communication failed");
 
-			// set href to NULL to allow proper termination of loop
-			href = NULL;
+			track_list_destroy(list, true);
+			list = NULL;
+		} else if(200 != resp->http_status) { // check HTTP-status code
+			_err("server returned unexpected http status code %i", resp->http_status);
+			_err("make sure the user you subscribed to is valid!");
 
-			if(!resp) { // check if communication succeeded (sc.com down / no network)
-				_err("communication failed");
+			track_list_destroy(list, true);
+			list = NULL;
+		} else {
+			struct track_list *next_part = parse_single_response(resp->body, &href);
 
-				track_list_destroy(list, true);
-				list = NULL;
-			} else if(200 != resp->http_status) { // check HTTP-status code
-				_err("server returned unexpected http status code %i", resp->http_status);
-				_err("make sure the user you subscribed to is valid!");
-
-				track_list_destroy(list, true);
-				list = NULL;
+			if(list) {
+				track_list_append(list, next_part);
 			} else {
-				struct track_list *next_part = parse_single_response(resp->body, &href);
-
-				if(list) {
-					track_list_append(list, next_part);
-				} else {
-					list = next_part;
-				}
+				list = next_part;
 			}
+		}
 
-			http_response_destroy(resp);
-		} while(href);
-	}
+		http_response_destroy(resp);
+	} while(href);
 
 	_log("%4zu/%4zu tracks from cache/soundcloud.com for %s", cache_tracks->count, list ? list->count : 0, user);
 

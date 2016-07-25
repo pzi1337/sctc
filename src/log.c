@@ -42,7 +42,7 @@ bool log_init(char *file) {
 	assert(!log_fh && "logging already initialized");
 
 	log_fh = fopen(file, "w");
-	if(!log_fh) {
+	if(NULL == log_fh) {
 		fprintf(stderr, "internal error: failed to open logfile '%s'\n", file);
 		return false;
 	}
